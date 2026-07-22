@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CCQ Pipeline v1.7 - Core/Relevant, Jargon, & Auto-Detect (Fixed)</title>
+    <title>CCQ Pipeline v1.9 - Dynamic Excel Taxonomy Integration</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
             --primary: #2c3e50;
@@ -60,6 +61,19 @@
         button.run-btn { background-color: var(--secondary); color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: bold;}
         button.run-btn:hover { background-color: #1f6391; }
 
+        /* SUMMARY DASHBOARD BAR */
+        .summary-bar {
+            display: flex; gap: 16px; margin-bottom: 30px; flex-wrap: wrap;
+        }
+        .summary-stat {
+            flex: 1 1 180px; background: linear-gradient(180deg, #ffffff 0%, #f8f9fb 100%);
+            border: 1px solid var(--border); border-top: 3px solid var(--primary);
+            border-radius: 8px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .summary-stat-value { font-size: 2rem; font-weight: 700; line-height: 1; color: var(--primary); }
+        .summary-stat-label { margin-top: 8px; font-size: 0.78rem; color: #7f8fa6; text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; line-height: 1.4; }
+        .summary-stat-sub { text-transform: none; letter-spacing: normal; font-weight: 400; color: #a4b0be; }
+
         /* UNIFIED DASHBOARD & TREE */
         .tree-container { margin-bottom: 40px; }
         .decision-card {
@@ -77,7 +91,6 @@
         .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; background: #eee; margin-right: 5px; }
         .risk-badge { background: var(--secondary); color: white; }
         
-        /* NEW BADGES */
         .core-badge { background: #e74c3c; color: white; }
         .relevant-badge { background: #7f8fa6; color: white; }
         
@@ -115,6 +128,8 @@
         /* Utility */
         .loading { display: none; padding: 20px; background: #f1f2f6; margin-bottom:20px; border-radius:4px; font-family: monospace;}
         .error { color: #e84118; margin-top: 10px; }
+        
+        .success-text { color: var(--success); font-weight: bold; font-size: 0.9rem; margin-top: -10px; margin-bottom: 15px; display: block;}
 
         @keyframes flash-highlight { 0% { outline: 3px solid #f39c12; background-color: rgba(243, 156, 18, 0.1); } 100% { outline: 3px solid transparent; background-color: transparent; } }
         .flash-turn { animation: flash-highlight 2s ease-out; }
@@ -123,8 +138,8 @@
 <body>
 
 <div class="container">
-    <h1>AHRQ Multi-Encounter Pipeline v1.7</h1>
-    <p style="margin-top:-15px; color:#7f8fa6; font-size:0.9rem;">Features: Core/Relevant Mapping, Jargon Scoring, Novel Risk Detection, Procedure Auto-Detect, Backend Persistence</p>
+    <h1>AHRQ Multi-Encounter Pipeline v1.9</h1>
+    <p style="margin-top:-15px; color:#7f8fa6; font-size:0.9rem;">Features: Grounded Checklists, Certainty Tracking, Smart Unlisted Risk Hiding.</p>
 
     <div class="nav-bar">
         <button class="nav-btn active" id="btn-new" onclick="switchTab('new')">Run Analysis</button>
@@ -135,15 +150,17 @@
     <!-- VIEW: NEW ANALYSIS -->
     <div id="view-new" class="view-section active">
         <div class="setup-box">
+            
+            <label><strong>0. Dynamic Taxonomy (Upload Excel File):</strong></label>
+            <input type="file" id="excelInput" accept=".xlsx, .xls">
+            <small style="display:block; margin-top:-10px; margin-bottom:5px; color:#7f8fa6;">Upload "Risk-Intervention Mapping.xlsx". (Optional: Fallbacks to hardcoded library if skipped).</small>
+            <span id="excelStatusMsg" class="success-text"></span>
+
             <label><strong>1. Google Gemini API Key:</strong></label>
             <input type="text" id="apiKey" placeholder="AIzaSy...">
             
             <label><strong>2. Select Procedure:</strong></label>
-            <select id="procedureSelect">
-                <option value="AUTO">🤖 Auto-Detect Procedure from Transcript</option>
-                <option value="PROC-SPINE-01">PROC-SPINE-01: Lumbar decompression with possible fusion</option>
-                <option value="PROC-PSY-01">PROC-PSY-01: Electroconvulsive Therapy (ECT)</option>
-            </select>
+            <select id="procedureSelect"></select>
 
             <label><strong>3. Patient Encounter Transcripts (Upload multiple .txt files):</strong></label>
             <input type="file" id="fileInput" accept=".txt" multiple>
@@ -169,89 +186,137 @@
 </div>
 
 <script>
-// --- INTERNAL TAXONOMY & COMPONENT DATABASE (Restored Full 13 Risks) ---
-const COMPONENTS_DB = {
+// --- DYNAMIC TAXONOMY & DB STATE ---
+let GLOBAL_RISK_DB = {}; 
+
+const FALLBACK_COMPONENTS_DB = {
     "COMP-ANES-01": [
-        { risk_item: "General anesthesia complications", category: "Medication, anesthesia, sedation complication", importance: "Core", description: "General anesthesia carries risks including adverse drug reaction..." },
-        { risk_item: "Major medical complication (MI, stroke, pneumonia, sepsis)", category: "Cardiopulmonary or vascular complication", importance: "Core", description: "Serious cardiopulmonary events including myocardial infarction, stroke..." },
-        { risk_item: "Intraoperative blood loss requiring transfusion", category: "Bleeding, hemorrhage, or blood-loss complication", importance: "Relevant", description: "Significant blood loss during surgery may necessitate blood transfusion..." },
-        { risk_item: "Venous thromboembolism (DVT / PE)", category: "Cardiopulmonary or vascular complication", importance: "Relevant", description: "Blood clots may form in the legs (DVT) and travel to the lungs (PE)..." },
-        { risk_item: "Death", category: "Death, life-threatening outcome, or catastrophic harm", importance: "Core", description: "Death is a rare but recognized outcome of surgery..." }
+        { risk_item: "General anesthesia complications", category: "Medication", importance: "Core", description: "General anesthesia carries risks including adverse drug reaction..." },
+        { risk_item: "Major medical complication (MI, stroke)", category: "Cardiopulmonary", importance: "Core", description: "Serious cardiopulmonary events including myocardial infarction..." }
     ],
     "COMP-SPIN-01": [
-        { risk_item: "Dural tear / CSF leak", category: "Tissue, organ, structural, or anatomic injury", importance: "Core", description: "Inadvertent tear of the dural membrane during decompression can cause cerebrospinal fluid leakage..." },
-        { risk_item: "Nerve root injury or new neurologic deficit", category: "Neurologic, cognitive, or sensory complication", importance: "Core", description: "Surgery may cause new or worsened radiculopathy, motor weakness..." },
-        { risk_item: "Cauda equina syndrome", category: "Neurologic, cognitive, or sensory complication", importance: "Core", description: "Rare compression or injury to the cauda equina can cause bowel/bladder dysfunction..." },
-        { risk_item: "Surgical site infection (superficial or deep)", category: "Infection, contamination, or transmissible exposure", importance: "Relevant", description: "Wound infection may require antibiotics and, if deep, surgical washout..." },
-        { risk_item: "Epidural hematoma", category: "Bleeding, hemorrhage, or blood-loss complication", importance: "Relevant", description: "Postoperative blood collection in the epidural space can compress neural structures..." },
-        { risk_item: "Failed back surgery syndrome / persistent symptoms", category: "Failure to achieve intended result", importance: "Core", description: "Pain, numbness, or functional limitation may persist or recur..." },
-        { risk_item: "Pseudarthrosis (nonunion)", category: "Device, implant, hardware, biologic, graft complication", importance: "Core", description: "Failure of the bone graft to fuse solidly can cause persistent pain..." },
-        { risk_item: "Hardware malposition, loosening, failure, or migration", category: "Device, implant, hardware, biologic, graft complication", importance: "Core", description: "Pedicle screws, rods, or cages may break, loosen, or migrate..." },
-        // Restored items:
-        { risk_item: "Adjacent segment disease", category: "Need for additional testing, treatment, or escalation of care", importance: "Relevant", description: "Accelerated degeneration of the disc levels above or below the fusion..." },
-        { risk_item: "Reoperation / revision surgery", category: "Need for additional testing, treatment, or escalation of care", importance: "Core", description: "Additional surgery may be needed for recurrent stenosis, instability..." },
-        { risk_item: "Functional limitation and prolonged recovery", category: "Functional limitation, disability, recovery burden", importance: "Relevant", description: "Recovery may involve weeks to months of activity restriction..." },
-        { risk_item: "Bone graft donor site pain or complication", category: "Pain, discomfort, symptom worsening", importance: "Relevant", description: "If autologous iliac crest bone graft is harvested, the donor site may cause persistent pain..." },
-        { risk_item: "Wound healing problems or scarring", category: "Scarring, cosmetic change, or body-image impact", importance: "Relevant", description: "Surgical incision may result in visible scarring, wound dehiscence..." }
+        { risk_item: "Dural tear / CSF leak", category: "Tissue", importance: "Core", description: "Inadvertent tear of the dural membrane..." }
     ],
-    "COMP-PSY-01": [
-        { risk_item: "Short-term memory loss / Cognitive changes", category: "Neurologic, cognitive, or sensory complication", importance: "Core", description: "Temporary loss of memories surrounding the time of the treatment." },
-        { risk_item: "Muscle soreness", category: "Pain, discomfort, symptom worsening", importance: "Relevant", description: "Mild muscle aches following the procedure due to induced contractions." }
+    "COMP-TMS-01": [
+        { risk_item: "Scalp discomfort or pain", category: "Side Effects", importance: "Core", description: "Mild to moderate pain at the site of stimulation." },
+        { risk_item: "Headache", category: "Side Effects", importance: "Relevant", description: "Temporary headache following treatment sessions." },
+        { risk_item: "Seizure", category: "Severe Risk", importance: "Core", description: "Very rare risk of seizure during treatment." }
+    ],
+    "COMP-ECT-01": [
+        { risk_item: "Memory loss (Retrograde or Anterograde)", category: "Cognitive", importance: "Core", description: "Potential for short-term or long-term memory disruption." },
+        { risk_item: "Cardiovascular complications", category: "Cardiopulmonary", importance: "Core", description: "Heart rate and blood pressure fluctuations." }
     ]
 };
-
-const PROCEDURES_DB = {
-    "PROC-SPINE-01": {
-        name: "Lumbar decompression with possible fusion",
-        components: ["COMP-ANES-01", "COMP-SPIN-01"] 
-    },
-    "PROC-PSY-01": {
-        name: "Electroconvulsive Therapy (ECT)",
-        components: ["COMP-ANES-01", "COMP-PSY-01"]  
-    }
+const FALLBACK_PROCEDURES_DB = {
+    "PROC-SPINE-01": { name: "Lumbar decompression with possible fusion", components: ["COMP-ANES-01", "COMP-SPIN-01"] },
+    "PROC-PSYCH-01": { name: "Transcranial Magnetic Stimulation (TMS)", components: ["COMP-TMS-01"] },
+    "PROC-PSYCH-02": { name: "Electroconvulsive Therapy (ECT)", components: ["COMP-ECT-01", "COMP-ANES-01"] }
 };
 
-function buildOntologyForProcedure(procedureID) {
-    const proc = PROCEDURES_DB[procedureID];
-    if(!proc) return [];
-    let combinedRisks = [];
-    proc.components.forEach(compId => {
-        if(COMPONENTS_DB[compId]) {
-            combinedRisks.push(...COMPONENTS_DB[compId]);
-        }
-    });
-    return combinedRisks;
-}
-
-// --- STATE MANAGEMENT ---
 document.addEventListener('DOMContentLoaded', () => {
     const savedKey = localStorage.getItem('gemini_api_key');
     if(savedKey) document.getElementById('apiKey').value = savedKey;
+    initFallbackDB();
 });
+
+function initFallbackDB() {
+    GLOBAL_RISK_DB = {};
+    Object.values(FALLBACK_PROCEDURES_DB).forEach(proc => {
+        let combinedRisks = [];
+        proc.components.forEach(compId => {
+            if(FALLBACK_COMPONENTS_DB[compId]) {
+                combinedRisks.push(...FALLBACK_COMPONENTS_DB[compId]);
+            }
+        });
+        GLOBAL_RISK_DB[proc.name] = combinedRisks;
+    });
+    updateProcedureDropdown();
+}
+
+function updateProcedureDropdown() {
+    const select = document.getElementById('procedureSelect');
+    select.innerHTML = '<option value="AUTO">🤖 Auto-Detect Procedure from Transcript</option>';
+    Object.keys(GLOBAL_RISK_DB).forEach(procName => {
+        const opt = document.createElement('option');
+        opt.value = procName;
+        opt.textContent = procName;
+        select.appendChild(opt);
+    });
+}
+
+// --- EXCEL PARSING LOGIC ---
+document.getElementById('excelInput').addEventListener('change', handleExcelUpload);
+
+function handleExcelUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const msgBox = document.getElementById('excelStatusMsg');
+    msgBox.style.color = "#f39c12";
+    msgBox.innerText = "Parsing Excel File...";
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        try {
+            const data = new Uint8Array(evt.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            
+            const targetSheetName = workbook.SheetNames.find(s => s.trim() === "Procedure-Risk Library") || workbook.SheetNames[0];
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[targetSheetName], { defval: "" });
+
+            let newRiskDB = {};
+            const getVal = (row, keyMatch) => {
+                const key = Object.keys(row).find(k => k.trim().toLowerCase() === keyMatch.toLowerCase());
+                return key ? row[key] : "";
+            };
+
+            rows.forEach(row => {
+                const procName = getVal(row, "intervention_name");
+                if (!procName) return; 
+
+                if (!newRiskDB[procName]) newRiskDB[procName] = [];
+                newRiskDB[procName].push({
+                    risk_item: getVal(row, "risk_item") || "Unknown Risk",
+                    category: getVal(row, "parent_category_name") || "Other",
+                    importance: getVal(row, "risk_list_tier") || "Relevant",
+                    description: getVal(row, "risk_description") || "No description provided"
+                });
+            });
+
+            if (Object.keys(newRiskDB).length > 0) {
+                GLOBAL_RISK_DB = newRiskDB;
+                updateProcedureDropdown();
+                msgBox.style.color = "var(--success)";
+                msgBox.innerText = `✅ Loaded Successfully! Mapped ${Object.keys(GLOBAL_RISK_DB).length} procedures.`;
+            } else {
+                msgBox.style.color = "var(--danger)";
+                msgBox.innerText = `❌ Error: Could not find required columns in sheet.`;
+            }
+        } catch (err) {
+            console.error(err);
+            msgBox.style.color = "var(--danger)";
+            msgBox.innerText = "❌ Error Parsing Excel: " + err.message;
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
 
 function switchTab(tab) {
     document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
-
     document.getElementById(`view-${tab}`).classList.add('active');
     const btn = document.getElementById(`btn-${tab}`);
     if (btn) btn.classList.add('active');
-
     if (tab === 'history') loadHistory();
 }
 
-// --- DATABASE FETCHING (RESTORED) ---
 async function loadHistory() {
     const container = document.getElementById('history-content');
     container.innerHTML = "Loading database...";
     try {
         const res = await fetch('/api/history');
         const data = await res.json();
-        
-        if (data.length === 0) {
-            container.innerHTML = "<p>No runs found in the database. Run a new analysis!</p>";
-            return;
-        }
+        if (data.length === 0) return container.innerHTML = "<p>No runs found.</p>";
 
         let html = `<table class="history-table"><thead><tr><th>ID</th><th>Encounters Merged</th><th>Run Date</th><th>Action</th></tr></thead><tbody>`;
         data.forEach(row => {
@@ -260,7 +325,7 @@ async function loadHistory() {
         html += `</tbody></table>`;
         container.innerHTML = html;
     } catch (e) {
-        container.innerHTML = `<span class="error">Failed to load history (Ensure backend is running): ${e.message}</span>`;
+        container.innerHTML = `<span class="error">Failed to load history: ${e.message}</span>`;
     }
 }
 
@@ -278,17 +343,13 @@ async function loadRun(id) {
 }
 
 // --- PROMPTS & SCHEMAS ---
-
 const AUTO_DETECT_SCHEMA = {
     "type": "object",
-    "properties": { "detected_procedure_id": { "type": "string" } },
-    "required": ["detected_procedure_id"]
+    "properties": { "detected_procedure_name": { "type": "string" } },
+    "required": ["detected_procedure_name"]
 };
 
-const BROAD_SEGMENTATION_PROMPT = `
-You are extracting the broad conversational boundaries of proposed procedures where consent is being obtained within this specific transcript.
-Extract the broad boundaries (start and end turns) of the discussion.
-`;
+const BROAD_SEGMENTATION_PROMPT = `Extract the broad conversational boundaries (start and end turns) of proposed procedures where consent is being obtained.`;
 
 const BROAD_SEGMENTATION_SCHEMA = {
   "type": "object",
@@ -311,16 +372,14 @@ const BROAD_SEGMENTATION_SCHEMA = {
   }
 };
 
-const RELEVANCE_FILTERING_PROMPT = `
-Identify the exact turn indices that are RELEVANT to the discussion of the procedure and its risks. Output an array of integers.
-`;
-
+const RELEVANCE_FILTERING_PROMPT = `Identify the exact turn indices that are RELEVANT to the discussion of the procedure and its risks. Output an array of integers.`;
 const RELEVANCE_FILTERING_SCHEMA = {
   "type": "object",
   "properties": { "relevant_turn_indices": { "type": "array", "items": { "type": "integer" } } },
   "required": ["relevant_turn_indices"]
 };
 
+// UPDATED: Re-added Certainty Language and Unlisted Risk Procedure Association
 function getClassificationPrompt(ontologyText, procedureName, fileName) {
     return `
     You are evaluating a single transcript ("${fileName}") which is part of a patient's timeline for the procedure "${procedureName}".
@@ -334,27 +393,36 @@ function getClassificationPrompt(ontologyText, procedureName, fileName) {
     1. For EVERY risk in the ontology above, determine if the clinician mentioned it in THIS transcript.
        - Status MUST be exactly "Covered" (explicitly explained), "Partially Covered" (briefly mentioned), or "Not Mentioned".
        - Level of Detail: Explain how the provider described it.
-       - Jargon Level: Rate the terminology used by the provider for this risk as "Low (Layman)", "Medium", or "High (Clinical/Heavy)". Use "N/A" if Not Mentioned.
+       - Jargon Level: "Low (Layman)", "Medium", or "High (Clinical/Heavy)".
+       - Certainty Language: Extract any language used by the provider to describe the likelihood, frequency, or certainty of this risk occurring (e.g., "1 in 100", "very rare"). Use "N/A" if none.
        - Quote: Extract the EXACT quote. Put "N/A" if Not Mentioned.
-       - Turn Indices: Provide an array of the exact integer turn numbers where this risk was discussed.
+       - Turn Indices: Array of exact turn numbers.
     2. Identify any ADDITIONAL risks discussed by the clinician that are NOT listed in the ontology above.
+       - For each unlisted risk, provide the "predicted_procedure_association" by guessing which specific procedure this risk belongs to. If it belongs to the chosen procedure being evaluated, output exactly "${procedureName}". If it belongs to an unchosen alternative discussed in the text, output that alternative's name.
+    3. For the AHRQ Consent Checklist, determine if each element was met. YOU MUST ground every checklist element in transcript evidence by providing the exact quote and turn indices. Pay special attention to grounding "Alternatives Discussed", "Voluntariness & Risk of Non-Treatment", and "Questions Invited" (i.e. whether the clinician explicitly invited or asked if the patient had any questions).
     `;
 }
 
+// UPDATED: Added certainty_language and predicted_procedure_association to schemas
 const CLASSIFICATION_SCHEMA = {
   "type": "object",
   "properties": {
     "ahrq_consent_checklist": {
       "type": "object",
       "properties": {
-        "purpose_procedures_explained": { "type": "boolean" },
-        "risks_discomforts_explained": { "type": "boolean" },
-        "benefits_compensation_explained": { "type": "boolean" },
-        "voluntariness_withdrawal_explained": { "type": "boolean" },
-        "privacy_confidentiality_explained": { "type": "boolean" },
-        "teach_back_used": { "type": "boolean" }
+        "purpose_procedures_explained": { "type": "object", "properties": { "met": {"type": "boolean"}, "quote": {"type": "string"}, "turn_indices": {"type": "array", "items": {"type": "integer"}} }, "required": ["met", "quote", "turn_indices"] },
+        "risks_discomforts_explained": { "type": "object", "properties": { "met": {"type": "boolean"}, "quote": {"type": "string"}, "turn_indices": {"type": "array", "items": {"type": "integer"}} }, "required": ["met", "quote", "turn_indices"] },
+        "benefits_compensation_explained": { "type": "object", "properties": { "met": {"type": "boolean"}, "quote": {"type": "string"}, "turn_indices": {"type": "array", "items": {"type": "integer"}} }, "required": ["met", "quote", "turn_indices"] },
+        "alternatives_discussed": { "type": "object", "properties": { "met": {"type": "boolean"}, "quote": {"type": "string"}, "turn_indices": {"type": "array", "items": {"type": "integer"}} }, "required": ["met", "quote", "turn_indices"] },
+        "patient_preferences_integrated": { "type": "object", "properties": { "met": {"type": "boolean"}, "quote": {"type": "string"}, "turn_indices": {"type": "array", "items": {"type": "integer"}} }, "required": ["met", "quote", "turn_indices"] },
+        "voluntariness_nontreatment_explained": { "type": "object", "properties": { "met": {"type": "boolean"}, "quote": {"type": "string"}, "turn_indices": {"type": "array", "items": {"type": "integer"}} }, "required": ["met", "quote", "turn_indices"] },
+        "teach_back_used": { "type": "object", "properties": { "met": {"type": "boolean"}, "quote": {"type": "string"}, "turn_indices": {"type": "array", "items": {"type": "integer"}} }, "required": ["met", "quote", "turn_indices"] },
+        "questions_invited": { "type": "object", "properties": { "met": {"type": "boolean"}, "quote": {"type": "string"}, "turn_indices": {"type": "array", "items": {"type": "integer"}} }, "required": ["met", "quote", "turn_indices"] }
       },
-      "required": ["purpose_procedures_explained", "risks_discomforts_explained", "benefits_compensation_explained", "voluntariness_withdrawal_explained", "privacy_confidentiality_explained", "teach_back_used"]
+      "required": [
+        "purpose_procedures_explained", "risks_discomforts_explained", "benefits_compensation_explained", 
+        "alternatives_discussed", "patient_preferences_integrated", "voluntariness_nontreatment_explained", "teach_back_used", "questions_invited"
+      ]
     },
     "ontology_risk_assessment": {
       "type": "array",
@@ -365,10 +433,11 @@ const CLASSIFICATION_SCHEMA = {
           "status": { "type": "string", "enum": ["Covered", "Partially Covered", "Not Mentioned"] },
           "level_of_detail": { "type": "string" },
           "jargon_level": { "type": "string", "enum": ["Low (Layman)", "Medium", "High (Clinical/Heavy)", "N/A"] },
+          "certainty_language": { "type": "string" },
           "quote": { "type": "string" },
           "turn_indices": { "type": "array", "items": { "type": "integer" } }
         },
-        "required":["risk_item", "status", "level_of_detail", "jargon_level", "quote", "turn_indices"]
+        "required":["risk_item", "status", "level_of_detail", "jargon_level", "certainty_language", "quote", "turn_indices"]
       }
     },
     "additional_risks_discussed": {
@@ -377,23 +446,27 @@ const CLASSIFICATION_SCHEMA = {
         "type": "object",
         "properties": {
           "risk_name": { "type": "string" },
+          "predicted_procedure_association": { "type": "string" },
           "quote": { "type": "string" },
           "turn_indices": { "type": "array", "items": { "type": "integer" } }
         },
-        "required": ["risk_name", "quote", "turn_indices"]
+        "required": ["risk_name", "predicted_procedure_association", "quote", "turn_indices"]
       }
     }
   }
 };
 
-const REGION_COLORS = [
-    { bg: '#e8f4f8', border: '#3498db', tag: '#2980b9' }
-];
+const REGION_COLORS = [{ bg: '#e8f4f8', border: '#3498db', tag: '#2980b9' }];
 
 function logStatus(msg) {
     const log = document.getElementById('statusLog');
     log.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
     log.scrollTop = log.scrollHeight;
+}
+
+function escAttr(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function scrollToTurn(turnIndex) {
@@ -422,23 +495,10 @@ function parseMultipleTranscriptsToTurns(fileDataArray) {
             const colonMatch = clean.match(speakerColonRegex);
             if (colonMatch && colonMatch[1].length < 30) {
                 if (currentTurn) globalTurns.push(currentTurn);
-                currentTurn = { 
-                    index: globalIndex++, 
-                    encounter: fileObj.name, 
-                    speaker_line: colonMatch[1].toUpperCase(), 
-                    text_lines: [colonMatch[2] ? colonMatch[2] : []] 
-                };
+                currentTurn = { index: globalIndex++, encounter: fileObj.name, speaker_line: colonMatch[1].toUpperCase(), text_lines: [colonMatch[2] ? colonMatch[2] : []] };
             } else {
-                if (currentTurn) {
-                    currentTurn.text_lines.push(clean);
-                } else {
-                    currentTurn = { 
-                        index: globalIndex++, 
-                        encounter: fileObj.name, 
-                        speaker_line: "METADATA", 
-                        text_lines: [clean] 
-                    };
-                }
+                if (currentTurn) currentTurn.text_lines.push(clean);
+                else currentTurn = { index: globalIndex++, encounter: fileObj.name, speaker_line: "METADATA", text_lines: [clean] };
             }
         });
         if (currentTurn) globalTurns.push(currentTurn);
@@ -447,7 +507,6 @@ function parseMultipleTranscriptsToTurns(fileDataArray) {
 }
 
 async function callGemini(key, systemPrompt, schema, userContent) {
-    // RESTORED: gemini-3.1-pro-preview endpoint
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent?key=${key}`;
     const payload = {
         system_instruction: { parts: [{ text: "You are a clinical research compliance expert focusing on AHRQ Informed Consent." }] },
@@ -457,23 +516,22 @@ async function callGemini(key, systemPrompt, schema, userContent) {
 
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!res.ok) throw new Error(await res.text());
-    
     const data = await res.json();
-    const rawString = data.candidates[0].content.parts[0].text;
-    return JSON.parse(rawString);
+    return JSON.parse(data.candidates[0].content.parts[0].text);
 }
 
 // --- RUN PIPELINE ---
 async function runAnalysis() {
     const fileInput = document.getElementById('fileInput');
     const apiKey = document.getElementById('apiKey').value;
-    let procId = document.getElementById('procedureSelect').value;
+    let procName = document.getElementById('procedureSelect').value;
     const loader = document.getElementById('loader');
     const errBox = document.getElementById('errorMsg');
     
     errBox.innerText = ""; document.getElementById('statusLog').innerHTML = "";
-    if (!apiKey) { errBox.innerText = "API Key required"; return; }
-    if (!fileInput.files.length) { errBox.innerText = "At least one transcript file required"; return; }
+    if (!apiKey) return errBox.innerText = "API Key required";
+    if (!fileInput.files.length) return errBox.innerText = "At least one transcript file required";
+    if (Object.keys(GLOBAL_RISK_DB).length === 0) return errBox.innerText = "Taxonomy Database is empty.";
 
     localStorage.setItem('gemini_api_key', apiKey);
     loader.style.display = "block";
@@ -489,80 +547,62 @@ async function runAnalysis() {
         logStatus(`Extracted ${files.length} encounter(s). Building global timeline...`);
         const globalTurns = parseMultipleTranscriptsToTurns(fileDataArray);
         
-        // AUTO-DETECT LOGIC
         let autoDetectWarningMsg = null;
-        if(procId === "AUTO") {
-            logStatus("Step 0: Auto-detecting procedure from transcript early context...");
-            // Analyzes the first 40 turns to detect procedure
+        if(procName === "AUTO") {
+            logStatus("Step 0: Auto-detecting procedure...");
             const sampleText = globalTurns.slice(0, 40).map(t => `[${t.speaker_line}] ${t.text_lines.join(' ')}`).join('\n');
-            const procMapping = Object.keys(PROCEDURES_DB).map(k => `- ${k}: ${PROCEDURES_DB[k].name}`).join('\n');
+            const procMapping = Object.keys(GLOBAL_RISK_DB).map(k => `- ${k}`).join('\n');
+            const autoPrompt = `Determine the procedure being discussed. Choose ONLY from:\n${procMapping}\n\nSnippet:\n${sampleText}`;
             
-            const autoPrompt = `Analyze the early turns of this transcript and determine which procedure is being discussed. Choose ONLY from the provided IDs.\n\nOptions:\n${procMapping}\n\nTranscript Snippet:\n${sampleText}`;
+            const autoData = await callGemini(apiKey, autoPrompt, AUTO_DETECT_SCHEMA, "Determine procedure name.");
+            procName = autoData.detected_procedure_name;
             
-            const autoData = await callGemini(apiKey, autoPrompt, AUTO_DETECT_SCHEMA, "Determine the ID.");
-            procId = autoData.detected_procedure_id;
-            
-            if(!PROCEDURES_DB[procId]) {
-                 autoDetectWarningMsg = `⚠️ Auto-Detect failed. LLM returned unrecognized ID: "${procId}". The system has defaulted to evaluating against PROC-SPINE-01. Please verify if this ontology is correct.`;
+            if(!GLOBAL_RISK_DB[procName]) {
+                 const fallbackKey = Object.keys(GLOBAL_RISK_DB)[0];
+                 autoDetectWarningMsg = `⚠️ Auto-Detect returned unrecognized procedure: "${procName}". Defaulting to: "${fallbackKey}".`;
                  logStatus(autoDetectWarningMsg);
-                 procId = "PROC-SPINE-01";
-            } else {
-                 logStatus(`SUCCESS: Auto-detected procedure: ${PROCEDURES_DB[procId].name}`);
-            }
+                 procName = fallbackKey;
+            } else logStatus(`SUCCESS: Auto-detected procedure: ${procName}`);
         }
 
-        const procDetails = PROCEDURES_DB[procId];
-        const ontologyObj = buildOntologyForProcedure(procId);
-        
-        const ontologyText = ontologyObj.map((r) => 
-            `- ${r.risk_item} (Cat: ${r.category})\n  Desc: ${r.description}`
-        ).join("\n");
+        const ontologyObj = GLOBAL_RISK_DB[procName];
+        const ontologyText = ontologyObj.map((r) => `- ${r.risk_item} (Cat: ${r.category})\n  Desc: ${r.description}`).join("\n");
 
         const masterAssessment = {
             problem_area: "Combined Encounters",
-            summary: procDetails.name,
+            summary: procName,
             decision_type: "Patient Timeline Analysis",
             colorTheme: REGION_COLORS[0],
-            customProcedureName: procDetails.name,
-            autoDetectWarning: autoDetectWarningMsg, // Store warning if triggered
+            customProcedureName: procName,
+            autoDetectWarning: autoDetectWarningMsg, 
             ahrq_consent_checklist: {
-                purpose_procedures_explained: false,
-                risks_discomforts_explained: false,
-                benefits_compensation_explained: false,
-                voluntariness_withdrawal_explained: false,
-                privacy_confidentiality_explained: false,
-                teach_back_used: false
+                purpose_procedures_explained: { met: false, quotes: [], turn_indices: [] },
+                risks_discomforts_explained: { met: false, quotes: [], turn_indices: [] },
+                benefits_compensation_explained: { met: false, quotes: [], turn_indices: [] },
+                alternatives_discussed: { met: false, quotes: [], turn_indices: [] },
+                patient_preferences_integrated: { met: false, quotes: [], turn_indices: [] },
+                voluntariness_nontreatment_explained: { met: false, quotes: [], turn_indices: [] },
+                teach_back_used: { met: false, quotes: [], turn_indices: [] },
+                questions_invited: { met: false, quotes: [], turn_indices: [] }
             },
             ontology_risk_assessment: ontologyObj.map(r => ({
-                risk_item: r.risk_item,
-                importance: r.importance,
-                status: "Not Mentioned",
-                level_of_detail: [],
-                jargon_level: [],
-                quote: [],
-                turn_indices: [],
-                files: []
+                risk_item: r.risk_item, importance: r.importance, status: "Not Mentioned",
+                level_of_detail: [], jargon_level: [], certainty_language: [], quote: [], turn_indices: [], files: []
             })),
-            additional_risks_discussed: [],
+            additional_risks_discussed: [], 
             relevant_turn_indices: []
         };
 
-        // Process EACH FILE INDEPENDENTLY
         for (let i = 0; i < files.length; i++) {
             const fName = files[i].name;
             logStatus(`--- Evaluating Transcript: ${fName} ---`);
-            
             const localTurns = globalTurns.filter(t => t.encounter === fName);
             const localTranscriptText = localTurns.map(t => `[TURN ${t.index}] ${t.speaker_line}\n${t.text_lines.join('\n')}\n`).join('\n');
 
-            logStatus(`Step 1/3: Identifying Consent Discussions in ${fName}...`);
             const broadData = await callGemini(apiKey, BROAD_SEGMENTATION_PROMPT, BROAD_SEGMENTATION_SCHEMA, localTranscriptText);
             const decisions = broadData.decisions || [];
             
-            if (decisions.length === 0) {
-                logStatus(`No consent discussions found in ${fName}. Skipping.`);
-                continue;
-            }
+            if (decisions.length === 0) continue;
 
             for (let d = 0; d < decisions.length; d++) {
                 const reg = decisions[d];
@@ -572,7 +612,6 @@ async function runAnalysis() {
                     if (turnObj) chunkText += `[TURN ${j}] ${turnObj.speaker_line}\n${turnObj.text_lines.join('\n')}\n\n`;
                 }
 
-                logStatus(`Step 2/3: Filtering irrelevant noise in ${fName}...`);
                 const filterPromptStr = `Procedure: ${reg.summary}\n\nTranscript Chunk:\n${chunkText}`;
                 const filterData = await callGemini(apiKey, RELEVANCE_FILTERING_PROMPT, RELEVANCE_FILTERING_SCHEMA, filterPromptStr);
                 const validIndices = (filterData.relevant_turn_indices || []).sort((a,b) => a-b);
@@ -584,13 +623,21 @@ async function runAnalysis() {
                     if (turnObj) filteredTranscriptText += `[TURN ${idx}] ${turnObj.speaker_line}\n${turnObj.text_lines.join('\n')}\n\n`;
                 });
 
-                logStatus(`Step 3/3: Classifying risks for ${fName} (Core, Jargon, & Unlisted)...`);
-                const dynamicPrompt = getClassificationPrompt(ontologyText, procDetails.name, fName);
+                logStatus(`Step 3/3: Classifying Risks and Checklist for ${fName}...`);
+                const dynamicPrompt = getClassificationPrompt(ontologyText, procName, fName);
                 const classData = await callGemini(apiKey, dynamicPrompt, CLASSIFICATION_SCHEMA, filteredTranscriptText);
 
-                // --- MERGE RESULTS ---
                 for (let key in classData.ahrq_consent_checklist) {
-                    if (classData.ahrq_consent_checklist[key]) masterAssessment.ahrq_consent_checklist[key] = true;
+                    const item = classData.ahrq_consent_checklist[key];
+                    if (item && item.met && masterAssessment.ahrq_consent_checklist[key]) {
+                        masterAssessment.ahrq_consent_checklist[key].met = true;
+                        if (item.quote && item.quote !== "N/A") {
+                            masterAssessment.ahrq_consent_checklist[key].quotes.push(`<strong>[${fName}]</strong> "${item.quote}"`);
+                        }
+                        if (item.turn_indices && item.turn_indices.length > 0) {
+                            masterAssessment.ahrq_consent_checklist[key].turn_indices.push(...item.turn_indices);
+                        }
+                    }
                 }
 
                 classData.ontology_risk_assessment.forEach(fileRisk => {
@@ -600,46 +647,34 @@ async function runAnalysis() {
                         else if (masterRisk.status === "Not Mentioned") masterRisk.status = "Partially Covered";
                         
                         if (!masterRisk.files.includes(fName)) masterRisk.files.push(fName);
-                        
-                        if (fileRisk.level_of_detail && fileRisk.level_of_detail !== "N/A" && fileRisk.level_of_detail !== "Not Mentioned") {
-                            masterRisk.level_of_detail.push(`<strong>[${fName}]</strong> ${fileRisk.level_of_detail}`);
-                        }
-                        if (fileRisk.jargon_level && fileRisk.jargon_level !== "N/A") {
-                            masterRisk.jargon_level.push(`<strong>[${fName}]</strong> ${fileRisk.jargon_level}`);
-                        }
-                        if (fileRisk.quote && fileRisk.quote !== "N/A" && fileRisk.quote !== "Not Mentioned") {
-                            masterRisk.quote.push(`<strong>[${fName}]</strong> "${fileRisk.quote}"`);
-                        }
-                        if (fileRisk.turn_indices && fileRisk.turn_indices.length > 0) {
-                            masterRisk.turn_indices.push(...fileRisk.turn_indices);
-                        }
+                        if (fileRisk.level_of_detail && fileRisk.level_of_detail !== "N/A" && fileRisk.level_of_detail !== "Not Mentioned") masterRisk.level_of_detail.push(`<strong>[${fName}]</strong> ${fileRisk.level_of_detail}`);
+                        if (fileRisk.jargon_level && fileRisk.jargon_level !== "N/A") masterRisk.jargon_level.push(`<strong>[${fName}]</strong> ${fileRisk.jargon_level}`);
+                        if (fileRisk.certainty_language && fileRisk.certainty_language !== "N/A") masterRisk.certainty_language.push(`<strong>[${fName}]</strong> ${fileRisk.certainty_language}`);
+                        if (fileRisk.quote && fileRisk.quote !== "N/A" && fileRisk.quote !== "Not Mentioned") masterRisk.quote.push(`<strong>[${fName}]</strong> "${fileRisk.quote}"`);
+                        if (fileRisk.turn_indices && fileRisk.turn_indices.length > 0) masterRisk.turn_indices.push(...fileRisk.turn_indices);
                     }
                 });
 
                 if (classData.additional_risks_discussed) {
                     classData.additional_risks_discussed.forEach(ar => {
-                        masterAssessment.additional_risks_discussed.push({
-                            risk_name: ar.risk_name,
-                            quote: ar.quote,
-                            file: fName,
-                            turn_indices: ar.turn_indices || []
+                        masterAssessment.additional_risks_discussed.push({ 
+                            risk_name: ar.risk_name, 
+                            predicted_procedure_association: ar.predicted_procedure_association,
+                            quote: ar.quote, 
+                            file: fName, 
+                            turn_indices: ar.turn_indices || [] 
                         });
                     });
                 }
             }
         }
 
-        // RESTORED: Backend saving call
         logStatus("Analysis Complete. Attempting to save to local database...");
         try {
             await fetch('/api/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    filename: files.map(f=>f.name).join(' + '),
-                    turns: globalTurns,
-                    regions: [masterAssessment]
-                })
+                body: JSON.stringify({ filename: files.map(f=>f.name).join(' + '), turns: globalTurns, regions: [masterAssessment] })
             });
             logStatus("Saved to backend successfully.");
         } catch (e) {
@@ -661,95 +696,106 @@ async function runAnalysis() {
 // --- UI RENDERING ---
 function renderTreeNode(node) {
     const cl = node.ahrq_consent_checklist || {};
-    const risks = node.ontology_risk_assessment || [];
-    const additionalRisks = node.additional_risks_discussed || [];
+    let rawRisks = node.ontology_risk_assessment || [];
+    let additionalRisks = node.additional_risks_discussed || [];
     
-    // Core logic stats & Badges
-    const coreRisks = risks.filter(r => r.importance === "Core");
-    const coreCoveredCount = coreRisks.filter(r => r.status === "Covered").length;
-    const totalCoveredCount = risks.filter(r => r.status === "Covered").length;
+    const sortedRisks = rawRisks.sort((a, b) => {
+        if (a.importance === "Core" && b.importance !== "Core") return -1;
+        if (b.importance === "Core" && a.importance !== "Core") return 1;
+        if (a.importance === "Relevant" && b.importance !== "Relevant") return -1;
+        if (b.importance === "Relevant" && a.importance !== "Relevant") return 1;
+        return 0;
+    });
     
-    const coreBadge = `<span class="badge risk-badge" style="background:#e74c3c; margin-bottom: 5px;">${coreCoveredCount}/${coreRisks.length} Core Risks Fully Covered</span>`;
-    const totalBadge = `<span class="badge risk-badge" style="background:#34495e; margin-bottom: 5px;">${totalCoveredCount}/${risks.length} Total Expected Risks Fully Covered</span>`;
+    const coreRisks = sortedRisks.filter(r => r.importance === "Core");
+    const coreBadge = `<span class="badge risk-badge" style="background:#e74c3c; margin-bottom: 5px;">${coreRisks.filter(r => r.status === "Covered").length}/${coreRisks.length} Core Risks Fully Covered</span>`;
+    const totalBadge = `<span class="badge risk-badge" style="background:#34495e; margin-bottom: 5px;">${sortedRisks.filter(r => r.status === "Covered").length}/${sortedRisks.length} Total Expected Risks Fully Covered</span>`;
             
-    const firstTurnIndex = (node.relevant_turn_indices && node.relevant_turn_indices.length > 0) ? node.relevant_turn_indices[0] : null;
+    let warningHtml = node.autoDetectWarning ? `<div style="background-color: #fff3cd; color: #856404; padding: 12px; border: 1px solid #ffeeba; border-radius: 4px; margin-bottom: 15px; font-weight: bold;">${node.autoDetectWarning}</div>` : '';
 
-    let warningHtml = '';
-    if (node.autoDetectWarning) {
-        warningHtml = `<div style="background-color: #fff3cd; color: #856404; padding: 12px; border: 1px solid #ffeeba; border-radius: 4px; margin-bottom: 15px; font-weight: bold; font-size: 0.95rem;">${node.autoDetectWarning}</div>`;
-    }
-
-    // Expected Risks Table
     let risksHtml = `
         <table class="risk-table">
             <thead><tr>
-                <th style="width: 25%;">Expected Risk Item</th>
-                <th>Status</th>
-                <th>Jargon Level</th>
-                <th>Encounter(s)</th>
-                <th style="width: 25%;">How it was described</th>
-                <th style="width: 20%;">Extracted Quote & Turns</th>
+                <th style="width: 20%;">Expected Risk Item</th><th>Status</th><th>Certainty</th><th>Jargon Level</th><th>Encounter(s)</th><th style="width: 20%;">How it was described</th><th style="width: 20%;">Extracted Quote & Turns</th>
             </tr></thead>
             <tbody>
-                ${risks.map(r => {
-                    let statusClass = "status-Not";
-                    if(r.status === "Covered") statusClass = "status-Covered";
-                    if(r.status === "Partially Covered") statusClass = "status-Partially";
-                    
-                    let impBadge = r.importance === "Core" ? `<span class="badge core-badge">Core</span>` : `<span class="badge relevant-badge">Relevant</span>`;
-
-                    let encounterBadges = (r.files && r.files.length > 0)
-                        ? r.files.map(f => `<div class="encounter-badge">${f}</div>`).join('')
-                        : '-';
-
-                    let detailHtml = (r.level_of_detail && r.level_of_detail.length > 0)
-                        ? r.level_of_detail.join('<br><br>') : '<span style="color:#95a5a6; font-style:italic;">N/A</span>';
-
-                    let jargonHtml = (r.jargon_level && r.jargon_level.length > 0)
-                        ? r.jargon_level.join('<br>') : '<span style="color:#95a5a6;">-</span>';
-
-                    let quoteHtml = (r.quote && r.quote.length > 0)
-                        ? r.quote.join('<br><br>') : '<span style="color:#95a5a6; font-style:italic;">N/A</span>';
-
-                    let turnLinks = (r.turn_indices && r.turn_indices.length > 0)
-                        ? r.turn_indices.map(t => `<span class="turn-link" onclick="scrollToTurn(${t})" title="Jump to Turn ${t}">T${t}</span>`).join(' ')
-                        : '';
-
+                ${sortedRisks.map(r => {
+                    let statusClass = r.status === "Covered" ? "status-Covered" : (r.status === "Partially Covered" ? "status-Partially" : "status-Not");
+                    let impBadge = r.importance === "Core" ? `<span class="badge core-badge">Core</span>` : `<span class="badge relevant-badge">${r.importance}</span>`;
                     return `
                     <tr>
                         <td><strong>${r.risk_item}</strong><br>${impBadge}</td>
                         <td class="${statusClass}">${r.status}</td>
-                        <td style="font-size:0.8rem;">${jargonHtml}</td>
-                        <td>${encounterBadges}</td>
-                        <td style="font-size: 0.85rem; color:#555;">${detailHtml}</td>
-                        <td style="font-style:italic; font-size: 0.85rem; color:#7f8fa6;">${quoteHtml}<br><br>${turnLinks}</td>
-                    </tr>
-                    `
+                        <td style="font-size:0.8rem; color:#d35400;">${(r.certainty_language && r.certainty_language.length > 0) ? r.certainty_language.join('<br>') : '<span style="color:#95a5a6;">-</span>'}</td>
+                        <td style="font-size:0.8rem;">${(r.jargon_level && r.jargon_level.length > 0) ? r.jargon_level.join('<br>') : '<span style="color:#95a5a6;">-</span>'}</td>
+                        <td>${(r.files && r.files.length > 0) ? r.files.map(f => `<div class="encounter-badge">${f}</div>`).join('') : '-'}</td>
+                        <td style="font-size: 0.85rem; color:#555;">${(r.level_of_detail && r.level_of_detail.length > 0) ? r.level_of_detail.join('<br><br>') : '<span style="color:#95a5a6; font-style:italic;">N/A</span>'}</td>
+                        <td style="font-style:italic; font-size: 0.85rem; color:#7f8fa6;">
+                            ${(r.quote && r.quote.length > 0) ? r.quote.join('<br><br>') : '<span style="color:#95a5a6; font-style:italic;">N/A</span>'}<br><br>
+                            ${(r.turn_indices && r.turn_indices.length > 0) ? r.turn_indices.map(t => `<span class="turn-link" onclick="scrollToTurn(${t})">T${t}</span>`).join(' ') : ''}
+                        </td>
+                    </tr>`
                 }).join('')}
             </tbody>
         </table>
     `;
 
-    // Novel/Unlisted Risks Table
+    const checklistMap = {
+        purpose_procedures_explained: "Purpose & Procedures",
+        risks_discomforts_explained: "Risks Overview",
+        benefits_compensation_explained: "Benefits",
+        alternatives_discussed: "Alternatives Discussed",
+        patient_preferences_integrated: "Patient Preferences Integrated",
+        voluntariness_nontreatment_explained: "Voluntariness & Risk of Non-treatment",
+        teach_back_used: "Teach-Back Used",
+        questions_invited: "Questions Invited"
+    };
+
+    let checklistHtml = `
+        <table class="risk-table" style="margin-top: 10px;">
+            <thead><tr>
+                <th style="width: 25%;">Core Consent Element</th><th style="width: 15%;">Status</th><th>Extracted Transcript Evidence & Turns</th>
+            </tr></thead>
+            <tbody>
+    `;
+    for (let key in checklistMap) {
+        const itemData = cl[key];
+        if (!itemData) continue;
+        const statusIcon = itemData.met ? `<span style="color:var(--success); font-weight:bold;">✅ Met</span>` : `<span style="color:#e74c3c; font-weight:bold;">❌ Not Met</span>`;
+        const quotesStr = (itemData.quotes && itemData.quotes.length > 0) ? itemData.quotes.join('<br><br>') : '<span style="color:#95a5a6; font-style:italic;">N/A</span>';
+        const turnLinks = (itemData.turn_indices && itemData.turn_indices.length > 0) ? itemData.turn_indices.map(t => `<span class="turn-link" onclick="scrollToTurn(${t})">T${t}</span>`).join(' ') : '';
+        
+        checklistHtml += `
+            <tr>
+                <td><strong>${checklistMap[key]}</strong></td>
+                <td>${statusIcon}</td>
+                <td style="font-style:italic; font-size: 0.85rem; color:#555;">${quotesStr}<br><br>${turnLinks}</td>
+            </tr>
+        `;
+    }
+    checklistHtml += `</tbody></table>`;
+    
+    // UPDATED: Filter Unlisted Risks to only show ones relevant to chosen procedure
+    const visibleAdditionalRisks = additionalRisks.filter(ar => 
+        ar.predicted_procedure_association && 
+        ar.predicted_procedure_association.toLowerCase() === node.customProcedureName.toLowerCase()
+    );
+
     let additionalRisksHtml = '';
-    if (additionalRisks.length > 0) {
+    if (visibleAdditionalRisks.length > 0) {
         additionalRisksHtml = `
-            <div class="map-options" style="background: #fff; border: 1px solid #dfe4ea; margin-top: 20px;">
-                <strong style="font-size: 0.9rem; color: #d35400;">Unlisted / Additional Risks Mentioned (Not in Standard DB)</strong>
+            <div class="map-options" style="background: #fff; border: 1px solid #dfe4ea; margin-top: 15px;">
+                <strong style="font-size: 0.9rem; color: #d35400;">Unlisted / Additional Risks Mentioned (Specific to ${node.customProcedureName})</strong>
                 <table class="risk-table" style="margin-top: 10px;">
                     <thead><tr>
-                        <th style="width: 25%;">Mentioned Risk</th>
-                        <th>Encounter File</th>
-                        <th style="width: 50%;">Quote & Turns</th>
+                        <th style="width: 25%;">Mentioned Risk</th><th>Encounter File</th><th style="width: 50%;">Quote & Turns</th>
                     </tr></thead>
                     <tbody>
-                        ${additionalRisks.map(ar => {
-                            let turnLinks = (ar.turn_indices && ar.turn_indices.length > 0)
-                                ? ar.turn_indices.map(t => `<span class="turn-link" onclick="scrollToTurn(${t})">T${t}</span>`).join(' ')
-                                : '';
+                        ${visibleAdditionalRisks.map(ar => {
+                            let turnLinks = (ar.turn_indices && ar.turn_indices.length > 0) ? ar.turn_indices.map(t => `<span class="turn-link" onclick="scrollToTurn(${t})">T${t}</span>`).join(' ') : '';
                             return `
                             <tr>
-                                <td><strong>${ar.risk_name}</strong></td>
+                                <td><strong>${ar.risk_name}</strong><br><span class="badge" style="background:#f39c12; color:white;">Additional</span></td>
                                 <td><div class="encounter-badge">${ar.file}</div></td>
                                 <td style="font-style:italic; font-size: 0.85rem; color:#555;">"${ar.quote}"<br><br>${turnLinks}</td>
                             </tr>
@@ -761,21 +807,10 @@ function renderTreeNode(node) {
         `;
     }
 
-    const checklistHtml = `
-        <ul style="margin: 5px 0 0 0; padding-left: 20px; font-size: 0.9rem; display: flex; flex-wrap: wrap; gap: 15px; list-style-type: none;">
-            <li style="color: ${cl.purpose_procedures_explained ? 'green':'#e74c3c'}">${cl.purpose_procedures_explained ? '✅':'❌'} Purpose & Procedures</li>
-            <li style="color: ${cl.risks_discomforts_explained ? 'green':'#e74c3c'}">${cl.risks_discomforts_explained ? '✅':'❌'} Risks Overview</li>
-            <li style="color: ${cl.benefits_compensation_explained ? 'green':'#e74c3c'}">${cl.benefits_compensation_explained ? '✅':'❌'} Benefits</li>
-            <li style="color: ${cl.voluntariness_withdrawal_explained ? 'green':'#e74c3c'}">${cl.voluntariness_withdrawal_explained ? '✅':'❌'} Voluntariness</li>
-            <li style="color: ${cl.privacy_confidentiality_explained ? 'green':'#e74c3c'}">${cl.privacy_confidentiality_explained ? '✅':'❌'} Privacy/HIPAA</li>
-            <li style="color: ${cl.teach_back_used ? 'green':'#e74c3c'}">${cl.teach_back_used ? '✅':'❌'} Teach-Back Used</li>
-        </ul>
-    `;
-    
     let html = `
     <div class="decision-card" style="border-left-color: ${node.colorTheme.border}; opacity: 1;">
         ${warningHtml}
-        <div class="card-header" ${firstTurnIndex !== null ? `onclick="scrollToTurn(${firstTurnIndex})"` : ''}>
+        <div class="card-header">
             <h4>[${node.problem_area}] ${node.summary}</h4>
             <div>
                 ${coreBadge} ${totalBadge}
@@ -783,13 +818,13 @@ function renderTreeNode(node) {
             </div>
         </div>
         
-        <div class="map-options">
-            <strong style="font-size: 0.9rem;">Combined AHRQ Checklist (Found across encounters):</strong>
+        <div class="map-options" style="background: #fff; border: 1px solid #dfe4ea;">
+            <strong style="font-size: 0.9rem; color: #2c3e50;">Grounded AHRQ Checklist (Found across encounters):</strong>
             ${checklistHtml}
         </div>
 
-        <div class="map-options" style="background: #fff; border: 1px solid #dfe4ea;">
-            <strong style="font-size: 0.9rem; color: var(--primary);">Aggregated Risk Assessment: ${node.customProcedureName}</strong>
+        <div class="map-options" style="background: #fff; border: 1px solid #dfe4ea; margin-top: 15px;">
+            <strong style="font-size: 0.9rem; color: var(--primary);">Aggregated Expected Risk Assessment: ${node.customProcedureName}</strong>
             ${risksHtml}
         </div>
         
@@ -799,44 +834,107 @@ function renderTreeNode(node) {
     return html;
 }
 
+// Aggregates figures across every region/procedure in the current run for the top summary bar
+function computeSummaryStats(regions) {
+    let checklistTotal = 0, checklistMet = 0;
+    let coreTotal = 0, coreCovered = 0;
+    let totalRisks = 0, coveredRisks = 0;
+    let novelRisks = 0;
+
+    regions.forEach(r => {
+        const cl = r.ahrq_consent_checklist || {};
+        Object.values(cl).forEach(item => { checklistTotal++; if (item.met) checklistMet++; });
+
+        (r.ontology_risk_assessment || []).forEach(risk => {
+            totalRisks++;
+            if (risk.status === "Covered") coveredRisks++;
+            if (risk.importance === "Core") {
+                coreTotal++;
+                if (risk.status === "Covered") coreCovered++;
+            }
+        });
+
+        (r.additional_risks_discussed || []).forEach(ar => {
+            if (ar.predicted_procedure_association && r.customProcedureName && ar.predicted_procedure_association.toLowerCase() === r.customProcedureName.toLowerCase()) {
+                novelRisks++;
+            }
+        });
+    });
+
+    return { checklistTotal, checklistMet, coreTotal, coreCovered, totalRisks, coveredRisks, novelRisks };
+}
+
+function renderSummaryBar(regions) {
+    const s = computeSummaryStats(regions);
+    const pct = (num, den) => den > 0 ? Math.round((num / den) * 100) : 0;
+
+    return `
+    <div class="summary-bar">
+        <div class="summary-stat">
+            <div class="summary-stat-value">${pct(s.checklistMet, s.checklistTotal)}%</div>
+            <div class="summary-stat-label">Consent Elements Met<br><span class="summary-stat-sub">${s.checklistMet} of ${s.checklistTotal}</span></div>
+        </div>
+        <div class="summary-stat" style="border-top-color:#e74c3c;">
+            <div class="summary-stat-value" style="color:#e74c3c;">${pct(s.coreCovered, s.coreTotal)}%</div>
+            <div class="summary-stat-label">Core Risks Covered<br><span class="summary-stat-sub">${s.coreCovered} of ${s.coreTotal}</span></div>
+        </div>
+        <div class="summary-stat" style="border-top-color:var(--secondary);">
+            <div class="summary-stat-value" style="color:var(--secondary);">${pct(s.coveredRisks, s.totalRisks)}%</div>
+            <div class="summary-stat-label">All Expected Risks Covered<br><span class="summary-stat-sub">${s.coveredRisks} of ${s.totalRisks}</span></div>
+        </div>
+        <div class="summary-stat" style="border-top-color:var(--warning);">
+            <div class="summary-stat-value" style="color:var(--warning);">${s.novelRisks}</div>
+            <div class="summary-stat-label">Unlisted Risks Surfaced<br><span class="summary-stat-sub">Not in taxonomy</span></div>
+        </div>
+    </div>`;
+}
+
 function renderUI(regions, turns) {
     const results = document.getElementById('resultsContent');
-    let html = `<h2>AHRQ Procedure Dashboard (Patient Timeline View)</h2><div class="tree-container">`;
+    let html = `<h2>AHRQ Procedure Dashboard (Patient Timeline View)</h2>`;
+    html += renderSummaryBar(regions);
+    html += `<div class="tree-container">`;
     regions.forEach(root => { html += renderTreeNode(root); });
     
-    // Global Multi-File Transcript
     html += `</div><h2>Patient Timeline (Merged Transcripts)</h2><div class="global-transcript">`;
 
     turns.forEach((turn) => {
         const activeRegions = regions.filter(r => r.relevant_turn_indices && r.relevant_turn_indices.includes(turn.index));
-        
         const turnTags = [];
+        
         activeRegions.forEach(r => {
             if(r.ontology_risk_assessment) {
                 r.ontology_risk_assessment.forEach(risk => {
-                    if (risk.turn_indices && risk.turn_indices.includes(turn.index)) {
-                        turnTags.push({ text: risk.risk_item, color: r.colorTheme.tag });
-                    }
+                    if (risk.turn_indices && risk.turn_indices.includes(turn.index)) turnTags.push({ text: risk.risk_item, color: r.colorTheme.tag, title: `Expected risk: ${risk.risk_item} (${risk.importance})` });
                 });
+            }
+            if(r.ahrq_consent_checklist) {
+                 for (let key in r.ahrq_consent_checklist) {
+                     let item = r.ahrq_consent_checklist[key];
+                     if (item.turn_indices && item.turn_indices.includes(turn.index)) {
+                         let friendlyName = key.replace(/_/g, ' ').toUpperCase();
+                         turnTags.push({ text: `[CHECKLIST] ${friendlyName}`, color: '#27ae60', title: `Grounds AHRQ checklist element: ${friendlyName}` });
+                     }
+                 }
             }
             if(r.additional_risks_discussed) {
                 r.additional_risks_discussed.forEach(ar => {
                     if (ar.turn_indices && ar.turn_indices.includes(turn.index)) {
-                        turnTags.push({ text: `[Novel] ${ar.risk_name}`, color: '#d35400' });
+                        // Tag unlisted risks, but color differently if they belong to chosen procedure or an alternative
+                        let belongsToChosen = ar.predicted_procedure_association && ar.predicted_procedure_association.toLowerCase() === r.customProcedureName.toLowerCase();
+                        let tagColor = belongsToChosen ? '#f39c12' : '#95a5a6';
+                        let prefix = belongsToChosen ? '[Novel]' : '[Alternative Risk]';
+                        // Tooltip surfaces the exact grounded quote right here, next to the line it was extracted from
+                        turnTags.push({ text: `${prefix} ${ar.risk_name}`, color: tagColor, title: ar.quote ? `"${ar.quote}"` : '' });
                     }
                 });
             }
         });
 
-        let turnBg = 'transparent';
-        let turnBorder = 'transparent';
-        
-        if (activeRegions.length > 0) {
-            turnBg = activeRegions[0].colorTheme.bg;
-            turnBorder = activeRegions[0].colorTheme.border;
-        }
+        let turnBg = 'transparent', turnBorder = 'transparent';
+        if (activeRegions.length > 0) { turnBg = activeRegions[0].colorTheme.bg; turnBorder = activeRegions[0].colorTheme.border; }
 
-        const tagsHtml = turnTags.map(t => `<span class="text-tag" style="background:${t.color};">${t.text}</span>`).join('');
+        const tagsHtml = turnTags.map(t => `<span class="text-tag" style="background:${t.color};" title="${escAttr(t.title)}">${t.text}</span>`).join('');
 
         html += `
         <div id="turn-${turn.index}" class="turn-container" style="background: ${turnBg}; border-left-color: ${turnBorder};">
