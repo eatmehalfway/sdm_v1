@@ -1,0 +1,90 @@
+{
+  "decision_id": "d1",
+  "decision_label": "Management of lumbar stenosis",
+  "status": "Resolved",
+  "selected_option": "Lumbar decompression surgery",
+  "option_names": ["Physical therapy", "Epidural injection", "Surgery"],
+  "encounter_ids": ["encounter_1_consult.txt", "encounter_2_followup.txt"],
+  "relevant_turn_indices": [0, 1, 2, 3, 4, 5],
+  "colorTheme": { "bg": "#e8f4f8", "border": "#3498db", "tag": "#2980b9" },
+  "linked_interventions": ["Lumbar decompression with possible fusion"],
+  "decision_overview": {
+    "options_considered": [
+      {
+        "option_name": "Surgery",
+        "named_only": false,
+        "benefits": { "text": "May provide more durable leg pain relief", "qualifying_language": ["May"] },
+        "risks": { "text": "Infection and nerve injury discussed", "qualifying_language": ["Rare", "Small risk"] },
+        "burdens": { "text": "Recovery usually four to six weeks", "qualifying_language": ["Usually 4–6 weeks"] }
+      }
+    ],
+    "clinician_recommendation": {
+      "recommended_option": "Surgery",
+      "rationale": "Given MRI findings",
+      "qualification": "Either approach would be reasonable"
+    },
+    "patient_considerations": {
+      "goals_priorities": ["Return to work quickly"],
+      "preferences": ["Try injection before surgery initially"],
+      "questions": [
+        {
+          "question": "If I wait, could things get worse?",
+          "response": "Progressive weakness would push toward surgery",
+          "response_status": "Answered",
+          "turn_indices": [10]
+        }
+      ]
+    }
+  },
+  "communication_analysis": {
+    "decision_framing": "Alternatives explicitly presented",
+    "tradeoff_comparisons": [
+      {
+        "option_a": "Surgery",
+        "option_b": "Injection",
+        "level": "Meaningful comparison",
+        "evidence_quote": "Surgery may provide more durable relief...",
+        "turn_indices": [5]
+      }
+    ],
+    "patient_engagement": {
+      "goals_priorities_elicited": true,
+      "goals_priorities_evidence": "Patient stated need to return to work",
+      "preferences_elicited": true,
+      "preferences_elicited_evidence": "Patient preferred injection first",
+      "questions_invited": true,
+      "questions_invited_evidence": "What questions do you have?"
+    },
+    "clinician_response": {
+      "questions_answered_count": 1,
+      "questions_total_count": 1,
+      "recommendation_explained": "Explained"
+    },
+    "understanding_verification": "Active understanding check detected"
+  },
+  "informed_consent_analysis": {
+    "interventions": [
+      {
+        "intervention_name": "Lumbar decompression with possible fusion",
+        "core_risks": [
+          {
+            "risk_name": "Dural tear / CSF leak",
+            "detection_status": "Discussed",
+            "details_communicated": { "likelihood": "", "impact": "May prolong recovery", "patient_specific_relevance": "", "management_or_response": "" },
+            "quote": "Dural tear can happen",
+            "turn_indices": [2]
+          }
+        ],
+        "relevant_risks": [],
+        "context_dependent_risks": [],
+        "risk_communication_summary": {
+          "core_discussed": ["Dural tear / CSF leak"],
+          "core_not_detected": ["Death"],
+          "relevant_discussed": [],
+          "relevant_not_detected": [],
+          "context_dependent_warrant_review": []
+        }
+      }
+    ]
+  }
+}

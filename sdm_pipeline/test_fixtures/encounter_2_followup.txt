@@ -1,0 +1,7 @@
+DOCTOR: Welcome back. Last time we discussed therapy, injection, or surgery for your stenosis.
+PATIENT: I've decided I want to proceed with lumbar decompression surgery.
+DOCTOR: Before we schedule, I want to review risks again. Dural tear can happen and may prolong recovery. Infection is uncommon. Persistent leg or back pain after surgery is possible — not guaranteed to resolve all symptoms.
+PATIENT: Understood.
+DOCTOR: Can you tell me in your own words what you understand your options to be?
+PATIENT: Surgery to take pressure off the nerves, or I could have kept trying other things.
+DOCTOR: That's right. We'll move forward with surgery.

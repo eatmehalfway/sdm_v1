@@ -1,0 +1,12 @@
+DOCTOR: Thanks for coming in. You have lumbar stenosis causing leg pain when you walk.
+PATIENT: Yes, and I need to get back to work as soon as possible.
+DOCTOR: We can continue physical therapy, try an epidural injection, or consider surgery to decompress the spine.
+PATIENT: I'd rather try the injection before surgery if that's reasonable.
+DOCTOR: Surgery may provide more durable relief for leg pain, but it involves a longer recovery — usually four to six weeks — and greater upfront risk than an injection. An injection is less invasive but relief may be temporary.
+PATIENT: What are the risks of surgery?
+DOCTOR: There's a small risk of infection, and nerve injury is rare but can be serious. General anesthesia has its own risks too.
+DOCTOR: I think surgery is probably the best option given your MRI, although either approach would be reasonable. What questions do you have?
+PATIENT: If I wait, could things get worse?
+DOCTOR: That's a fair question — progressive weakness would push us toward surgery sooner.
+PATIENT: Okay, I'll think about it.
+DOCTOR: Let's plan to decide at our next visit.

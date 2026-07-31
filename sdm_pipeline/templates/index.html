@@ -3,157 +3,546 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CCQ Pipeline v1.9 - Dynamic Excel Taxonomy Integration</title>
+    <title>CCQ Clinical Conversation Analyzer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12/dist/d3-sankey.min.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Newsreader:wght@200;300;400;500&display=swap');
+
         :root {
-            --primary: #2c3e50;
-            --secondary: #2980b9;
-            --danger: #c0392b;
-            --success: #27ae60;
-            --warning: #f39c12;
-            --bg: #f5f6fa;
-            --text: #2f3640;
-            --border: #dcdde1;
+            --navy: #06182b;
+            --navy-soft: #0d2b4a;
+            --primary: #0c2340;
+            --secondary: #1769e0;
+            --secondary-dark: #0e4fb7;
+            --secondary-soft: #dcecff;
+            --cyan: #59cfe8;
+            --danger: #c6475a;
+            --success: #0b7d70;
+            --warning: #9c5f10;
+            --bg: #eef4fb;
+            --paper: #f5f9fd;
+            --surface: #ffffff;
+            --text: #0d2136;
+            --muted: #5d7691;
+            --border: #d4e2f0;
+            --border-strong: #b3c8dd;
+            --gutter: 5vw;
         }
+        * { box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg);
+            font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--paper);
             color: var(--text);
-            margin: 0; padding: 20px;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
         }
         .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            padding: 30px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            border-radius: 8px;
+            max-width: none;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            border: 0;
+            border-radius: 0;
+            box-shadow: none;
         }
-        h1, h2, h3 { color: #2c3e50; }
-        
-        /* NAVIGATION */
+        h1, h2, h3, h4 { color: var(--navy); letter-spacing: -0.02em; }
+        h2 {
+            font-family: 'Newsreader', Georgia, serif;
+            font-weight: 400;
+            font-size: clamp(2rem, 3.6vw, 3.1rem);
+            line-height: 1.05;
+            letter-spacing: -0.015em;
+        }
+        h3 { font-size: 1.05rem; font-weight: 700; }
+
+        /* ---------- HERO ---------- */
+        .app-hero {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            min-height: calc(100vh - 66px);
+            margin: 0;
+            padding: 8vh var(--gutter) 9vh;
+            overflow: hidden;
+            background: linear-gradient(160deg, #06182b 0%, #0a2440 52%, #103459 100%);
+            color: #fff;
+            border: 0;
+            border-radius: 0;
+        }
+        body.hero-compact .app-hero { min-height: 0; padding: 46px var(--gutter) 52px; }
+        body.hero-compact .hero-description { display: none; }
+        body.hero-compact .app-hero h1 { font-size: clamp(2rem, 3.6vw, 3rem); max-width: none; }
+        body.hero-compact .hero-figure { opacity: 0.5; }
+        .hero-figure {
+            position: absolute;
+            right: 8vw;
+            top: 52%;
+            width: 110px;
+            height: 110px;
+            transform: translateY(-50%) rotate(45deg);
+            background: rgba(89, 207, 232, 0.15);
+            box-shadow:
+                0 0 0 38px rgba(89, 207, 232, 0.105),
+                0 0 0 76px rgba(89, 207, 232, 0.08),
+                0 0 0 114px rgba(89, 207, 232, 0.06),
+                0 0 0 152px rgba(89, 207, 232, 0.043),
+                0 0 0 190px rgba(89, 207, 232, 0.03),
+                0 0 0 228px rgba(89, 207, 232, 0.019),
+                0 0 0 266px rgba(89, 207, 232, 0.011);
+            pointer-events: none;
+        }
+        .brand-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 0 0 auto;
+        }
+        .brand-mark {
+            display: grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 0;
+            background: #e6f6fc;
+            color: var(--navy);
+            font-weight: 800;
+            font-size: 0.72rem;
+            letter-spacing: -0.02em;
+        }
+        .brand-copy { font-weight: 700; font-size: 0.95rem; letter-spacing: -0.01em; }
+        .brand-copy small {
+            display: block;
+            margin-top: 1px;
+            color: #7fa5cd;
+            font-size: 0.6rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+        }
+        .system-pill {
+            margin-left: auto;
+            padding: 12px 22px;
+            border: 0;
+            border-radius: 0;
+            color: var(--navy);
+            background: #e6f6fc;
+            font-size: 0.66rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+        }
+        .hero-grid {
+            position: relative;
+            z-index: 2;
+            margin-top: auto;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 26px;
+            max-width: 640px;
+        }
+        .eyebrow {
+            margin: 0 0 22px;
+            color: #86bedb;
+            font-size: 0.66rem;
+            line-height: 1;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.24em;
+        }
+        .app-hero h1 {
+            max-width: 14ch;
+            margin: 0;
+            color: #fff;
+            font-family: 'Newsreader', Georgia, serif;
+            font-size: clamp(2.9rem, 6vw, 5.2rem);
+            line-height: 1.02;
+            letter-spacing: -0.025em;
+            font-weight: 300;
+        }
+        .app-hero h1 span { color: #8cdff1; }
+        .hero-description {
+            margin: 0;
+            max-width: 46ch;
+            color: #a9c6e0;
+            font-size: 0.92rem;
+            line-height: 1.75;
+        }
+        .hero-note {
+            display: block;
+            margin-top: 14px;
+            color: #6d8fb2;
+            font-size: 0.7rem;
+            line-height: 1.6;
+        }
+
+        /* ---------- NAVIGATION ---------- */
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            padding: 16px var(--gutter);
+            background: var(--navy);
+            color: #fff;
+            border: 0;
+            border-radius: 0;
+        }
         .nav-bar {
-            display: flex; gap: 10px; margin-bottom: 25px;
-            border-bottom: 2px solid var(--border); padding-bottom: 15px;
+            display: flex;
+            gap: 30px;
+            margin: 0 0 0 26px;
+            padding: 0;
+            overflow-x: auto;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
         }
         .nav-btn {
-            background: transparent; color: var(--primary); border: 2px solid var(--primary);
-            padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: bold;
+            flex: 0 0 auto;
+            position: relative;
+            background: transparent;
+            color: #92b4d5;
+            border: 0;
+            border-radius: 0;
+            padding: 6px 0;
+            cursor: pointer;
+            font: inherit;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            white-space: nowrap;
         }
-        .nav-btn.active { background: var(--primary); color: white; }
-        .nav-btn:hover:not(.active) { background: #eef2fa; }
+        .nav-btn::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: -2px;
+            height: 2px;
+            background: transparent;
+        }
+        .nav-btn.active { background: transparent; color: #fff; }
+        .nav-btn.active::after { background: var(--cyan); }
+        .nav-btn:hover:not(.active) { background: transparent; color: #fff; }
+        .view-section > .nav-btn {
+            margin: 0 12px 30px 0;
+            padding: 12px 20px;
+            background: var(--navy);
+            color: #fff;
+            border: 0;
+            border-radius: 0;
+            box-shadow: none;
+        }
+        .view-section > .nav-btn:hover { background: var(--navy-soft); color: #fff; }
 
-        /* VIEWS */
+        /* ---------- VIEWS ---------- */
         .view-section { display: none; }
-        .view-section.active { display: block; }
+        .view-section.active { display: block; padding: 56px var(--gutter) 96px; }
+        .results-subview { display: none; }
+        .results-subview.active { display: block; }
 
-        /* HISTORY TABLE */
-        .history-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .history-table th, .history-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
-        .history-table th { background: #f1f2f6; }
-        .history-table tr:hover { background-color: #f8f9fa; cursor: pointer; }
-        .view-link { color: var(--secondary); font-weight: bold; cursor: pointer; }
+        /* ---------- TABLES ---------- */
+        .history-table { width: 100%; border-collapse: collapse; margin-top: 0; background: var(--surface); }
+        .history-table th, .history-table td { padding: 16px 18px; text-align: left; border: 0; border-bottom: 1px solid var(--border); }
+        .history-table th {
+            background: var(--surface);
+            color: var(--muted);
+            font-size: 0.63rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+        }
+        .history-table tr:hover { background-color: #eff6fd; cursor: pointer; }
+        .view-link { color: var(--secondary); font-weight: 700; cursor: pointer; }
 
-        /* SETUP BOX */
-        .setup-box { background: #f1f2f6; padding: 20px; border-radius: 8px; margin-bottom: 30px; border: 1px solid #dfe4ea; }
-        input[type="text"], input[type="file"], select { width: 100%; padding: 10px; margin: 5px 0 15px 0; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box; font-family: inherit;}
-        button.run-btn { background-color: var(--secondary); color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: bold;}
-        button.run-btn:hover { background-color: #1f6391; }
+        /* ---------- FORM ---------- */
+        .setup-box {
+            max-width: 780px;
+            background: var(--surface);
+            padding: 40px;
+            border: 0;
+            border-radius: 0;
+            margin-bottom: 30px;
+            box-shadow: none;
+        }
+        .setup-box label {
+            display: block;
+            margin-top: 26px;
+            color: var(--muted);
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+        }
+        .setup-box label strong { font-weight: 800; }
+        input[type="text"], input[type="file"], select {
+            width: 100%;
+            padding: 14px 16px;
+            margin: 10px 0 0;
+            border: 0;
+            border-bottom: 1px solid var(--border-strong);
+            border-radius: 0;
+            background: #f4f8fc;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        input[type="text"]:focus, input[type="file"]:focus, select:focus {
+            outline: none;
+            border-bottom-color: var(--secondary);
+            background: #edf4fc;
+            box-shadow: none;
+        }
+        button.run-btn {
+            margin-top: 34px;
+            background-color: var(--navy);
+            color: #fff;
+            border: 0;
+            border-radius: 0;
+            padding: 15px 26px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.68rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            box-shadow: none;
+            transition: background 0.15s;
+        }
+        button.run-btn:hover { background-color: var(--secondary); transform: none; }
 
-        /* SUMMARY DASHBOARD BAR */
+        /* ---------- STATS ---------- */
         .summary-bar {
-            display: flex; gap: 16px; margin-bottom: 30px; flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 1px;
+            margin-bottom: 64px;
+            background: var(--border);
         }
         .summary-stat {
-            flex: 1 1 180px; background: linear-gradient(180deg, #ffffff 0%, #f8f9fb 100%);
-            border: 1px solid var(--border); border-top: 3px solid var(--primary);
-            border-radius: 8px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            position: relative;
+            flex: none;
+            min-height: 132px;
+            overflow: hidden;
+            background: var(--surface);
+            border: 0 !important;
+            border-radius: 0;
+            padding: 26px 24px;
+            box-shadow: none;
         }
-        .summary-stat-value { font-size: 2rem; font-weight: 700; line-height: 1; color: var(--primary); }
-        .summary-stat-label { margin-top: 8px; font-size: 0.78rem; color: #7f8fa6; text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; line-height: 1.4; }
-        .summary-stat-sub { text-transform: none; letter-spacing: normal; font-weight: 400; color: #a4b0be; }
+        .summary-stat::after { content: none; }
+        .summary-stat-value {
+            font-family: 'Newsreader', Georgia, serif;
+            font-size: 2.9rem;
+            font-weight: 300;
+            line-height: 1;
+            color: var(--navy) !important;
+            letter-spacing: -0.03em;
+        }
+        .summary-stat-label { margin-top: 16px; font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.16em; font-weight: 800; line-height: 1.5; }
+        .summary-stat-sub { display: block; margin-top: 6px; text-transform: none; letter-spacing: normal; font-weight: 500; color: #90a7bd; }
 
-        /* UNIFIED DASHBOARD & TREE */
+        /* ---------- CARDS ---------- */
         .tree-container { margin-bottom: 40px; }
         .decision-card {
-            border: 1px solid #e1e4e8; border-radius: 8px; padding: 20px;
-            background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.03);
-            border-left: 6px solid #ccc; margin-bottom: 15px;
+            border: 0 !important;
+            border-radius: 0;
+            padding: 34px;
+            background: var(--surface);
+            box-shadow: none;
+            margin-bottom: 1px;
         }
-        .card-header { 
-            margin-bottom: 15px; cursor: pointer; padding: 8px; border-radius: 6px; 
-            transition: background 0.2s; margin-top: -8px; margin-left: -8px; margin-right: -8px;
+        .card-header {
+            margin: 0 0 22px;
+            cursor: pointer;
+            padding: 0;
+            border-radius: 0;
+            transition: none;
         }
-        .card-header:hover { background-color: rgba(0,0,0,0.03); }
-        .card-header h4 { margin: 0 0 8px 0; font-size: 1.25rem; }
-        
-        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; background: #eee; margin-right: 5px; }
+        .card-header:hover { background-color: transparent; }
+        .card-header h4 { margin: 0 0 10px 0; font-size: 1.3rem; }
+
+        .badge { display: inline-block; padding: 5px 10px; border-radius: 0; font-size: 0.6rem; font-weight: 800; background: #e4eef8; color: #476887; margin-right: 5px; text-transform: uppercase; letter-spacing: 0.12em; }
         .risk-badge { background: var(--secondary); color: white; }
-        
-        .core-badge { background: #e74c3c; color: white; }
+        .core-badge { background: var(--navy); color: white; }
         .relevant-badge { background: #7f8fa6; color: white; }
-        
-        /* CARD DETAILS */
-        .map-options { background: #f8f9fa; padding: 12px 15px; border-radius: 6px; margin-bottom: 15px; }
-        
-        /* RISK TABLE */
-        .risk-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
-        .risk-table th, .risk-table td { padding: 10px; text-align: left; border-bottom: 1px solid #dfe4ea; vertical-align: top; }
-        .risk-table th { background: #e8ecf1; }
-        
-        .status-Covered { color: var(--success); font-weight: bold; }
-        .status-Partially { color: var(--warning); font-weight: bold; }
-        .status-Not { color: #95a5a6; font-style: italic; }
-        .encounter-badge { display: inline-block; padding: 3px 6px; background: #dfe6e9; border-radius: 4px; font-size: 0.75rem; font-weight: bold; color: var(--primary); margin-bottom: 2px; word-break: break-all;}
+
+        .map-options { background: #f2f7fd; padding: 24px; border-radius: 0; margin-bottom: 1px; border: 0; }
+
+        /* ---------- RISK TABLE ---------- */
+        .risk-table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 0.88rem; background: var(--surface); }
+        .risk-table th, .risk-table td { padding: 14px; text-align: left; border: 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+        .risk-table th { background: var(--surface); color: var(--muted); font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; }
+
+        .status-Covered { color: var(--success); font-weight: 700; }
+        .status-Partially { color: var(--warning); font-weight: 700; }
+        .status-Not { color: #90a7bd; font-style: italic; }
+        .encounter-badge { display: inline-block; padding: 4px 8px; background: #e4edf6; border-radius: 0; font-size: 0.68rem; font-weight: 700; color: var(--primary); margin-bottom: 2px; word-break: break-all; text-transform: uppercase; letter-spacing: 0.08em; }
 
         .turn-link {
-            display: inline-block; padding: 3px 8px; background: #e8ecf1; 
-            border: 1px solid #d1d8e0; border-radius: 4px; font-size: 0.8rem;
-            cursor: pointer; transition: all 0.2s; color: var(--primary);
-            margin: 2px; font-family: monospace; font-weight: bold;
+            display: inline-block; padding: 4px 9px; background: #e8f0f8;
+            border: 0; border-radius: 0; font-size: 0.75rem;
+            cursor: pointer; transition: background 0.15s, color 0.15s; color: var(--primary);
+            margin: 2px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700;
         }
-        .turn-link:hover { background: var(--secondary); color: white; transform: scale(1.05); }
+        .turn-link:hover { background: var(--secondary); color: white; transform: none; }
 
-        /* GLOBAL TRANSCRIPT */
-        .global-transcript { background: #fff; border: 1px solid #dcdde1; border-radius: 8px; padding: 20px; }
-        .turn-container { display: flex; margin-bottom: 10px; border-radius: 6px; border-left: 4px solid transparent; scroll-margin-top: 20px; }
-        .turn-meta { width: 150px; flex-shrink: 0; padding: 10px; font-size: 0.8rem; font-weight: bold; color: #7f8fa6; text-align: right; border-right: 2px solid rgba(0,0,0,0.05); }
-        .encounter-label { font-size: 0.65rem; color: var(--secondary); margin-bottom: 4px; text-transform: uppercase; word-break: break-all;}
-        .turn-content { flex-grow: 1; padding: 10px 15px; font-family: monospace; font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; }
-        
-        .turn-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 5px; }
-        .text-tag { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-family: sans-serif; font-weight: bold; color: #fff; }
+        /* ---------- TRANSCRIPT ---------- */
+        .global-transcript { background: var(--surface); border: 0; border-radius: 0; padding: 34px; box-shadow: none; }
+        .turn-container { display: flex; margin-bottom: 4px; border-radius: 0; border-left: 3px solid transparent; scroll-margin-top: 90px; }
+        .turn-meta { width: 150px; flex-shrink: 0; padding: 12px; font-size: 0.68rem; font-weight: 800; color: var(--muted); text-align: right; border-right: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.08em; }
+        .encounter-label { font-size: 0.6rem; color: var(--secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em; word-break: break-all; }
+        .turn-content { flex-grow: 1; padding: 12px 18px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9rem; line-height: 1.65; white-space: pre-wrap; }
 
-        /* Utility */
-        .loading { display: none; padding: 20px; background: #f1f2f6; margin-bottom:20px; border-radius:4px; font-family: monospace;}
-        .error { color: #e84118; margin-top: 10px; }
-        
-        .success-text { color: var(--success); font-weight: bold; font-size: 0.9rem; margin-top: -10px; margin-bottom: 15px; display: block;}
+        .turn-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+        .text-tag { font-size: 0.62rem; padding: 3px 7px; border-radius: 0; font-family: inherit; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 0.08em; }
 
-        @keyframes flash-highlight { 0% { outline: 3px solid #f39c12; background-color: rgba(243, 156, 18, 0.1); } 100% { outline: 3px solid transparent; background-color: transparent; } }
+        /* ---------- UTILITY ---------- */
+        .loading { display: none; padding: 24px; background: var(--surface); margin-bottom: 20px; border-radius: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem; }
+        .error { color: var(--danger); margin-top: 14px; font-size: 0.88rem; }
+        .success-text { color: var(--success); font-weight: 700; font-size: 0.82rem; margin-top: 10px; margin-bottom: 0; display: block; }
+
+        @keyframes flash-highlight { 0% { outline: 2px solid var(--secondary); background-color: rgba(23, 105, 224, 0.1); } 100% { outline: 2px solid transparent; background-color: transparent; } }
         .flash-turn { animation: flash-highlight 2s ease-out; }
+
+        /* ---------- CCQ DETAIL ---------- */
+        .ccq-layout { display: flex; gap: 1px; align-items: stretch; margin-bottom: 64px; flex-wrap: wrap; background: var(--border); }
+        .ccq-sidebar { flex: 0 0 340px; max-width: 100%; background: var(--surface); }
+        .ccq-detail { flex: 1 1 480px; min-width: 0; background: var(--surface); }
+        .decision-row { cursor: pointer; transition: background 0.15s; }
+        .decision-row.selected { background: #e7f1fd !important; box-shadow: inset 3px 0 0 var(--secondary); }
+        .decision-row:hover { background: #eff6fd; }
+        .status-Resolved { color: var(--success); font-weight: 700; }
+        .status-Deferred { color: var(--warning); font-weight: 700; }
+        .status-Unresolved { color: #90a7bd; font-weight: 700; }
+        .section-block { margin-bottom: 44px; }
+        .section-block h3 { font-size: 0.7rem; margin: 0 0 20px 0; padding-bottom: 14px; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); font-weight: 800; }
+        .option-card { border: 0; border-left: 2px solid var(--border-strong); border-radius: 0; padding: 20px 24px; margin-bottom: 1px; background: #f6faff; }
+        .option-card h4 { margin: 0 0 12px 0; font-size: 1rem; }
+        .field-label { font-size: 0.6rem; text-transform: uppercase; color: var(--muted); font-weight: 800; letter-spacing: 0.16em; margin-top: 16px; margin-bottom: 6px; }
+        .field-value { font-size: 0.9rem; line-height: 1.65; color: #33475c; }
+        .qual-tag { display: inline-block; background: #e8f1fb; color: #3d6183; font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 0; margin: 2px 4px 2px 0; text-transform: uppercase; letter-spacing: 0.08em; }
+        .framing-badge { display: inline-block; padding: 10px 16px; border-radius: 0; font-size: 0.78rem; font-weight: 800; background: var(--navy); color: #fff; text-transform: uppercase; letter-spacing: 0.12em; }
+        .legacy-banner { background: #eaf2fa; border: 0; border-left: 3px solid var(--secondary); padding: 18px 22px; border-radius: 0; margin-bottom: 24px; color: #33475c; font-size: 0.88rem; }
+        details.ctx-risks summary { cursor: pointer; font-weight: 800; color: var(--navy); margin-bottom: 10px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.14em; }
+        .status-Discussed { color: var(--success); font-weight: 700; }
+        .status-Not-detected { color: #90a7bd; font-style: italic; }
+
+        /* ---------- DEPARTMENT ---------- */
+        .dept-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; margin-bottom: 44px; }
+        .dept-header h2 { margin: 0 0 12px !important; }
+        .section-kicker {
+            margin: 0 0 14px;
+            color: var(--secondary);
+            font-size: 0.63rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.22em;
+        }
+        .dept-meta { color: var(--muted); font-size: 0.85rem; margin-top: 0; }
+        .jitter-wrap { background: var(--surface); border: 0; border-radius: 0; padding: 36px 30px 18px; margin-bottom: 64px; box-shadow: none; }
+        .jitter-hint { max-width: 860px; font-size: 0.82rem; line-height: 1.75; color: var(--muted); margin: 0 0 24px; }
+        #jitterPlot { width: 100%; min-height: 420px; position: relative; }
+        #jitterPlot svg { display: block; width: 100%; height: auto; }
+        .beeswarm-tooltip {
+            position: absolute; pointer-events: none; z-index: 10;
+            background: var(--navy); color: #fff;
+            border-radius: 0; padding: 12px 14px; font-size: 0.76rem;
+            line-height: 1.6; box-shadow: none;
+            opacity: 0; transition: opacity 0.1s; max-width: 270px;
+        }
+        .clinician-legend { display: flex; flex-wrap: wrap; gap: 22px; margin: 0 0 22px; }
+        .clinician-legend span { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; border-radius: 0; background: transparent; font-size: 0.7rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+        .clinician-swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        .episode-table-wrap { max-height: 420px; overflow: auto; border: 0; border-radius: 0; background: var(--surface); box-shadow: none; }
+        .dept-controls { display:flex; align-items:center; gap:18px; flex-wrap:wrap; padding:18px 0 28px; }
+        .dept-controls input[type="range"] { width:min(360px, 70vw); }
+        .analytics-card { background:var(--surface); padding:36px 30px 24px; margin-bottom:48px; }
+        .analytics-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:28px; margin-bottom:64px; }
+        .rank-row { display:grid; grid-template-columns:minmax(130px,1fr) 2fr auto; gap:12px; align-items:center; margin:12px 0; font-size:.82rem; }
+        .rank-track { height:9px; background:#e7eef6; overflow:hidden; }
+        .rank-fill { height:100%; background:var(--secondary); }
+        #sankeyPlot { min-height:320px; position:relative; }
+        #sankeyPlot svg { display:block; width:100%; height:auto; }
+        @media (max-width: 800px) { .analytics-grid { grid-template-columns:1fr; } }
+
+        @media (max-width: 800px) {
+            :root { --gutter: 20px; }
+            body { padding: 0; }
+            .container { border-radius: 0; border: 0; padding: 0; }
+            .app-hero { min-height: 92vh; padding: 18px var(--gutter) 8vh; }
+            .hero-figure { right: -80px; top: 62%; opacity: 0.65; }
+            .brand-row { gap: 14px; }
+            .system-pill { display: none; }
+            .app-hero h1 { font-size: clamp(2.5rem, 12vw, 4rem); }
+            .nav-bar { gap: 22px; }
+            .view-section.active { padding: 36px var(--gutter) 64px; }
+            .setup-box { padding: 24px 0; }
+            .decision-card, .jitter-wrap, .global-transcript { padding: 24px 18px; }
+            .summary-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .summary-stat { min-width: 0; }
+            .turn-container { display: block; }
+            .turn-meta { width: auto; text-align: left; border-right: 0; border-bottom: 1px solid var(--border); }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>AHRQ Multi-Encounter Pipeline v1.9</h1>
-    <p style="margin-top:-15px; color:#7f8fa6; font-size:0.9rem;">Features: Grounded Checklists, Certainty Tracking, Smart Unlisted Risk Hiding.</p>
+    <header class="topbar">
+        <div class="brand-row">
+            <div class="brand-mark">CCQ</div>
+            <div class="brand-copy">Conversation Quality
+                <small>Clinical decision intelligence</small>
+            </div>
+        </div>
 
-    <div class="nav-bar">
-        <button class="nav-btn active" id="btn-new" onclick="switchTab('new')">Run Analysis</button>
-        <button class="nav-btn" id="btn-history" onclick="switchTab('history')">Database History</button>
-        <button class="nav-btn" id="btn-results" onclick="switchTab('results')" style="display:none;">View Results</button>
+        <nav class="nav-bar">
+            <button class="nav-btn active" id="btn-department" onclick="switchTab('department')">Department Overview</button>
+            <button class="nav-btn" id="btn-new" onclick="switchTab('new')">Run Analysis</button>
+            <button class="nav-btn" id="btn-history" onclick="switchTab('history')">Database History</button>
+            <button class="nav-btn" id="btn-results" onclick="switchTab('results')" style="display:none;">Episode Detail</button>
+        </nav>
+
+        <div class="system-pill">Department analytics</div>
+    </header>
+
+    <section class="app-hero">
+        <div class="hero-figure" aria-hidden="true"></div>
+        <div class="hero-grid">
+            <div>
+                <p class="eyebrow">Shared decision-making, made visible</p>
+                <h1>Better decisions.<br><span>Clearly measured.</span></h1>
+            </div>
+            <p class="hero-description">
+                See how options, tradeoffs, patient priorities, and intervention risks are communicated across every episode.
+                <span class="hero-note">Observational analysis only. Results do not establish legal sufficiency of consent or patient understanding.</span>
+            </p>
+        </div>
+    </section>
+
+    <!-- VIEW: DEPARTMENT OVERVIEW -->
+    <div id="view-department" class="view-section active">
+        <div id="department-content">Loading department overview...</div>
     </div>
 
     <!-- VIEW: NEW ANALYSIS -->
-    <div id="view-new" class="view-section active">
+    <div id="view-new" class="view-section">
         <div class="setup-box">
             
             <label><strong>0. Dynamic Taxonomy (Upload Excel File):</strong></label>
             <input type="file" id="excelInput" accept=".xlsx, .xls">
-            <small style="display:block; margin-top:-10px; margin-bottom:5px; color:#7f8fa6;">Upload "Risk-Intervention Mapping.xlsx". (Optional: Fallbacks to hardcoded library if skipped).</small>
+            <small style="display:block; margin-top:10px; color:#7f8fa6;">Upload "Risk-Intervention Mapping.xlsx". (Optional: Fallbacks to hardcoded library if skipped).</small>
             <span id="excelStatusMsg" class="success-text"></span>
 
             <label><strong>1. Google Gemini API Key:</strong></label>
@@ -165,7 +554,10 @@
             <label><strong>3. Patient Encounter Transcripts (Upload multiple .txt files):</strong></label>
             <input type="file" id="fileInput" accept=".txt" multiple>
             
-            <button class="run-btn" onclick="runAnalysis()">Run Patient Timeline Pipeline</button>
+            <label><strong>4. Total known encounters for this episode:</strong></label>
+            <input type="number" id="totalEncounters" min="1" placeholder="Defaults to number of uploaded transcripts">
+
+            <button class="run-btn" onclick="runAnalysis()">Run CCQ Analysis</button>
             <div class="error" id="errorMsg"></div>
         </div>
         <div class="loading" id="loader">
@@ -180,7 +572,9 @@
 
     <!-- VIEW: RESULTS -->
     <div id="view-results" class="view-section">
-        <button class="nav-btn" style="margin-bottom: 20px;" onclick="switchTab('history')">← Back to History</button>
+        <button class="nav-btn" style="margin-bottom: 20px;" onclick="switchTab('department')">← Back to Department</button>
+        <button class="nav-btn" style="margin-bottom: 20px; margin-left: 8px;" onclick="switchTab('history')">History</button>
+
         <div id="resultsContent"></div>
     </div>
 </div>
@@ -217,6 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedKey = localStorage.getItem('gemini_api_key');
     if(savedKey) document.getElementById('apiKey').value = savedKey;
     initFallbackDB();
+    loadDepartmentOverview();
 });
 
 function initFallbackDB() {
@@ -275,10 +670,14 @@ function handleExcelUpload(e) {
                 if (!procName) return; 
 
                 if (!newRiskDB[procName]) newRiskDB[procName] = [];
+                let tier = getVal(row, "risk_list_tier") || "Relevant";
+                if (/context/i.test(tier)) tier = "Context-dependent";
+                else if (/core/i.test(tier)) tier = "Core";
+                else tier = "Relevant";
                 newRiskDB[procName].push({
                     risk_item: getVal(row, "risk_item") || "Unknown Risk",
                     category: getVal(row, "parent_category_name") || "Other",
-                    importance: getVal(row, "risk_list_tier") || "Relevant",
+                    importance: tier,
                     description: getVal(row, "risk_description") || "No description provided"
                 });
             });
@@ -303,11 +702,393 @@ function handleExcelUpload(e) {
 
 function switchTab(tab) {
     document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-bar > .nav-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(`view-${tab}`).classList.add('active');
     const btn = document.getElementById(`btn-${tab}`);
     if (btn) btn.classList.add('active');
+    document.body.classList.toggle('hero-compact', tab !== 'department');
     if (tab === 'history') loadHistory();
+    if (tab === 'department') loadDepartmentOverview();
+}
+
+let DEPARTMENT_EPISODES = [];
+let DEPARTMENT_CLINICIANS = [];
+let DEPARTMENT_DATA = {};
+let COMPLETENESS_THRESHOLD = 0;
+
+async function loadDepartmentOverview() {
+    const container = document.getElementById('department-content');
+    if (!container) return;
+    container.innerHTML = "Loading department overview...";
+    try {
+        const res = await fetch('/api/department/overview');
+        const data = await res.json();
+        DEPARTMENT_DATA = data;
+        DEPARTMENT_EPISODES = data.episodes || [];
+        DEPARTMENT_CLINICIANS = data.clinicians || [];
+        refreshDepartmentDashboard();
+    } catch (e) {
+        container.innerHTML = `<span class="error">Failed to load department overview: ${e.message}</span>`;
+    }
+}
+
+function filteredDepartmentEpisodes() {
+    return DEPARTMENT_EPISODES.filter(ep => (ep.completeness_pct ?? 100) >= COMPLETENESS_THRESHOLD);
+}
+
+function setCompletenessThreshold(value) {
+    COMPLETENESS_THRESHOLD = Number(value);
+    refreshDepartmentDashboard();
+}
+
+function refreshDepartmentDashboard() {
+    const episodes = filteredDepartmentEpisodes();
+    const container = document.getElementById('department-content');
+    if (!container) return;
+    container.innerHTML = renderDepartmentShell(DEPARTMENT_DATA, episodes);
+    renderSankey(episodes);
+    renderJitterPlot(episodes, DEPARTMENT_CLINICIANS);
+}
+
+function renderDepartmentShell(data, episodes) {
+    const legend = (data.clinicians || []).map(c =>
+        `<span><i class="clinician-swatch" style="background:${c.color}"></i>${escHtml(c.name)}</span>`
+    ).join('');
+    const rows = episodes.slice().sort((a, b) => (b.core_risk_pct ?? -1) - (a.core_risk_pct ?? -1)).map(ep => `
+        <tr class="decision-row" onclick="openEpisode('${escAttr(ep.episode_id)}')">
+            <td><strong>${escHtml(ep.patient_label)}</strong>${ep.source === 'demo' ? ' <span class="badge">demo</span>' : ' <span class="badge" style="background:#2980b9;color:#fff;">saved</span>'}</td>
+            <td><span style="color:${ep.clinician_color};font-weight:600;">${escHtml(ep.clinician_name)}</span></td>
+            <td>${ep.core_risk_pct == null ? 'N/A' : `${ep.core_risk_pct}%`}</td>
+            <td>${ep.completeness_pct ?? 100}% <small>(${ep.transcribed_encounters || 1}/${ep.total_encounters || 1})</small></td>
+            <td style="font-size:0.85rem;">${escHtml(jitterCategory(ep) || 'N/A')}</td>
+            <td class="status-${ep.status}">${escHtml(ep.status)}</td>
+            <td class="view-link">Open →</td>
+        </tr>`).join('');
+
+    return `
+    <div class="dept-header">
+        <div>
+            <p class="section-kicker">Department control tower</p>
+            <h2 style="margin:0;">${escHtml(data.department || 'Department')}</h2>
+            <div class="dept-meta">${data.demo_count || 0} demo episodes · ${data.db_count || 0} saved analyses · one quality view across every clinician</div>
+        </div>
+        <button class="run-btn" type="button" onclick="loadDepartmentOverview()">Refresh</button>
+    </div>
+    <div class="summary-bar">
+        <div class="summary-stat"><div class="summary-stat-value">${episodes.length}</div><div class="summary-stat-label">Patient Episodes Shown</div></div>
+        <div class="summary-stat" style="border-top-color:var(--secondary);"><div class="summary-stat-value" style="color:var(--secondary);">${(data.clinicians || []).length}</div><div class="summary-stat-label">Clinicians</div></div>
+        <div class="summary-stat" style="border-top-color:#e74c3c;"><div class="summary-stat-value" style="color:#e74c3c;">${avgCoreRisk(episodes)}</div><div class="summary-stat-label">Mean Core Risks Discussed</div></div>
+        <div class="summary-stat" style="border-top-color:var(--success);"><div class="summary-stat-value" style="color:var(--success);">${pctMeaningful(episodes)}</div><div class="summary-stat-label">Meaningful Comparisons</div></div>
+        <div class="summary-stat"><div class="summary-stat-value">${avgCompleteness(episodes)}</div><div class="summary-stat-label">Avg. Transcript Completeness</div></div>
+        <div class="summary-stat"><div class="summary-stat-value">${recommendationExplainedPct(episodes)}</div><div class="summary-stat-label">Recommendations Explained</div></div>
+        <div class="summary-stat"><div class="summary-stat-value">${questionsAnswered(episodes)}</div><div class="summary-stat-label">Questions Answered</div></div>
+    </div>
+    <div class="dept-controls">
+        <label for="completenessSlider"><strong>Minimum transcript completeness: ${COMPLETENESS_THRESHOLD}%</strong></label>
+        <input id="completenessSlider" type="range" min="0" max="100" step="5" value="${COMPLETENESS_THRESHOLD}" oninput="setCompletenessThreshold(this.value)">
+        <span>${episodes.length} of ${DEPARTMENT_EPISODES.length} episodes included</span>
+    </div>
+    <div class="analytics-card">
+        <p class="section-kicker">Flagship orientation</p>
+        <h3>How Treatment Options Were Discussed</h3>
+        <p class="jitter-hint">Each episode follows its consent-relevant index decision. Episodes without one remain visible as N/A.</p>
+        <div id="sankeyPlot"></div>
+    </div>
+    <div class="jitter-wrap">
+        <p class="section-kicker" style="margin-left:12px;">Communication quality map</p>
+        <p class="jitter-hint">Each point is one patient episode. <strong>X</strong> = Single option → Not compared → Limited → Meaningful. <strong>Y</strong> = % of core risks discussed. The N/A lane retains episodes with no consent-relevant index decision.</p>
+        <div class="clinician-legend">${legend}</div>
+        <div id="jitterPlot"></div>
+    </div>
+    <div class="analytics-grid">
+        <div class="analytics-card"><p class="section-kicker">Risk follow-up</p><h3>Most Frequent Core Risks Not Discussed</h3>${renderRiskFrequencyChart(data.risk_frequency || [], episodes)}</div>
+        <div class="analytics-card"><p class="section-kicker">Patient voice</p><h3>Common Patient Questions & Concerns</h3>${renderQuestionRollup(data.question_rollup || [], episodes)}</div>
+    </div>
+    <h3>Episodes</h3>
+    <div class="episode-table-wrap">
+        <table class="history-table" style="margin-top:0;">
+            <thead><tr><th>Episode</th><th>Clinician</th><th>Core risks %</th><th>Completeness</th><th>Discussion category</th><th>Status</th><th></th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+    </div>`;
+}
+
+function avgCoreRisk(episodes) {
+    const eligible = (episodes || []).filter(e => e.core_risk_pct != null);
+    if (!eligible.length) return '—';
+    return (eligible.reduce((a, e) => a + e.core_risk_pct, 0) / eligible.length).toFixed(0) + '%';
+}
+
+function pctMeaningful(episodes) {
+    if (!episodes || !episodes.length) return '—';
+    const n = episodes.filter(e => e.tradeoff_level === 'Meaningful comparison').length;
+    const eligible = episodes.filter(e => e.has_index_decision);
+    return eligible.length ? Math.round(100 * n / eligible.length) + '%' : '—';
+}
+
+function avgCompleteness(episodes) {
+    return episodes.length ? Math.round(episodes.reduce((sum, ep) => sum + (ep.completeness_pct ?? 100), 0) / episodes.length) + '%' : '—';
+}
+
+function recommendationExplainedPct(episodes) {
+    const eligible = episodes.filter(ep => ep.has_index_decision);
+    return eligible.length ? Math.round(100 * eligible.filter(ep => ep.recommendation_explained).length / eligible.length) + '%' : '—';
+}
+
+function questionsAnswered(episodes) {
+    const answered = episodes.reduce((sum, ep) => sum + (ep.questions_answered_count || 0), 0);
+    const total = episodes.reduce((sum, ep) => sum + (ep.questions_total_count || 0), 0);
+    return `${answered}/${total}`;
+}
+
+function jitterCategory(ep) {
+    if (!ep.has_index_decision) return 'No consent-relevant decision';
+    if (ep.decision_framing === 'Single option presented') return 'Single option presented';
+    return ep.tradeoff_level || null;
+}
+
+function renderRiskFrequencyChart(rows, episodes) {
+    const counts = new Map();
+    episodes.flatMap(ep => ep.core_risk_items || []).forEach(risk => {
+        const value = counts.get(risk.risk_name) || {risk_name:risk.risk_name, not_discussed_count:0, discussed_count:0};
+        if (risk.detection_status === 'Discussed') value.discussed_count++; else value.not_discussed_count++;
+        counts.set(risk.risk_name, value);
+    });
+    const filtered = [...counts.values()].filter(row => row.not_discussed_count > 0).map(row => {
+        const total = row.not_discussed_count + row.discussed_count;
+        return {...row, pct_not_discussed: total ? Math.round(100 * row.not_discussed_count / total) : 0};
+    }).sort((a,b) => b.not_discussed_count - a.not_discussed_count);
+    const max = Math.max(1, ...filtered.map(row => row.not_discussed_count));
+    return filtered.length ? filtered.slice(0, 8).map(row => `<div class="rank-row"><strong>${escHtml(row.risk_name)}</strong><div class="rank-track"><div class="rank-fill" style="width:${100 * row.not_discussed_count / max}%"></div></div><span>${row.not_discussed_count} missed · ${row.pct_not_discussed}%</span></div>`).join('') : '<p>No missed core risks in the selected episodes.</p>';
+}
+
+function renderQuestionRollup(rows, episodes) {
+    const grouped = new Map();
+    episodes.flatMap(ep => ep.patient_questions || []).forEach(item => {
+        const question = typeof item === 'string' ? item : item.question;
+        if (!question) return;
+        const normalized = question.toLowerCase();
+        let topic = 'Other questions';
+        if (/(heal|recovery|work|drive|activity)/.test(normalized)) topic = 'Recovery and return to activities';
+        else if (/(wait|worse|progress|delay)/.test(normalized)) topic = 'Risks of waiting';
+        else if (/(pain|relief|symptom)/.test(normalized)) topic = 'Pain and symptom relief';
+        else if (/(risk|safe|complication)/.test(normalized)) topic = 'Procedure risks';
+        const value = grouped.get(topic) || {topic, count:0, example:question};
+        value.count++;
+        grouped.set(topic, value);
+    });
+    const filtered = [...grouped.values()].sort((a,b) => b.count - a.count);
+    const max = Math.max(1, ...filtered.map(row => row.count));
+    return filtered.length ? filtered.slice(0, 8).map(row => `<div class="rank-row" title="${escAttr(row.example)}"><strong>${escHtml(row.topic)}</strong><div class="rank-track"><div class="rank-fill" style="width:${100 * row.count / max}%"></div></div><span>${row.count}</span></div>`).join('') : '<p>No patient questions in the selected episodes.</p>';
+}
+
+function buildSankeyData(episodes) {
+    const categories = ['No consent-relevant decision', 'Single option presented', 'Not compared', 'Limited comparison', 'Meaningful comparison'];
+    const counts = new Map(categories.map(category => [category, 0]));
+    episodes.forEach(ep => counts.set(jitterCategory(ep), (counts.get(jitterCategory(ep)) || 0) + 1));
+    const nodes = [
+        {name:'All episodes'}, {name:'No consent-relevant decision'}, {name:'Single option presented'},
+        {name:'Alternatives presented'}, {name:'Not compared'}, {name:'Limited comparison'}, {name:'Meaningful comparison'}
+    ];
+    const links = [
+        {source:0,target:1,value:counts.get('No consent-relevant decision') || 0},
+        {source:0,target:2,value:counts.get('Single option presented') || 0},
+        {source:0,target:3,value:(counts.get('Not compared') || 0)+(counts.get('Limited comparison') || 0)+(counts.get('Meaningful comparison') || 0)},
+        {source:3,target:4,value:counts.get('Not compared') || 0},
+        {source:3,target:5,value:counts.get('Limited comparison') || 0},
+        {source:3,target:6,value:counts.get('Meaningful comparison') || 0}
+    ].filter(link => link.value > 0);
+    return {nodes, links};
+}
+
+function renderSankey(episodes) {
+    const el = document.getElementById('sankeyPlot');
+    if (!el || !d3.sankey) return;
+    const width = Math.max(el.clientWidth || 900, 620), height = 320;
+    const graph = d3.sankey().nodeWidth(18).nodePadding(20).extent([[10,10],[width-10,height-30]])(buildSankeyData(episodes));
+    const svg = d3.select(el).append('svg').attr('viewBox',`0 0 ${width} ${height}`).attr('role','img').attr('aria-label','Flow of treatment option discussion quality');
+    svg.append('g').attr('fill','none').selectAll('path').data(graph.links).join('path').attr('d',d3.sankeyLinkHorizontal()).attr('stroke','#7eaee8').attr('stroke-opacity',.42).attr('stroke-width',d=>Math.max(1,d.width)).append('title').text(d=>`${d.source.name} → ${d.target.name}: ${d.value} episodes`);
+    const node = svg.append('g').selectAll('g').data(graph.nodes).join('g');
+    node.append('rect').attr('x',d=>d.x0).attr('y',d=>d.y0).attr('width',d=>d.x1-d.x0).attr('height',d=>Math.max(1,d.y1-d.y0)).attr('fill',d=>d.name.startsWith('No consent')?'#95a5a6':'#1769e0');
+    node.append('text').attr('x',d=>d.x0<width/2?d.x1+7:d.x0-7).attr('y',d=>(d.y0+d.y1)/2).attr('dy','.35em').attr('text-anchor',d=>d.x0<width/2?'start':'end').style('font-size','11px').style('font-weight',700).text(d=>`${d.name} (${d.value || 0})`);
+}
+
+function renderJitterPlot(episodes, clinicians) {
+    const el = document.getElementById('jitterPlot');
+    if (!el || typeof d3 === 'undefined') return;
+
+    const tradeoffOrder = ['Single option presented', 'Not compared', 'Limited comparison', 'Meaningful comparison', 'No consent-relevant decision'];
+    const clinicianColors = new Map((clinicians || []).map(c => [c.name, c.color]));
+    const width = Math.max(el.clientWidth || 900, 620);
+    const height = 440;
+    const margin = { top: 18, right: 28, bottom: 68, left: 62 };
+    const radius = 6;
+
+    el.innerHTML = '';
+    const tooltip = d3.select(el)
+        .append('div')
+        .attr('class', 'beeswarm-tooltip');
+
+    const svg = d3.select(el)
+        .append('svg')
+        .attr('viewBox', `0 0 ${width} ${height}`)
+        .attr('role', 'img')
+        .style('font-family', 'inherit')
+        .attr('aria-label', 'Patient episodes by tradeoff comparison quality and percentage of core risks discussed');
+
+    const x = d3.scalePoint()
+        .domain(tradeoffOrder)
+        .range([margin.left + 55, width - margin.right - 55])
+        .padding(0.25);
+    const y = d3.scaleLinear()
+        .domain([0, 100])
+        .range([height - margin.bottom, margin.top]);
+
+    const yAxis = d3.axisLeft(y)
+        .ticks(5)
+        .tickFormat(d => `${d}%`)
+        .tickSize(-(width - margin.left - margin.right));
+    const yGroup = svg.append('g')
+        .attr('transform', `translate(${margin.left},0)`)
+        .call(yAxis);
+    yGroup.select('.domain').remove();
+    yGroup.selectAll('.tick line').attr('stroke', '#e2ecf6');
+    yGroup.selectAll('.tick text')
+        .attr('fill', '#5d7691')
+        .style('font-size', '11px')
+        .style('font-weight', 700);
+
+    const xAxis = d3.axisBottom(x).tickSize(0).tickPadding(16);
+    const xGroup = svg.append('g')
+        .attr('transform', `translate(0,${height - margin.bottom})`)
+        .call(xAxis);
+    xGroup.select('.domain').attr('stroke', '#d4e2f0');
+    xGroup.selectAll('.tick text')
+        .attr('fill', '#0d2136')
+        .style('font-size', '11px')
+        .style('font-weight', 800)
+        .style('text-transform', 'uppercase')
+        .style('letter-spacing', '0.12em');
+
+    svg.append('text')
+        .attr('x', (margin.left + width - margin.right) / 2)
+        .attr('y', height - 12)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#5d7691')
+        .style('font-size', '10px')
+        .style('font-weight', 800)
+        .style('letter-spacing', '0.18em')
+        .text('TREATMENT OPTION DISCUSSION CATEGORY');
+    svg.append('text')
+        .attr('transform', 'rotate(-90)')
+        .attr('x', -(margin.top + height - margin.bottom) / 2)
+        .attr('y', 14)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#5d7691')
+        .style('font-size', '10px')
+        .style('font-weight', 800)
+        .style('letter-spacing', '0.18em')
+        .text('% CORE RISKS DISCUSSED');
+
+    const nodes = (episodes || []).map(ep => {
+        const level = jitterCategory(ep);
+        const targetX = x(level);
+        const targetY = ep.core_risk_pct == null ? y(50) : y(Math.max(0, Math.min(100, ep.core_risk_pct)));
+        return { ...ep, targetX, targetY, x: targetX, y: targetY };
+    });
+
+    // D3's collision force creates a beeswarm while strong position forces keep
+    // each point anchored to its category and risk percentage.
+    const simulation = d3.forceSimulation(nodes)
+        .force('x', d3.forceX(d => d.targetX).strength(0.28))
+        .force('y', d3.forceY(d => d.targetY).strength(0.9))
+        .force('collide', d3.forceCollide(radius + 1.5).strength(1).iterations(4))
+        .stop();
+    for (let i = 0; i < 280; i++) simulation.tick();
+
+    function showTooltip(event, d) {
+        const rect = el.getBoundingClientRect();
+        tooltip
+            .html(
+                `<strong>${escHtml(d.patient_label)}</strong><br>` +
+                `Clinician: ${escHtml(d.clinician_name)}<br>` +
+                `Core risks discussed: ${d.core_risk_pct == null ? (d.has_index_decision ? 'N/A — no core-risk set' : 'N/A — no consent-relevant decision') : `${d.core_risk_pct}%`}<br>` +
+                `Discussion category: ${escHtml(jitterCategory(d))}<br>` +
+                `Status: ${escHtml(d.status)}`
+            )
+            .style('left', `${event.clientX - rect.left + 12}px`)
+            .style('top', `${event.clientY - rect.top - 18}px`)
+            .style('opacity', 1);
+    }
+
+    const dots = svg.append('g')
+        .selectAll('circle')
+        .data(nodes)
+        .join('circle')
+        .attr('cx', d => d.x)
+        .attr('cy', d => d.y)
+        .attr('r', radius)
+        .attr('fill', d => d.has_index_decision ? (clinicianColors.get(d.clinician_name) || '#7f8c8d') : '#fff')
+        .attr('fill-opacity', 0.88)
+        .attr('stroke', d => d.has_index_decision ? '#fff' : '#7f8c8d')
+        .attr('stroke-width', 1.2)
+        .attr('tabindex', 0)
+        .attr('role', 'button')
+        .attr('aria-label', d => `${d.patient_label}, ${d.clinician_name}, ${d.core_risk_pct == null ? 'N/A' : `${d.core_risk_pct}% core risks`}, ${jitterCategory(d)}`)
+        .style('cursor', 'pointer')
+        .on('mouseenter', function(event, d) {
+            d3.select(this).attr('r', radius + 2).attr('stroke-width', 2);
+            showTooltip(event, d);
+        })
+        .on('mousemove', showTooltip)
+        .on('mouseleave', function() {
+            d3.select(this).attr('r', radius).attr('stroke-width', 1.2);
+            tooltip.style('opacity', 0);
+        })
+        .on('click', (_, d) => openEpisode(d.episode_id))
+        .on('keydown', (event, d) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openEpisode(d.episode_id);
+            }
+        });
+
+    dots.append('title')
+        .text(d => `${d.patient_label} — ${d.clinician_name}`);
+}
+
+async function openEpisode(episodeId) {
+    document.getElementById('resultsContent').innerHTML = '<p>Loading episode...</p>';
+    document.getElementById('btn-results').style.display = 'inline-block';
+    switchTab('results');
+    try {
+        const res = await fetch(`/api/department/episode/${encodeURIComponent(episodeId)}`);
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        const raw = data.regions;
+        let regions, schemaVersion;
+        if (raw && !Array.isArray(raw) && raw.decisions) {
+            regions = raw.decisions;
+            schemaVersion = raw.schema_version || 2;
+        } else {
+            regions = raw || [];
+            schemaVersion = data.schema_version;
+        }
+        CURRENT_SELECTED_DECISION_ID = null;
+        renderUI(regions, data.turns || [], schemaVersion);
+        const ep = data.episode;
+        if (ep) {
+            const banner = document.createElement('div');
+            banner.className = 'map-options';
+            banner.style.cssText = 'background:#eaf2fa;border:0;border-left:3px solid #1769e0;margin-bottom:16px;';
+            banner.innerHTML = `<strong>${escHtml(ep.patient_label)}</strong> · ${escHtml(ep.clinician_name)} · Core risks ${ep.core_risk_pct == null ? 'N/A' : `${ep.core_risk_pct}%`} · ${escHtml(jitterCategory(ep))}` +
+                (ep.source === 'demo' ? ' · <em>demo episode</em>' : ' · <em>saved analysis</em>');
+            const results = document.getElementById('resultsContent');
+            results.insertBefore(banner, results.firstChild);
+        }
+    } catch (e) {
+        document.getElementById('resultsContent').innerHTML = `<span class="error">Failed to open episode: ${e.message}</span>`;
+    }
 }
 
 async function loadHistory() {
@@ -336,166 +1117,455 @@ async function loadRun(id) {
     try {
         const res = await fetch(`/api/run/${id}`);
         const data = await res.json();
-        renderUI(data.regions, data.turns);
+        const raw = data.regions;
+        let regions, schemaVersion;
+        if (raw && !Array.isArray(raw) && raw.decisions) {
+            regions = raw.decisions;
+            schemaVersion = raw.schema_version;
+        } else {
+            regions = raw || [];
+            schemaVersion = data.schema_version;
+        }
+        renderUI(regions, data.turns, schemaVersion);
     } catch (e) {
         document.getElementById('resultsContent').innerHTML = `<span class="error">Failed to load run data: ${e.message}</span>`;
     }
 }
 
+// --- CCQ CONSTANTS & STATE ---
+const CCQ_SCHEMA_VERSION = 2;
+const CCQ_SYSTEM_INSTRUCTION = "You are a CCQ clinical conversation analyst. Extract only what is grounded in the transcript. Do not infer patient understanding. Do not conclude legal sufficiency of consent.";
+const REGION_COLORS = [
+    { bg: '#e6f2ff', border: '#2e7de1', tag: '#1769e0' },
+    { bg: '#e7f8fb', border: '#23a7bf', tag: '#137f9a' },
+    { bg: '#eef0ff', border: '#6578d8', tag: '#4459bd' },
+    { bg: '#e9f5ff', border: '#449bd1', tag: '#2179b2' }
+];
+
+let CURRENT_REGIONS = null;
+let CURRENT_TURNS = null;
+let CURRENT_SELECTED_DECISION_ID = null;
+let CURRENT_SCHEMA_VERSION = null;
+let CURRENT_RUN_META = {};
+
 // --- PROMPTS & SCHEMAS ---
 const AUTO_DETECT_SCHEMA = {
-    "type": "object",
-    "properties": { "detected_procedure_name": { "type": "string" } },
-    "required": ["detected_procedure_name"]
+    type: "object",
+    properties: { detected_procedure_name: { type: "string" } },
+    required: ["detected_procedure_name"]
 };
 
-const BROAD_SEGMENTATION_PROMPT = `Extract the broad conversational boundaries (start and end turns) of proposed procedures where consent is being obtained.`;
+const DECISION_DETECTION_PROMPT = `Identify clinical decisions in this encounter transcript.
+A clinical decision is a choice between meaningful paths (e.g., surgery vs conservative management, which medication, whether to defer).
+Group options under one decision unless they are genuinely distinct clinical forks.
+For each decision provide:
+- decision_label (e.g., "Management of lumbar stenosis")
+- option_names (short labels for paths discussed)
+- status: exactly "Resolved" when a clear choice was made; "Deferred" when the choice was intentionally postponed; or "Unresolved" when no clear choice was made and no intentional postponement was established
+- selected_option: the chosen path if Resolved, else null or empty string
+- start_turn_index and end_turn_index (global turn numbers from the transcript)
+Use parent_decision_id only for nested sub-decisions.`;
 
-const BROAD_SEGMENTATION_SCHEMA = {
-  "type": "object",
-  "properties": {
-    "decisions": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string" },
-          "problem_area": { "type": "string" },
-          "summary": { "type": "string" },
-          "decision_type": { "type": "string" },
-          "broad_start_turn_index": { "type": "integer" },
-          "broad_end_turn_index": { "type": "integer" }
-        },
-        "required": ["id", "problem_area", "summary", "decision_type", "broad_start_turn_index", "broad_end_turn_index"]
-      }
-    }
-  }
+const DECISION_DETECTION_SCHEMA = {
+    type: "object",
+    properties: {
+        decisions: {
+            type: "array",
+            items: {
+                type: "object",
+                properties: {
+                    id: { type: "string" },
+                    parent_decision_id: { type: "string" },
+                    decision_label: { type: "string" },
+                    option_names: { type: "array", items: { type: "string" } },
+                    status: { type: "string", enum: ["Resolved", "Deferred", "Unresolved"] },
+                    selected_option: { type: "string" },
+                    start_turn_index: { type: "integer" },
+                    end_turn_index: { type: "integer" }
+                },
+                required: ["id", "decision_label", "option_names", "status", "start_turn_index", "end_turn_index"]
+            }
+        }
+    },
+    required: ["decisions"]
 };
 
-const RELEVANCE_FILTERING_PROMPT = `Identify the exact turn indices that are RELEVANT to the discussion of the procedure and its risks. Output an array of integers.`;
+const DECISION_MERGE_PROMPT = `Merge clinical decisions detected across multiple encounters that refer to the same underlying clinical question.
+For each merged decision, resolve status and selected_option from the latest encounter when the timeline shows progression.
+Preserve parent_decision_id when a decision is a genuinely distinct nested sub-decision.
+Output unified global turn indices and encounter file names involved.`;
+
+const DECISION_MERGE_SCHEMA = {
+    type: "object",
+    properties: {
+        merged_decisions: {
+            type: "array",
+            items: {
+                type: "object",
+                properties: {
+                    decision_id: { type: "string" },
+                    parent_decision_id: { type: "string" },
+                    decision_label: { type: "string" },
+                    status: { type: "string", enum: ["Resolved", "Deferred", "Unresolved"] },
+                    selected_option: { type: "string" },
+                    option_names: { type: "array", items: { type: "string" } },
+                    encounter_files: { type: "array", items: { type: "string" } },
+                    turn_indices: { type: "array", items: { type: "integer" } }
+                },
+                required: ["decision_id", "decision_label", "status", "option_names", "encounter_files", "turn_indices"]
+            }
+        }
+    },
+    required: ["merged_decisions"]
+};
+
+const RELEVANCE_FILTERING_PROMPT = `Identify exact turn indices RELEVANT to this clinical decision, its options, tradeoffs, patient values, and any procedure risks discussed in the decision context.`;
 const RELEVANCE_FILTERING_SCHEMA = {
-  "type": "object",
-  "properties": { "relevant_turn_indices": { "type": "array", "items": { "type": "integer" } } },
-  "required": ["relevant_turn_indices"]
+    type: "object",
+    properties: { relevant_turn_indices: { type: "array", items: { type: "integer" } } },
+    required: ["relevant_turn_indices"]
 };
 
-// UPDATED: Re-added Certainty Language and Unlisted Risk Procedure Association
-function getClassificationPrompt(ontologyText, procedureName, fileName) {
-    return `
-    You are evaluating a single transcript ("${fileName}") which is part of a patient's timeline for the procedure "${procedureName}".
-    You must extract the standard AHRQ Consent Elements AND evaluate this specific transcript against the expected risk ontology.
+const TEXT_WITH_QUALIFIERS = {
+    type: "object",
+    properties: {
+        text: { type: "string" },
+        qualifying_language: { type: "array", items: { type: "string" } },
+        quote: { type: "string" },
+        turn_indices: { type: "array", items: { type: "integer" } }
+    },
+    required: ["text", "qualifying_language", "quote", "turn_indices"]
+};
 
-    --- EXPECTED COMPONENT RISK ONTOLOGY ---
-    ${ontologyText}
-    ----------------------------------------
+const GROUNDED_STATEMENT_SCHEMA = {
+    type: "object",
+    properties: {
+        text: { type: "string" },
+        quote: { type: "string" },
+        turn_indices: { type: "array", items: { type: "integer" } }
+    },
+    required: ["text", "quote", "turn_indices"]
+};
 
-    CRITICAL INSTRUCTIONS:
-    1. For EVERY risk in the ontology above, determine if the clinician mentioned it in THIS transcript.
-       - Status MUST be exactly "Covered" (explicitly explained), "Partially Covered" (briefly mentioned), or "Not Mentioned".
-       - Level of Detail: Explain how the provider described it.
-       - Jargon Level: "Low (Layman)", "Medium", or "High (Clinical/Heavy)".
-       - Certainty Language: Extract any language used by the provider to describe the likelihood, frequency, or certainty of this risk occurring (e.g., "1 in 100", "very rare"). Use "N/A" if none.
-       - Quote: Extract the EXACT quote. Put "N/A" if Not Mentioned.
-       - Turn Indices: Array of exact turn numbers.
-    2. Identify any ADDITIONAL risks discussed by the clinician that are NOT listed in the ontology above.
-       - For each unlisted risk, provide the "predicted_procedure_association" by guessing which specific procedure this risk belongs to. If it belongs to the chosen procedure being evaluated, output exactly "${procedureName}". If it belongs to an unchosen alternative discussed in the text, output that alternative's name.
-    3. For the AHRQ Consent Checklist, determine if each element was met. YOU MUST ground every checklist element in transcript evidence by providing the exact quote and turn indices. Pay special attention to grounding "Alternatives Discussed", "Voluntariness & Risk of Non-Treatment", and "Questions Invited" (i.e. whether the clinician explicitly invited or asked if the patient had any questions).
-    `;
+const CCQ_ANALYSIS_SCHEMA = {
+    type: "object",
+    properties: {
+        linked_interventions: { type: "array", items: { type: "string" }, description: "Interventions/procedures warranting informed-consent risk analysis, if any." },
+        decision_overview: {
+            type: "object",
+            properties: {
+                options_considered: {
+                    type: "array",
+                    items: {
+                        type: "object",
+                        properties: {
+                            option_name: { type: "string" },
+                            named_only: { type: "boolean" },
+                            what_it_involves: TEXT_WITH_QUALIFIERS,
+                            benefits: TEXT_WITH_QUALIFIERS,
+                            risks: TEXT_WITH_QUALIFIERS,
+                            burdens: TEXT_WITH_QUALIFIERS
+                        },
+                        required: ["option_name", "named_only"]
+                    }
+                },
+                clinician_recommendation: {
+                    type: "object",
+                    properties: {
+                        recommended_option: { type: "string" },
+                        rationale: { type: "string" },
+                        qualification: { type: "string" },
+                        quote: { type: "string" },
+                        turn_indices: { type: "array", items: { type: "integer" } }
+                    },
+                    required: ["recommended_option", "rationale", "qualification", "quote", "turn_indices"]
+                },
+                patient_considerations: {
+                    type: "object",
+                    properties: {
+                        goals_priorities: { type: "array", items: GROUNDED_STATEMENT_SCHEMA },
+                        preferences: { type: "array", items: GROUNDED_STATEMENT_SCHEMA },
+                        questions: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                properties: {
+                                    question: { type: "string" },
+                                    response: { type: "string" },
+                                    response_status: { type: "string", enum: ["Answered", "Acknowledged but not answered", "Not addressed"] },
+                                    turn_indices: { type: "array", items: { type: "integer" } }
+                                },
+                                required: ["question", "response", "response_status", "turn_indices"]
+                            }
+                        }
+                    },
+                    required: ["goals_priorities", "preferences", "questions"]
+                }
+            },
+            required: ["options_considered", "clinician_recommendation", "patient_considerations"]
+        },
+        communication_analysis: {
+            type: "object",
+            properties: {
+                decision_framing: {
+                    type: "string",
+                    enum: [
+                        "Alternatives explicitly presented",
+                        "Multiple options mentioned, but choice framing unclear",
+                        "Single option presented"
+                    ]
+                },
+                tradeoff_comparisons: {
+                    type: "array",
+                    items: {
+                        type: "object",
+                        properties: {
+                            option_a: { type: "string" },
+                            option_b: { type: "string" },
+                            level: { type: "string", enum: ["Not compared", "Limited comparison", "Meaningful comparison"] },
+                            evidence_quote: { type: "string" },
+                            turn_indices: { type: "array", items: { type: "integer" } }
+                        },
+                        required: ["option_a", "option_b", "level", "evidence_quote", "turn_indices"]
+                    }
+                },
+                patient_engagement: {
+                    type: "object",
+                    properties: {
+                        goals_priorities_elicited: { type: "boolean" },
+                        goals_priorities_evidence: { type: "string" },
+                        preferences_elicited: { type: "boolean" },
+                        preferences_elicited_evidence: { type: "string" },
+                        questions_invited: { type: "boolean" },
+                        questions_invited_evidence: { type: "string" }
+                    },
+                    required: ["goals_priorities_elicited", "preferences_elicited", "questions_invited", "goals_priorities_evidence", "preferences_elicited_evidence", "questions_invited_evidence"]
+                },
+                clinician_response: {
+                    type: "object",
+                    properties: {
+                        questions_answered_count: { type: "integer" },
+                        questions_total_count: { type: "integer" },
+                        recommendation_explained: { type: "string", enum: ["Explained", "Not explained"] }
+                    },
+                    required: ["questions_answered_count", "questions_total_count", "recommendation_explained"]
+                },
+                understanding_verification: {
+                    type: "string",
+                    enum: ["Active understanding check detected", "No active understanding check detected"]
+                }
+            },
+            required: ["decision_framing", "tradeoff_comparisons", "patient_engagement", "clinician_response", "understanding_verification"]
+        }
+    },
+    required: ["linked_interventions", "decision_overview", "communication_analysis"]
+};
+
+const RISK_DETAILS_SCHEMA = {
+    type: "object",
+    properties: {
+        likelihood: { type: "string" },
+        impact: { type: "string" },
+        patient_specific_relevance: { type: "string" },
+        management_or_response: { type: "string" }
+    },
+    required: ["likelihood", "impact", "patient_specific_relevance", "management_or_response"]
+};
+
+const RISK_ENTRY_SCHEMA = {
+    type: "object",
+    properties: {
+        risk_name: { type: "string" },
+        detection_status: { type: "string", enum: ["Discussed", "Not detected"] },
+        details_communicated: RISK_DETAILS_SCHEMA,
+        quote: { type: "string" },
+        turn_indices: { type: "array", items: { type: "integer" } }
+    },
+    required: ["risk_name", "detection_status", "quote", "turn_indices"]
+};
+
+const INFORMED_CONSENT_SCHEMA = {
+    type: "object",
+    properties: {
+        interventions: {
+            type: "array",
+            items: {
+                type: "object",
+                properties: {
+                    intervention_name: { type: "string" },
+                    core_risks: { type: "array", items: RISK_ENTRY_SCHEMA },
+                    relevant_risks: { type: "array", items: RISK_ENTRY_SCHEMA },
+                    context_dependent_risks: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                risk_name: { type: "string" },
+                                relevance_context: { type: "string" },
+                                detection_status: { type: "string", enum: ["Discussed", "Not detected"] },
+                                details_communicated: RISK_DETAILS_SCHEMA,
+                                quote: { type: "string" },
+                                turn_indices: { type: "array", items: { type: "integer" } }
+                            },
+                            required: ["risk_name", "relevance_context", "detection_status", "quote", "turn_indices"]
+                        }
+                    },
+                    risk_communication_summary: {
+                        type: "object",
+                        properties: {
+                            core_discussed: { type: "array", items: { type: "string" } },
+                            core_not_detected: { type: "array", items: { type: "string" } },
+                            relevant_discussed: { type: "array", items: { type: "string" } },
+                            relevant_not_detected: { type: "array", items: { type: "string" } },
+                            context_dependent_warrant_review: { type: "array", items: { type: "string" } }
+                        },
+                        required: ["core_discussed", "core_not_detected", "relevant_discussed", "relevant_not_detected", "context_dependent_warrant_review"]
+                    }
+                },
+                required: ["intervention_name", "core_risks", "relevant_risks", "context_dependent_risks", "risk_communication_summary"]
+            }
+        }
+    },
+    required: ["interventions"]
+};
+
+function getCcqAnalysisPrompt(decisionLabel) {
+    return `Analyze the clinical decision: "${decisionLabel}".
+Extract decision overview (options with benefits/risks/burdens and qualifying language), clinician recommendation, patient considerations, and communication analysis per CCQ spec.
+If an option is named without further detail, set named_only true and omit empty detail fields.
+Fold important limitations into the most relevant field (e.g., temporary relief under benefits).
+For tradeoff_comparisons, assess relevant pairs of options separately (Not compared / Limited comparison / Meaningful comparison).
+For understanding_verification, only flag whether the clinician actively checked understanding — never conclude the patient understood.
+Ground every option detail, clinician recommendation, patient goal, and preference with an exact quote and global turn_indices. Use empty quote/turn_indices only when the field is absent.
+For clinician_recommendation, preserve evidence that lets a reviewer determine whether it occurred before or after alternatives were discussed.
+List linked_interventions (procedures/interventions) only if informed-consent-style risk discussion applies.`;
 }
 
-// UPDATED: Added certainty_language and predicted_procedure_association to schemas
-const CLASSIFICATION_SCHEMA = {
-  "type": "object",
-  "properties": {
-    "ahrq_consent_checklist": {
-      "type": "object",
-      "properties": {
-        "purpose_procedures_explained": { "type": "object", "properties": { "met": {"type": "boolean"}, "quote": {"type": "string"}, "turn_indices": {"type": "array", "items": {"type": "integer"}} }, "required": ["met", "quote", "turn_indices"] },
-        "risks_discomforts_explained": { "type": "object", "properties": { "met": {"type": "boolean"}, "quote": {"type": "string"}, "turn_indices": {"type": "array", "items": {"type": "integer"}} }, "required": ["met", "quote", "turn_indices"] },
-        "benefits_compensation_explained": { "type": "object", "properties": { "met": {"type": "boolean"}, "quote": {"type": "string"}, "turn_indices": {"type": "array", "items": {"type": "integer"}} }, "required": ["met", "quote", "turn_indices"] },
-        "alternatives_discussed": { "type": "object", "properties": { "met": {"type": "boolean"}, "quote": {"type": "string"}, "turn_indices": {"type": "array", "items": {"type": "integer"}} }, "required": ["met", "quote", "turn_indices"] },
-        "patient_preferences_integrated": { "type": "object", "properties": { "met": {"type": "boolean"}, "quote": {"type": "string"}, "turn_indices": {"type": "array", "items": {"type": "integer"}} }, "required": ["met", "quote", "turn_indices"] },
-        "voluntariness_nontreatment_explained": { "type": "object", "properties": { "met": {"type": "boolean"}, "quote": {"type": "string"}, "turn_indices": {"type": "array", "items": {"type": "integer"}} }, "required": ["met", "quote", "turn_indices"] },
-        "teach_back_used": { "type": "object", "properties": { "met": {"type": "boolean"}, "quote": {"type": "string"}, "turn_indices": {"type": "array", "items": {"type": "integer"}} }, "required": ["met", "quote", "turn_indices"] },
-        "questions_invited": { "type": "object", "properties": { "met": {"type": "boolean"}, "quote": {"type": "string"}, "turn_indices": {"type": "array", "items": {"type": "integer"}} }, "required": ["met", "quote", "turn_indices"] }
-      },
-      "required": [
-        "purpose_procedures_explained", "risks_discomforts_explained", "benefits_compensation_explained", 
-        "alternatives_discussed", "patient_preferences_integrated", "voluntariness_nontreatment_explained", "teach_back_used", "questions_invited"
-      ]
-    },
-    "ontology_risk_assessment": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "risk_item": { "type": "string" },
-          "status": { "type": "string", "enum": ["Covered", "Partially Covered", "Not Mentioned"] },
-          "level_of_detail": { "type": "string" },
-          "jargon_level": { "type": "string", "enum": ["Low (Layman)", "Medium", "High (Clinical/Heavy)", "N/A"] },
-          "certainty_language": { "type": "string" },
-          "quote": { "type": "string" },
-          "turn_indices": { "type": "array", "items": { "type": "integer" } }
-        },
-        "required":["risk_item", "status", "level_of_detail", "jargon_level", "certainty_language", "quote", "turn_indices"]
-      }
-    },
-    "additional_risks_discussed": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "risk_name": { "type": "string" },
-          "predicted_procedure_association": { "type": "string" },
-          "quote": { "type": "string" },
-          "turn_indices": { "type": "array", "items": { "type": "integer" } }
-        },
-        "required": ["risk_name", "predicted_procedure_association", "quote", "turn_indices"]
-      }
-    }
-  }
-};
+function getInformedConsentPrompt(interventionName, ontologyText) {
+    return `Informed consent analysis for intervention: "${interventionName}".
+Compare risks discussed in the transcript against this reference framework. Describe what was and was not detected — do not conclude consent was legally sufficient.
 
-const REGION_COLORS = [{ bg: '#e8f4f8', border: '#3498db', tag: '#2980b9' }];
+--- REFERENCE RISK ONTOLOGY ---
+${ontologyText}
+-------------------------------
+
+For EVERY ontology risk, output detection_status "Discussed" or "Not detected".
+Place each risk in core_risks, relevant_risks, or context_dependent_risks based on its tier in the ontology (Core / Relevant / Context-dependent).
+For context_dependent_risks include relevance_context when patient/procedural factors appear in the conversation.
+details_communicated: include only subfields with transcript evidence; use empty string for absent subfields.
+Provide risk_communication_summary lists at the end.`;
+}
+
+function normalizeRiskTier(raw) {
+    const t = String(raw || "").toLowerCase();
+    if (t.includes("context")) return "Context-dependent";
+    if (t.includes("core")) return "Core";
+    return "Relevant";
+}
+
+function findOntologyKey(name) {
+    if (!name) return null;
+    const keys = Object.keys(GLOBAL_RISK_DB);
+    const lower = name.toLowerCase().trim();
+    const exact = keys.find(k => k.toLowerCase() === lower);
+    if (exact) return exact;
+    return keys.find(k => lower.includes(k.toLowerCase()) || k.toLowerCase().includes(lower)) || null;
+}
+
+function buildOntologyTextForIntervention(interventionKey) {
+    const rows = GLOBAL_RISK_DB[interventionKey] || [];
+    return rows.map(r => `- ${r.risk_item} [${normalizeRiskTier(r.importance)}]: ${r.description}`).join("\n");
+}
+
+function buildTranscriptChunk(globalTurns, indices) {
+    const sorted = [...new Set(indices)].sort((a, b) => a - b);
+    let text = "";
+    sorted.forEach(idx => {
+        const turnObj = globalTurns.find(t => t.index === idx);
+        if (turnObj) {
+            text += `[TURN ${idx}] ${turnObj.speaker_line}\n${turnObj.text_lines.join("\n")}\n\n`;
+        }
+    });
+    return text;
+}
+
+function expandTurnRange(globalTurns, start, end) {
+    const indices = [];
+    for (let j = start; j <= end; j++) {
+        if (globalTurns.find(t => t.index === j)) indices.push(j);
+    }
+    return indices;
+}
+
+function isLegacyRegion(region) {
+    return !!(region && (region.ahrq_consent_checklist || region.ontology_risk_assessment || region.customProcedureName));
+}
 
 function logStatus(msg) {
-    const log = document.getElementById('statusLog');
+    const log = document.getElementById("statusLog");
     log.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
     log.scrollTop = log.scrollHeight;
 }
 
 function escAttr(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    if (!str) return "";
+    return String(str).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function escHtml(str) {
+    if (!str) return "";
+    return escAttr(str);
 }
 
 function scrollToTurn(turnIndex) {
     const el = document.getElementById(`turn-${turnIndex}`);
     if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.classList.remove('flash-turn');
-        void el.offsetWidth; 
-        el.classList.add('flash-turn');
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.remove("flash-turn");
+        void el.offsetWidth;
+        el.classList.add("flash-turn");
     }
+}
+
+function renderTurnLinks(indices) {
+    if (!indices || !indices.length) return "";
+    return indices.map(t => `<span class="turn-link" onclick="scrollToTurn(${t})">T${t}</span>`).join(" ");
+}
+
+function renderTextField(field, emptyLabel) {
+    if (!field || !field.text) return `<span style="color:#95a5a6;font-style:italic;">${emptyLabel || "—"}</span>`;
+    const quals = (field.qualifying_language || []).filter(Boolean).map(q => `<span class="qual-tag">${escHtml(q)}</span>`).join("");
+    const evidence = field.quote ? `<div style="font-size:.82rem;font-style:italic;margin-top:5px;">"${escHtml(field.quote)}" ${renderTurnLinks(field.turn_indices)}</div>` : renderTurnLinks(field.turn_indices);
+    return `<span class="field-value">${escHtml(field.text)}</span>${quals ? `<div style="margin-top:4px;">${quals}</div>` : ""}${evidence}`;
+}
+
+async function callGemini(key, systemPrompt, schema, userContent) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent?key=${key}`;
+    const payload = {
+        system_instruction: { parts: [{ text: systemPrompt || CCQ_SYSTEM_INSTRUCTION }] },
+        contents: [{ parts: [{ text: `${userContent}` }] }],
+        generationConfig: { response_mime_type: "application/json", response_schema: schema, temperature: 0.1 }
+    };
+    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    return JSON.parse(data.candidates[0].content.parts[0].text);
 }
 
 function parseMultipleTranscriptsToTurns(fileDataArray) {
     const globalTurns = [];
     let globalIndex = 0;
-    
     fileDataArray.forEach((fileObj) => {
-        const lines = fileObj.text.split('\n');
+        const lines = fileObj.text.split("\n");
         let currentTurn = null;
         const speakerColonRegex = /^([A-Za-z\s\.\-\d]+):\s*(.*)$/;
-
         lines.forEach((line) => {
             const clean = line.trim();
             if (!clean) return;
-
             const colonMatch = clean.match(speakerColonRegex);
             if (colonMatch && colonMatch[1].length < 30) {
                 if (currentTurn) globalTurns.push(currentTurn);
-                currentTurn = { index: globalIndex++, encounter: fileObj.name, speaker_line: colonMatch[1].toUpperCase(), text_lines: [colonMatch[2] ? colonMatch[2] : []] };
+                currentTurn = { index: globalIndex++, encounter: fileObj.name, speaker_line: colonMatch[1].toUpperCase(), text_lines: [colonMatch[2] ? colonMatch[2] : ""] };
             } else {
                 if (currentTurn) currentTurn.text_lines.push(clean);
                 else currentTurn = { index: globalIndex++, encounter: fileObj.name, speaker_line: "METADATA", text_lines: [clean] };
@@ -506,185 +1576,134 @@ function parseMultipleTranscriptsToTurns(fileDataArray) {
     return globalTurns;
 }
 
-async function callGemini(key, systemPrompt, schema, userContent) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent?key=${key}`;
-    const payload = {
-        system_instruction: { parts: [{ text: "You are a clinical research compliance expert focusing on AHRQ Informed Consent." }] },
-        contents: [{ parts: [{ text: `${systemPrompt}\n\n${userContent}` }] }],
-        generationConfig: { response_mime_type: "application/json", response_schema: schema, temperature: 0.1 }
-    };
-
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (!res.ok) throw new Error(await res.text());
-    const data = await res.json();
-    return JSON.parse(data.candidates[0].content.parts[0].text);
-}
-
-// --- RUN PIPELINE ---
 async function runAnalysis() {
-    const fileInput = document.getElementById('fileInput');
-    const apiKey = document.getElementById('apiKey').value;
-    let procName = document.getElementById('procedureSelect').value;
-    const loader = document.getElementById('loader');
-    const errBox = document.getElementById('errorMsg');
-    
-    errBox.innerText = ""; document.getElementById('statusLog').innerHTML = "";
-    if (!apiKey) return errBox.innerText = "API Key required";
-    if (!fileInput.files.length) return errBox.innerText = "At least one transcript file required";
-    if (Object.keys(GLOBAL_RISK_DB).length === 0) return errBox.innerText = "Taxonomy Database is empty.";
+    const fileInput = document.getElementById("fileInput");
+    const apiKey = document.getElementById("apiKey").value;
+    let procName = document.getElementById("procedureSelect").value;
+    const requestedTotalEncounters = Number(document.getElementById("totalEncounters").value || 0);
+    const loader = document.getElementById("loader");
+    const errBox = document.getElementById("errorMsg");
 
-    localStorage.setItem('gemini_api_key', apiKey);
+    errBox.innerText = "";
+    document.getElementById("statusLog").innerHTML = "";
+    if (!apiKey) return (errBox.innerText = "API Key required");
+    if (!fileInput.files.length) return (errBox.innerText = "At least one transcript file required");
+    if (Object.keys(GLOBAL_RISK_DB).length === 0) return (errBox.innerText = "Taxonomy Database is empty.");
+
+    localStorage.setItem("gemini_api_key", apiKey);
     loader.style.display = "block";
-    
+
     try {
         const files = Array.from(fileInput.files);
+        const totalEncounters = Math.max(requestedTotalEncounters || files.length, files.length);
         const fileDataArray = [];
-        for (let f of files) {
-            const text = await f.text();
-            fileDataArray.push({ name: f.name, text: text });
+        for (const f of files) {
+            fileDataArray.push({ name: f.name, text: await f.text() });
         }
-        
+
         logStatus(`Extracted ${files.length} encounter(s). Building global timeline...`);
         const globalTurns = parseMultipleTranscriptsToTurns(fileDataArray);
-        
-        let autoDetectWarningMsg = null;
-        if(procName === "AUTO") {
-            logStatus("Step 0: Auto-detecting procedure...");
-            const sampleText = globalTurns.slice(0, 40).map(t => `[${t.speaker_line}] ${t.text_lines.join(' ')}`).join('\n');
-            const procMapping = Object.keys(GLOBAL_RISK_DB).map(k => `- ${k}`).join('\n');
-            const autoPrompt = `Determine the procedure being discussed. Choose ONLY from:\n${procMapping}\n\nSnippet:\n${sampleText}`;
-            
-            const autoData = await callGemini(apiKey, autoPrompt, AUTO_DETECT_SCHEMA, "Determine procedure name.");
+
+        if (procName === "AUTO") {
+            logStatus("Auto-detecting default procedure for ontology fallback...");
+            const sampleText = globalTurns.slice(0, 40).map(t => `[${t.speaker_line}] ${t.text_lines.join(" ")}`).join("\n");
+            const procMapping = Object.keys(GLOBAL_RISK_DB).map(k => `- ${k}`).join("\n");
+            const autoPrompt = `Determine the primary procedure being discussed. Choose ONLY from:\n${procMapping}\n\nSnippet:\n${sampleText}`;
+            const autoData = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, AUTO_DETECT_SCHEMA, autoPrompt);
             procName = autoData.detected_procedure_name;
-            
-            if(!GLOBAL_RISK_DB[procName]) {
-                 const fallbackKey = Object.keys(GLOBAL_RISK_DB)[0];
-                 autoDetectWarningMsg = `⚠️ Auto-Detect returned unrecognized procedure: "${procName}". Defaulting to: "${fallbackKey}".`;
-                 logStatus(autoDetectWarningMsg);
-                 procName = fallbackKey;
-            } else logStatus(`SUCCESS: Auto-detected procedure: ${procName}`);
+            if (!GLOBAL_RISK_DB[procName]) procName = Object.keys(GLOBAL_RISK_DB)[0];
+            logStatus(`Default ontology procedure: ${procName}`);
         }
 
-        const ontologyObj = GLOBAL_RISK_DB[procName];
-        const ontologyText = ontologyObj.map((r) => `- ${r.risk_item} (Cat: ${r.category})\n  Desc: ${r.description}`).join("\n");
-
-        const masterAssessment = {
-            problem_area: "Combined Encounters",
-            summary: procName,
-            decision_type: "Patient Timeline Analysis",
-            colorTheme: REGION_COLORS[0],
-            customProcedureName: procName,
-            autoDetectWarning: autoDetectWarningMsg, 
-            ahrq_consent_checklist: {
-                purpose_procedures_explained: { met: false, quotes: [], turn_indices: [] },
-                risks_discomforts_explained: { met: false, quotes: [], turn_indices: [] },
-                benefits_compensation_explained: { met: false, quotes: [], turn_indices: [] },
-                alternatives_discussed: { met: false, quotes: [], turn_indices: [] },
-                patient_preferences_integrated: { met: false, quotes: [], turn_indices: [] },
-                voluntariness_nontreatment_explained: { met: false, quotes: [], turn_indices: [] },
-                teach_back_used: { met: false, quotes: [], turn_indices: [] },
-                questions_invited: { met: false, quotes: [], turn_indices: [] }
-            },
-            ontology_risk_assessment: ontologyObj.map(r => ({
-                risk_item: r.risk_item, importance: r.importance, status: "Not Mentioned",
-                level_of_detail: [], jargon_level: [], certainty_language: [], quote: [], turn_indices: [], files: []
-            })),
-            additional_risks_discussed: [], 
-            relevant_turn_indices: []
-        };
-
-        for (let i = 0; i < files.length; i++) {
-            const fName = files[i].name;
-            logStatus(`--- Evaluating Transcript: ${fName} ---`);
-            const localTurns = globalTurns.filter(t => t.encounter === fName);
-            const localTranscriptText = localTurns.map(t => `[TURN ${t.index}] ${t.speaker_line}\n${t.text_lines.join('\n')}\n`).join('\n');
-
-            const broadData = await callGemini(apiKey, BROAD_SEGMENTATION_PROMPT, BROAD_SEGMENTATION_SCHEMA, localTranscriptText);
-            const decisions = broadData.decisions || [];
-            
-            if (decisions.length === 0) continue;
-
-            for (let d = 0; d < decisions.length; d++) {
-                const reg = decisions[d];
-                let chunkText = "";
-                for (let j = reg.broad_start_turn_index; j <= reg.broad_end_turn_index; j++) {
-                    const turnObj = globalTurns.find(t => t.index === j);
-                    if (turnObj) chunkText += `[TURN ${j}] ${turnObj.speaker_line}\n${turnObj.text_lines.join('\n')}\n\n`;
-                }
-
-                const filterPromptStr = `Procedure: ${reg.summary}\n\nTranscript Chunk:\n${chunkText}`;
-                const filterData = await callGemini(apiKey, RELEVANCE_FILTERING_PROMPT, RELEVANCE_FILTERING_SCHEMA, filterPromptStr);
-                const validIndices = (filterData.relevant_turn_indices || []).sort((a,b) => a-b);
-                masterAssessment.relevant_turn_indices.push(...validIndices);
-
-                let filteredTranscriptText = "";
-                validIndices.forEach(idx => {
-                    const turnObj = globalTurns.find(t => t.index === idx);
-                    if (turnObj) filteredTranscriptText += `[TURN ${idx}] ${turnObj.speaker_line}\n${turnObj.text_lines.join('\n')}\n\n`;
+        const rawDetections = [];
+        for (const f of files) {
+            logStatus(`Pass A: Detecting decisions in ${f.name}...`);
+            const localTurns = globalTurns.filter(t => t.encounter === f.name);
+            const localTranscriptText = localTurns.map(t => `[TURN ${t.index}] ${t.speaker_line}\n${t.text_lines.join("\n")}\n`).join("\n");
+            const det = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, DECISION_DETECTION_SCHEMA, `${DECISION_DETECTION_PROMPT}\n\nEncounter file: ${f.name}\n\n${localTranscriptText}`);
+            (det.decisions || []).forEach(d => {
+                rawDetections.push({
+                    ...d,
+                    encounter_file: f.name,
+                    turn_indices: expandTurnRange(globalTurns, d.start_turn_index, d.end_turn_index)
                 });
-
-                logStatus(`Step 3/3: Classifying Risks and Checklist for ${fName}...`);
-                const dynamicPrompt = getClassificationPrompt(ontologyText, procName, fName);
-                const classData = await callGemini(apiKey, dynamicPrompt, CLASSIFICATION_SCHEMA, filteredTranscriptText);
-
-                for (let key in classData.ahrq_consent_checklist) {
-                    const item = classData.ahrq_consent_checklist[key];
-                    if (item && item.met && masterAssessment.ahrq_consent_checklist[key]) {
-                        masterAssessment.ahrq_consent_checklist[key].met = true;
-                        if (item.quote && item.quote !== "N/A") {
-                            masterAssessment.ahrq_consent_checklist[key].quotes.push(`<strong>[${fName}]</strong> "${item.quote}"`);
-                        }
-                        if (item.turn_indices && item.turn_indices.length > 0) {
-                            masterAssessment.ahrq_consent_checklist[key].turn_indices.push(...item.turn_indices);
-                        }
-                    }
-                }
-
-                classData.ontology_risk_assessment.forEach(fileRisk => {
-                    let masterRisk = masterAssessment.ontology_risk_assessment.find(r => r.risk_item === fileRisk.risk_item);
-                    if (masterRisk && (fileRisk.status === "Covered" || fileRisk.status === "Partially Covered")) {
-                        if (fileRisk.status === "Covered") masterRisk.status = "Covered";
-                        else if (masterRisk.status === "Not Mentioned") masterRisk.status = "Partially Covered";
-                        
-                        if (!masterRisk.files.includes(fName)) masterRisk.files.push(fName);
-                        if (fileRisk.level_of_detail && fileRisk.level_of_detail !== "N/A" && fileRisk.level_of_detail !== "Not Mentioned") masterRisk.level_of_detail.push(`<strong>[${fName}]</strong> ${fileRisk.level_of_detail}`);
-                        if (fileRisk.jargon_level && fileRisk.jargon_level !== "N/A") masterRisk.jargon_level.push(`<strong>[${fName}]</strong> ${fileRisk.jargon_level}`);
-                        if (fileRisk.certainty_language && fileRisk.certainty_language !== "N/A") masterRisk.certainty_language.push(`<strong>[${fName}]</strong> ${fileRisk.certainty_language}`);
-                        if (fileRisk.quote && fileRisk.quote !== "N/A" && fileRisk.quote !== "Not Mentioned") masterRisk.quote.push(`<strong>[${fName}]</strong> "${fileRisk.quote}"`);
-                        if (fileRisk.turn_indices && fileRisk.turn_indices.length > 0) masterRisk.turn_indices.push(...fileRisk.turn_indices);
-                    }
-                });
-
-                if (classData.additional_risks_discussed) {
-                    classData.additional_risks_discussed.forEach(ar => {
-                        masterAssessment.additional_risks_discussed.push({ 
-                            risk_name: ar.risk_name, 
-                            predicted_procedure_association: ar.predicted_procedure_association,
-                            quote: ar.quote, 
-                            file: fName, 
-                            turn_indices: ar.turn_indices || [] 
-                        });
-                    });
-                }
-            }
-        }
-
-        logStatus("Analysis Complete. Attempting to save to local database...");
-        try {
-            await fetch('/api/save', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filename: files.map(f=>f.name).join(' + '), turns: globalTurns, regions: [masterAssessment] })
             });
-            logStatus("Saved to backend successfully.");
-        } catch (e) {
-            console.warn("Local DB not running, proceeding purely frontend.");
         }
 
-        renderUI([masterAssessment], globalTurns);
-        document.getElementById('btn-results').style.display = 'inline-block';
-        switchTab('results');
+        if (rawDetections.length === 0) {
+            throw new Error("No clinical decisions detected in the uploaded transcript(s).");
+        }
 
+        logStatus("Pass A: Merging decisions across encounters...");
+        const mergeInput = JSON.stringify(rawDetections, null, 2);
+        const mergeData = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, DECISION_MERGE_SCHEMA, `${DECISION_MERGE_PROMPT}\n\nDetected decisions:\n${mergeInput}`);
+        const merged = mergeData.merged_decisions || [];
+
+        const regions = [];
+        for (let i = 0; i < merged.length; i++) {
+            const md = merged[i];
+            const colorTheme = REGION_COLORS[i % REGION_COLORS.length];
+            logStatus(`Pass B: CCQ analysis for "${md.decision_label}"...`);
+
+            let chunkIndices = md.turn_indices || [];
+            const chunkText = buildTranscriptChunk(globalTurns, chunkIndices);
+            const filterData = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, RELEVANCE_FILTERING_SCHEMA, `${RELEVANCE_FILTERING_PROMPT}\n\nDecision: ${md.decision_label}\n\n${chunkText}`);
+            const filtered = (filterData.relevant_turn_indices || chunkIndices).sort((a, b) => a - b);
+            const filteredText = buildTranscriptChunk(globalTurns, filtered);
+
+            const ccqData = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, CCQ_ANALYSIS_SCHEMA, `${getCcqAnalysisPrompt(md.decision_label)}\n\n${filteredText}`);
+
+            let informedConsent = null;
+            const interventions = (ccqData.linked_interventions || []).map(s => findOntologyKey(s) || s).filter(Boolean);
+            const uniqueInterventions = [...new Set(interventions)];
+            if (uniqueInterventions.length > 0) {
+                logStatus(`Pass C: Informed consent for ${uniqueInterventions.length} intervention(s)...`);
+                const consentInterventions = [];
+                for (const intName of uniqueInterventions) {
+                    const ontKey = findOntologyKey(intName) || procName;
+                    const ontText = buildOntologyTextForIntervention(ontKey);
+                    if (!ontText) continue;
+                    const consentChunk = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, INFORMED_CONSENT_SCHEMA, `${getInformedConsentPrompt(ontKey, ontText)}\n\nTranscript:\n${filteredText}`);
+                    (consentChunk.interventions || []).forEach(intv => consentInterventions.push(intv));
+                }
+                if (consentInterventions.length) informedConsent = { interventions: consentInterventions };
+            }
+
+            regions.push({
+                decision_id: md.decision_id || `d${i + 1}`,
+                parent_decision_id: md.parent_decision_id || null,
+                decision_label: md.decision_label,
+                status: md.status,
+                selected_option: md.selected_option || null,
+                option_names: md.option_names || [],
+                encounter_ids: md.encounter_files || [],
+                relevant_turn_indices: filtered,
+                colorTheme,
+                linked_interventions: uniqueInterventions,
+                decision_overview: ccqData.decision_overview,
+                communication_analysis: ccqData.communication_analysis,
+                informed_consent_analysis: informedConsent
+            });
+        }
+
+        logStatus("Saving to database...");
+        const payload = {
+            filename: files.map(f => f.name).join(" + "),
+            total_encounters: totalEncounters,
+            turns: globalTurns,
+            regions: { schema_version: CCQ_SCHEMA_VERSION, default_procedure: procName, decisions: regions }
+        };
+        try {
+            await fetch("/api/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+            logStatus("Saved successfully.");
+        } catch (e) {
+            console.warn("Backend save skipped:", e);
+        }
+
+        CURRENT_RUN_META = { default_procedure: procName };
+        renderUI(regions, globalTurns, CCQ_SCHEMA_VERSION);
+        document.getElementById("btn-results").style.display = "inline-block";
+        switchTab("results");
     } catch (error) {
         console.error(error);
         errBox.innerText = "Error: " + error.message;
@@ -693,263 +1712,257 @@ async function runAnalysis() {
     }
 }
 
-// --- UI RENDERING ---
-function renderTreeNode(node) {
-    const cl = node.ahrq_consent_checklist || {};
-    let rawRisks = node.ontology_risk_assessment || [];
-    let additionalRisks = node.additional_risks_discussed || [];
-    
-    const sortedRisks = rawRisks.sort((a, b) => {
-        if (a.importance === "Core" && b.importance !== "Core") return -1;
-        if (b.importance === "Core" && a.importance !== "Core") return 1;
-        if (a.importance === "Relevant" && b.importance !== "Relevant") return -1;
-        if (b.importance === "Relevant" && a.importance !== "Relevant") return 1;
-        return 0;
-    });
-    
-    const coreRisks = sortedRisks.filter(r => r.importance === "Core");
-    const coreBadge = `<span class="badge risk-badge" style="background:#e74c3c; margin-bottom: 5px;">${coreRisks.filter(r => r.status === "Covered").length}/${coreRisks.length} Core Risks Fully Covered</span>`;
-    const totalBadge = `<span class="badge risk-badge" style="background:#34495e; margin-bottom: 5px;">${sortedRisks.filter(r => r.status === "Covered").length}/${sortedRisks.length} Total Expected Risks Fully Covered</span>`;
-            
-    let warningHtml = node.autoDetectWarning ? `<div style="background-color: #fff3cd; color: #856404; padding: 12px; border: 1px solid #ffeeba; border-radius: 4px; margin-bottom: 15px; font-weight: bold;">${node.autoDetectWarning}</div>` : '';
-
-    let risksHtml = `
-        <table class="risk-table">
-            <thead><tr>
-                <th style="width: 20%;">Expected Risk Item</th><th>Status</th><th>Certainty</th><th>Jargon Level</th><th>Encounter(s)</th><th style="width: 20%;">How it was described</th><th style="width: 20%;">Extracted Quote & Turns</th>
-            </tr></thead>
-            <tbody>
-                ${sortedRisks.map(r => {
-                    let statusClass = r.status === "Covered" ? "status-Covered" : (r.status === "Partially Covered" ? "status-Partially" : "status-Not");
-                    let impBadge = r.importance === "Core" ? `<span class="badge core-badge">Core</span>` : `<span class="badge relevant-badge">${r.importance}</span>`;
-                    return `
-                    <tr>
-                        <td><strong>${r.risk_item}</strong><br>${impBadge}</td>
-                        <td class="${statusClass}">${r.status}</td>
-                        <td style="font-size:0.8rem; color:#d35400;">${(r.certainty_language && r.certainty_language.length > 0) ? r.certainty_language.join('<br>') : '<span style="color:#95a5a6;">-</span>'}</td>
-                        <td style="font-size:0.8rem;">${(r.jargon_level && r.jargon_level.length > 0) ? r.jargon_level.join('<br>') : '<span style="color:#95a5a6;">-</span>'}</td>
-                        <td>${(r.files && r.files.length > 0) ? r.files.map(f => `<div class="encounter-badge">${f}</div>`).join('') : '-'}</td>
-                        <td style="font-size: 0.85rem; color:#555;">${(r.level_of_detail && r.level_of_detail.length > 0) ? r.level_of_detail.join('<br><br>') : '<span style="color:#95a5a6; font-style:italic;">N/A</span>'}</td>
-                        <td style="font-style:italic; font-size: 0.85rem; color:#7f8fa6;">
-                            ${(r.quote && r.quote.length > 0) ? r.quote.join('<br><br>') : '<span style="color:#95a5a6; font-style:italic;">N/A</span>'}<br><br>
-                            ${(r.turn_indices && r.turn_indices.length > 0) ? r.turn_indices.map(t => `<span class="turn-link" onclick="scrollToTurn(${t})">T${t}</span>`).join(' ') : ''}
-                        </td>
-                    </tr>`
-                }).join('')}
-            </tbody>
-        </table>
-    `;
-
-    const checklistMap = {
-        purpose_procedures_explained: "Purpose & Procedures",
-        risks_discomforts_explained: "Risks Overview",
-        benefits_compensation_explained: "Benefits",
-        alternatives_discussed: "Alternatives Discussed",
-        patient_preferences_integrated: "Patient Preferences Integrated",
-        voluntariness_nontreatment_explained: "Voluntariness & Risk of Non-treatment",
-        teach_back_used: "Teach-Back Used",
-        questions_invited: "Questions Invited"
-    };
-
-    let checklistHtml = `
-        <table class="risk-table" style="margin-top: 10px;">
-            <thead><tr>
-                <th style="width: 25%;">Core Consent Element</th><th style="width: 15%;">Status</th><th>Extracted Transcript Evidence & Turns</th>
-            </tr></thead>
-            <tbody>
-    `;
-    for (let key in checklistMap) {
-        const itemData = cl[key];
-        if (!itemData) continue;
-        const statusIcon = itemData.met ? `<span style="color:var(--success); font-weight:bold;">✅ Met</span>` : `<span style="color:#e74c3c; font-weight:bold;">❌ Not Met</span>`;
-        const quotesStr = (itemData.quotes && itemData.quotes.length > 0) ? itemData.quotes.join('<br><br>') : '<span style="color:#95a5a6; font-style:italic;">N/A</span>';
-        const turnLinks = (itemData.turn_indices && itemData.turn_indices.length > 0) ? itemData.turn_indices.map(t => `<span class="turn-link" onclick="scrollToTurn(${t})">T${t}</span>`).join(' ') : '';
-        
-        checklistHtml += `
-            <tr>
-                <td><strong>${checklistMap[key]}</strong></td>
-                <td>${statusIcon}</td>
-                <td style="font-style:italic; font-size: 0.85rem; color:#555;">${quotesStr}<br><br>${turnLinks}</td>
-            </tr>
-        `;
-    }
-    checklistHtml += `</tbody></table>`;
-    
-    // UPDATED: Filter Unlisted Risks to only show ones relevant to chosen procedure
-    const visibleAdditionalRisks = additionalRisks.filter(ar => 
-        ar.predicted_procedure_association && 
-        ar.predicted_procedure_association.toLowerCase() === node.customProcedureName.toLowerCase()
-    );
-
-    let additionalRisksHtml = '';
-    if (visibleAdditionalRisks.length > 0) {
-        additionalRisksHtml = `
-            <div class="map-options" style="background: #fff; border: 1px solid #dfe4ea; margin-top: 15px;">
-                <strong style="font-size: 0.9rem; color: #d35400;">Unlisted / Additional Risks Mentioned (Specific to ${node.customProcedureName})</strong>
-                <table class="risk-table" style="margin-top: 10px;">
-                    <thead><tr>
-                        <th style="width: 25%;">Mentioned Risk</th><th>Encounter File</th><th style="width: 50%;">Quote & Turns</th>
-                    </tr></thead>
-                    <tbody>
-                        ${visibleAdditionalRisks.map(ar => {
-                            let turnLinks = (ar.turn_indices && ar.turn_indices.length > 0) ? ar.turn_indices.map(t => `<span class="turn-link" onclick="scrollToTurn(${t})">T${t}</span>`).join(' ') : '';
-                            return `
-                            <tr>
-                                <td><strong>${ar.risk_name}</strong><br><span class="badge" style="background:#f39c12; color:white;">Additional</span></td>
-                                <td><div class="encounter-badge">${ar.file}</div></td>
-                                <td style="font-style:italic; font-size: 0.85rem; color:#555;">"${ar.quote}"<br><br>${turnLinks}</td>
-                            </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-    }
-
-    let html = `
-    <div class="decision-card" style="border-left-color: ${node.colorTheme.border}; opacity: 1;">
-        ${warningHtml}
-        <div class="card-header">
-            <h4>[${node.problem_area}] ${node.summary}</h4>
-            <div>
-                ${coreBadge} ${totalBadge}
-                <span class="badge" style="background: ${node.colorTheme.bg}; color: ${node.colorTheme.tag}; border: 1px solid ${node.colorTheme.border}; margin-bottom: 5px;">${node.decision_type || 'Procedure'}</span>
-            </div>
-        </div>
-        
-        <div class="map-options" style="background: #fff; border: 1px solid #dfe4ea;">
-            <strong style="font-size: 0.9rem; color: #2c3e50;">Grounded AHRQ Checklist (Found across encounters):</strong>
-            ${checklistHtml}
-        </div>
-
-        <div class="map-options" style="background: #fff; border: 1px solid #dfe4ea; margin-top: 15px;">
-            <strong style="font-size: 0.9rem; color: var(--primary);">Aggregated Expected Risk Assessment: ${node.customProcedureName}</strong>
-            ${risksHtml}
-        </div>
-        
-        ${additionalRisksHtml}
-    </div>`;
-    
-    return html;
-}
-
-// Aggregates figures across every region/procedure in the current run for the top summary bar
 function computeSummaryStats(regions) {
-    let checklistTotal = 0, checklistMet = 0;
-    let coreTotal = 0, coreCovered = 0;
-    let totalRisks = 0, coveredRisks = 0;
-    let novelRisks = 0;
-
+    const stats = { total: 0, resolved: 0, deferred: 0, unresolved: 0, meaningfulComparisons: 0, totalComparisons: 0, coreDiscussed: 0, coreTotal: 0, recommendationsExplained: 0, recommendationsTotal: 0, questionsAnswered: 0, questionsTotal: 0 };
     regions.forEach(r => {
-        const cl = r.ahrq_consent_checklist || {};
-        Object.values(cl).forEach(item => { checklistTotal++; if (item.met) checklistMet++; });
-
-        (r.ontology_risk_assessment || []).forEach(risk => {
-            totalRisks++;
-            if (risk.status === "Covered") coveredRisks++;
-            if (risk.importance === "Core") {
-                coreTotal++;
-                if (risk.status === "Covered") coreCovered++;
-            }
+        if (isLegacyRegion(r)) return;
+        stats.total++;
+        if (r.status === "Resolved") stats.resolved++;
+        else if (r.status === "Deferred") stats.deferred++;
+        else stats.unresolved++;
+        (r.communication_analysis?.tradeoff_comparisons || []).forEach(tc => {
+            stats.totalComparisons++;
+            if (tc.level === "Meaningful comparison") stats.meaningfulComparisons++;
         });
-
-        (r.additional_risks_discussed || []).forEach(ar => {
-            if (ar.predicted_procedure_association && r.customProcedureName && ar.predicted_procedure_association.toLowerCase() === r.customProcedureName.toLowerCase()) {
-                novelRisks++;
-            }
+        (r.informed_consent_analysis?.interventions || []).forEach(intv => {
+            (intv.core_risks || []).forEach(risk => {
+                stats.coreTotal++;
+                if (risk.detection_status === "Discussed") stats.coreDiscussed++;
+            });
         });
+        const response = r.communication_analysis?.clinician_response || {};
+        if (response.recommendation_explained) {
+            stats.recommendationsTotal++;
+            if (response.recommendation_explained === "Explained") stats.recommendationsExplained++;
+        }
+        stats.questionsAnswered += response.questions_answered_count || 0;
+        stats.questionsTotal += response.questions_total_count || 0;
     });
-
-    return { checklistTotal, checklistMet, coreTotal, coreCovered, totalRisks, coveredRisks, novelRisks };
+    return stats;
 }
 
 function renderSummaryBar(regions) {
     const s = computeSummaryStats(regions);
-    const pct = (num, den) => den > 0 ? Math.round((num / den) * 100) : 0;
-
-    return `
-    <div class="summary-bar">
-        <div class="summary-stat">
-            <div class="summary-stat-value">${pct(s.checklistMet, s.checklistTotal)}%</div>
-            <div class="summary-stat-label">Consent Elements Met<br><span class="summary-stat-sub">${s.checklistMet} of ${s.checklistTotal}</span></div>
-        </div>
-        <div class="summary-stat" style="border-top-color:#e74c3c;">
-            <div class="summary-stat-value" style="color:#e74c3c;">${pct(s.coreCovered, s.coreTotal)}%</div>
-            <div class="summary-stat-label">Core Risks Covered<br><span class="summary-stat-sub">${s.coreCovered} of ${s.coreTotal}</span></div>
-        </div>
-        <div class="summary-stat" style="border-top-color:var(--secondary);">
-            <div class="summary-stat-value" style="color:var(--secondary);">${pct(s.coveredRisks, s.totalRisks)}%</div>
-            <div class="summary-stat-label">All Expected Risks Covered<br><span class="summary-stat-sub">${s.coveredRisks} of ${s.totalRisks}</span></div>
-        </div>
-        <div class="summary-stat" style="border-top-color:var(--warning);">
-            <div class="summary-stat-value" style="color:var(--warning);">${s.novelRisks}</div>
-            <div class="summary-stat-label">Unlisted Risks Surfaced<br><span class="summary-stat-sub">Not in taxonomy</span></div>
-        </div>
+    if (s.total === 0) return "";
+    const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : 0);
+    return `<div class="summary-bar">
+        <div class="summary-stat"><div class="summary-stat-value">${s.total}</div><div class="summary-stat-label">Decisions Detected</div></div>
+        <div class="summary-stat" style="border-top-color:var(--success);"><div class="summary-stat-value" style="color:var(--success);">${s.resolved}</div><div class="summary-stat-label">Resolved</div></div>
+        <div class="summary-stat" style="border-top-color:var(--warning);"><div class="summary-stat-value" style="color:var(--warning);">${s.deferred}</div><div class="summary-stat-label">Deferred</div></div>
+        <div class="summary-stat"><div class="summary-stat-value">${s.unresolved}</div><div class="summary-stat-label">Unresolved</div></div>
+        <div class="summary-stat" style="border-top-color:var(--secondary);"><div class="summary-stat-value" style="color:var(--secondary);">${pct(s.meaningfulComparisons, s.totalComparisons)}%</div><div class="summary-stat-label">Meaningful Tradeoff Comparisons<span class="summary-stat-sub">${s.meaningfulComparisons} of ${s.totalComparisons} pairs</span></div></div>
+        <div class="summary-stat" style="border-top-color:#e74c3c;"><div class="summary-stat-value" style="color:#e74c3c;">${pct(s.coreDiscussed, s.coreTotal)}%</div><div class="summary-stat-label">Core Risks Discussed<span class="summary-stat-sub">${s.coreDiscussed} of ${s.coreTotal}</span></div></div>
+        <div class="summary-stat"><div class="summary-stat-value">${s.recommendationsExplained}/${s.recommendationsTotal}</div><div class="summary-stat-label">Recommendations Explained</div></div>
+        <div class="summary-stat"><div class="summary-stat-value">${s.questionsAnswered}/${s.questionsTotal}</div><div class="summary-stat-label">Questions Answered</div></div>
     </div>`;
 }
 
-function renderUI(regions, turns) {
-    const results = document.getElementById('resultsContent');
-    let html = `<h2>AHRQ Procedure Dashboard (Patient Timeline View)</h2>`;
-    html += renderSummaryBar(regions);
-    html += `<div class="tree-container">`;
-    regions.forEach(root => { html += renderTreeNode(root); });
-    
-    html += `</div><h2>Patient Timeline (Merged Transcripts)</h2><div class="global-transcript">`;
-
-    turns.forEach((turn) => {
-        const activeRegions = regions.filter(r => r.relevant_turn_indices && r.relevant_turn_indices.includes(turn.index));
-        const turnTags = [];
-        
-        activeRegions.forEach(r => {
-            if(r.ontology_risk_assessment) {
-                r.ontology_risk_assessment.forEach(risk => {
-                    if (risk.turn_indices && risk.turn_indices.includes(turn.index)) turnTags.push({ text: risk.risk_item, color: r.colorTheme.tag, title: `Expected risk: ${risk.risk_item} (${risk.importance})` });
-                });
-            }
-            if(r.ahrq_consent_checklist) {
-                 for (let key in r.ahrq_consent_checklist) {
-                     let item = r.ahrq_consent_checklist[key];
-                     if (item.turn_indices && item.turn_indices.includes(turn.index)) {
-                         let friendlyName = key.replace(/_/g, ' ').toUpperCase();
-                         turnTags.push({ text: `[CHECKLIST] ${friendlyName}`, color: '#27ae60', title: `Grounds AHRQ checklist element: ${friendlyName}` });
-                     }
-                 }
-            }
-            if(r.additional_risks_discussed) {
-                r.additional_risks_discussed.forEach(ar => {
-                    if (ar.turn_indices && ar.turn_indices.includes(turn.index)) {
-                        // Tag unlisted risks, but color differently if they belong to chosen procedure or an alternative
-                        let belongsToChosen = ar.predicted_procedure_association && ar.predicted_procedure_association.toLowerCase() === r.customProcedureName.toLowerCase();
-                        let tagColor = belongsToChosen ? '#f39c12' : '#95a5a6';
-                        let prefix = belongsToChosen ? '[Novel]' : '[Alternative Risk]';
-                        // Tooltip surfaces the exact grounded quote right here, next to the line it was extracted from
-                        turnTags.push({ text: `${prefix} ${ar.risk_name}`, color: tagColor, title: ar.quote ? `"${ar.quote}"` : '' });
-                    }
-                });
-            }
+function renderDecisionsList(regions, selectedId) {
+    const byParent = new Map();
+    regions.forEach(r => {
+        const parent = r.parent_decision_id && regions.some(candidate => candidate.decision_id === r.parent_decision_id) ? r.parent_decision_id : null;
+        if (!byParent.has(parent)) byParent.set(parent, []);
+        byParent.get(parent).push(r);
+    });
+    const ordered = [];
+    const visit = (parentId, depth, seen = new Set()) => {
+        (byParent.get(parentId) || []).forEach(r => {
+            if (seen.has(r.decision_id)) return;
+            const nextSeen = new Set(seen).add(r.decision_id);
+            ordered.push({r, depth});
+            visit(r.decision_id, depth + 1, nextSeen);
         });
+    };
+    visit(null, 0);
+    regions.filter(r => !ordered.some(item => item.r === r)).forEach(r => ordered.push({r, depth:0}));
+    let rows = ordered.map(({r, depth}) => {
+        const sel = r.decision_id === selectedId ? "selected" : "";
+        const opt = r.selected_option ? escHtml(r.selected_option) : "—";
+        return `<tr class="decision-row ${sel}" onclick="selectDecision('${escAttr(r.decision_id)}')">
+            <td style="padding-left:${12 + depth * 22}px;"><strong>${depth ? '↳ ' : ''}${escHtml(r.decision_label)}</strong></td>
+            <td class="status-${r.status}">${r.status}</td>
+            <td>${opt}</td>
+        </tr>`;
+    }).join("");
+    return `<div class="map-options" style="background:#fff;"><strong>1. Decisions Detected</strong>
+        <table class="risk-table"><thead><tr><th>Decision</th><th>Status</th><th>Selected option</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
 
-        let turnBg = 'transparent', turnBorder = 'transparent';
-        if (activeRegions.length > 0) { turnBg = activeRegions[0].colorTheme.bg; turnBorder = activeRegions[0].colorTheme.border; }
+function renderRiskRows(risks, showContext) {
+    if (!risks || !risks.length) return "<p style='color:#95a5a6;'>None in reference framework.</p>";
+    return `<table class="risk-table"><thead><tr><th>Risk</th><th>Status</th><th>Details communicated</th><th>Evidence</th></tr></thead><tbody>
+        ${risks.map(risk => {
+            const stClass = risk.detection_status === "Discussed" ? "status-Discussed" : "status-Not-detected";
+            const det = risk.details_communicated || {};
+            const parts = [];
+            if (det.likelihood) parts.push(`Likelihood: ${escHtml(det.likelihood)}`);
+            if (det.impact) parts.push(`Impact: ${escHtml(det.impact)}`);
+            if (det.patient_specific_relevance) parts.push(`Patient-specific: ${escHtml(det.patient_specific_relevance)}`);
+            if (det.management_or_response) parts.push(`Management: ${escHtml(det.management_or_response)}`);
+            const ctx = showContext && risk.relevance_context ? `<div class="field-label">Context</div><div>${escHtml(risk.relevance_context)}</div>` : "";
+            return `<tr><td><strong>${escHtml(risk.risk_name)}</strong>${ctx}</td><td class="${stClass}">${risk.detection_status}</td><td style="font-size:0.85rem;">${parts.length ? parts.join("<br>") : "—"}</td><td style="font-size:0.85rem;font-style:italic;">${escHtml(risk.quote || "")}<br>${renderTurnLinks(risk.turn_indices)}</td></tr>`;
+        }).join("")}
+    </tbody></table>`;
+}
 
-        const tagsHtml = turnTags.map(t => `<span class="text-tag" style="background:${t.color};" title="${escAttr(t.title)}">${t.text}</span>`).join('');
-
-        html += `
-        <div id="turn-${turn.index}" class="turn-container" style="background: ${turnBg}; border-left-color: ${turnBorder};">
-            <div class="turn-meta">
-                <div class="encounter-label" title="${turn.encounter}">${turn.encounter.substring(0,12)}...</div>
-                <div>[TURN ${turn.index}]</div>
-                <div style="color:#2f3640;">${turn.speaker_line}</div>
+function renderInformedConsentSection(ica) {
+    if (!ica || !ica.interventions || !ica.interventions.length) {
+        return `<div class="section-block"><h3>4. Informed Consent Analysis</h3><p style="color:#7f8fa6;">Not applicable — no intervention-specific informed-consent analysis for this decision.</p></div>`;
+    }
+    let html = `<div class="section-block"><h3>4. Informed Consent Analysis</h3>`;
+    ica.interventions.forEach(intv => {
+        const sum = intv.risk_communication_summary || {};
+        html += `<div class="map-options" style="background:#fff;margin-bottom:16px;">
+            <strong>Intervention analyzed:</strong> ${escHtml(intv.intervention_name)}
+            <div class="field-label" style="margin-top:12px;">Core risks</div>${renderRiskRows(intv.core_risks, false)}
+            <div class="field-label">Relevant risks</div>${renderRiskRows(intv.relevant_risks, false)}
+            <details class="ctx-risks"><summary>Context-dependent risks</summary>${renderRiskRows(intv.context_dependent_risks, true)}</details>
+            <div class="field-label" style="margin-top:12px;">Risk communication summary</div>
+            <div class="field-value" style="font-size:0.88rem;line-height:1.6;">
+                <div><strong>Core discussed:</strong> ${(sum.core_discussed || []).join(", ") || "—"}</div>
+                <div><strong>Core not detected:</strong> ${(sum.core_not_detected || []).join(", ") || "—"}</div>
+                <div><strong>Relevant discussed:</strong> ${(sum.relevant_discussed || []).join(", ") || "—"}</div>
+                <div><strong>Relevant not detected:</strong> ${(sum.relevant_not_detected || []).join(", ") || "—"}</div>
+                <div><strong>Context-dependent may warrant review:</strong> ${(sum.context_dependent_warrant_review || []).join(", ") || "—"}</div>
             </div>
-            <div class="turn-content">${tagsHtml.length > 0 ? `<div class="turn-tags">${tagsHtml}</div>` : ''}${turn.text_lines.join('\n')}</div>
         </div>`;
     });
+    html += `</div>`;
+    return html;
+}
 
+function renderDecisionDetail(r) {
+    const ov = r.decision_overview || {};
+    const comm = r.communication_analysis || {};
+    const pe = comm.patient_engagement || {};
+    const cr = comm.clinician_response || {};
+
+    let optionsHtml = (ov.options_considered || []).map(opt => {
+        const namedOnly = opt.named_only ? `<span class="badge" style="background:#95a5a6;color:#fff;">Named only</span>` : "";
+        return `<div class="option-card"><h4>${escHtml(opt.option_name)} ${namedOnly}</h4>
+            <div class="field-label">What it involves</div>${renderTextField(opt.what_it_involves, "Not discussed")}
+            <div class="field-label">Benefits / expected outcomes</div>${renderTextField(opt.benefits, "Not discussed")}
+            <div class="field-label">Risks</div>${renderTextField(opt.risks, "Not discussed")}
+            <div class="field-label">Burdens / practical considerations</div>${renderTextField(opt.burdens, "Not discussed")}
+        </div>`;
+    }).join("") || "<p>No options extracted.</p>";
+
+    const rec = ov.clinician_recommendation || {};
+    const pc = ov.patient_considerations || {};
+    const renderGroundedStatements = items => (items || []).map(item => {
+        const statement = typeof item === "string" ? {text:item, quote:"", turn_indices:[]} : item;
+        return `<div>${escHtml(statement.text || "—")}${statement.quote ? ` — <em>"${escHtml(statement.quote)}"</em>` : ""} ${renderTurnLinks(statement.turn_indices)}</div>`;
+    }).join("") || "—";
+    const qRows = (pc.questions || []).map(q => `<tr><td>${escHtml(q.question)}</td><td>${escHtml(q.response || "—")}</td><td>${escHtml(q.response_status)}</td><td>${renderTurnLinks(q.turn_indices)}</td></tr>`).join("");
+
+    const tradeoffs = (comm.tradeoff_comparisons || []).map(tc => `<li><strong>${escHtml(tc.option_a)}</strong> vs <strong>${escHtml(tc.option_b)}</strong>: ${escHtml(tc.level)}<br><span style="font-style:italic;font-size:0.85rem;">"${escHtml(tc.evidence_quote)}"</span> ${renderTurnLinks(tc.turn_indices)}</li>`).join("") || "<li>No pairwise comparisons assessed.</li>";
+
+    const eng = `<ul style="font-size:0.9rem;line-height:1.7;">
+        <li>Goals / priorities elicited: <strong>${pe.goals_priorities_elicited ? "Yes" : "No"}</strong>${pe.goals_priorities_evidence ? ` — <em>${escHtml(pe.goals_priorities_evidence)}</em>` : ""}</li>
+        <li>Preferences elicited: <strong>${pe.preferences_elicited ? "Yes" : "No"}</strong>${pe.preferences_elicited_evidence ? ` — <em>${escHtml(pe.preferences_elicited_evidence)}</em>` : ""}</li>
+        <li>Questions invited: <strong>${pe.questions_invited ? "Yes" : "No"}</strong>${pe.questions_invited_evidence ? ` — <em>${escHtml(pe.questions_invited_evidence)}</em>` : ""}</li>
+    </ul>`;
+
+    return `<div class="decision-card" style="box-shadow: inset 3px 0 0 ${r.colorTheme.border};">
+        <h4 style="margin-top:0;">${escHtml(r.decision_label)}</h4>
+        <div>${(r.encounter_ids || []).map(e => `<span class="encounter-badge">${escHtml(e)}</span>`).join(" ")}</div>
+
+        <div class="section-block"><h3>2. Decision Overview</h3>
+            <div class="field-label">Options considered</div>${optionsHtml}
+            <div class="field-label">Clinician recommendation</div>
+            <div class="field-value"><strong>${escHtml(rec.recommended_option || "None stated")}</strong><br>${escHtml(rec.rationale || "")}${rec.qualification ? `<br><em>Qualification: ${escHtml(rec.qualification)}</em>` : ""}${rec.quote ? `<br><em>"${escHtml(rec.quote)}"</em>` : ""} ${renderTurnLinks(rec.turn_indices)}</div>
+            <div class="field-label" style="margin-top:14px;">Patient considerations</div>
+            <div class="field-value"><strong>Goals / priorities:</strong> ${renderGroundedStatements(pc.goals_priorities)}</div>
+            <div class="field-value" style="margin-top:6px;"><strong>Preferences:</strong> ${renderGroundedStatements(pc.preferences)}</div>
+            ${qRows ? `<div class="field-label">Questions raised</div><table class="risk-table"><thead><tr><th>Question</th><th>Response</th><th>Status</th><th>Turns</th></tr></thead><tbody>${qRows}</tbody></table>` : ""}
+        </div>
+
+        <div class="section-block"><h3>3. Communication Analysis</h3>
+            <div class="field-label">Decision framing</div><span class="framing-badge">${escHtml(comm.decision_framing || "—")}</span>
+            <div class="field-label" style="margin-top:14px;">Tradeoffs discussed</div><ul style="font-size:0.9rem;">${tradeoffs}</ul>
+            <div class="field-label">Patient engagement</div>${eng}
+            <div class="field-label">Clinician response</div>
+            <div class="field-value">Questions addressed: <strong>${cr.questions_answered_count ?? 0}</strong> of <strong>${cr.questions_total_count ?? 0}</strong><br>
+            Recommendation explained: <strong>${escHtml(cr.recommendation_explained || "—")}</strong></div>
+            <div class="field-label" style="margin-top:10px;">Verification of understanding / teach-back</div>
+            <div class="field-value">${escHtml(comm.understanding_verification || "—")}</div>
+        </div>
+
+        ${renderInformedConsentSection(r.informed_consent_analysis)}
+    </div>`;
+}
+
+function renderLegacyNotice() {
+    return `<div class="legacy-banner">This run uses the legacy AHRQ consent schema. Re-run analysis to produce CCQ spec output (schema version 2).</div>`;
+}
+
+function renderLegacyRegion(node) {
+    return `<div class="decision-card"><h4>${escHtml(node.summary || node.customProcedureName || "Legacy run")}</h4><p style="color:#7f8fa6;">Legacy AHRQ checklist and ontology table were removed from the UI. Re-run to view the full CCQ spec.</p></div>`;
+}
+
+function selectDecision(decisionId) {
+    CURRENT_SELECTED_DECISION_ID = decisionId;
+    if (CURRENT_REGIONS && CURRENT_TURNS) renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION);
+}
+
+function collectTurnTagsForDecision(r, turnIndex, tags) {
+    if (!r.relevant_turn_indices || !r.relevant_turn_indices.includes(turnIndex)) return;
+    tags.push({ text: r.decision_label, color: r.colorTheme.tag, title: "Decision" });
+    (r.decision_overview?.options_considered || []).forEach(opt => tags.push({ text: opt.option_name, color: "#7f8fa6", title: "Option" }));
+    (r.communication_analysis?.tradeoff_comparisons || []).forEach(tc => {
+        if ((tc.turn_indices || []).includes(turnIndex)) tags.push({ text: `Tradeoff: ${tc.option_a} vs ${tc.option_b}`, color: "#16a085", title: tc.level });
+    });
+    (r.informed_consent_analysis?.interventions || []).forEach(intv => {
+        ["core_risks", "relevant_risks", "context_dependent_risks"].forEach(key => {
+            (intv[key] || []).forEach(risk => {
+                if ((risk.turn_indices || []).includes(turnIndex) && risk.detection_status === "Discussed") {
+                    tags.push({ text: risk.risk_name, color: "#e74c3c", title: intv.intervention_name });
+                }
+            });
+        });
+    });
+}
+
+function renderUI(regions, turns, schemaVersion) {
+    CURRENT_REGIONS = regions;
+    CURRENT_TURNS = turns;
+    CURRENT_SCHEMA_VERSION = schemaVersion;
+
+    const results = document.getElementById("resultsContent");
+    const legacy = schemaVersion !== CCQ_SCHEMA_VERSION || (regions[0] && isLegacyRegion(regions[0]));
+
+    if (legacy) {
+        results.innerHTML = `<h2>CCQ Analysis Results</h2>${renderLegacyNotice()}${regions.map(renderLegacyRegion).join("")}`;
+        return;
+    }
+
+    if (!CURRENT_SELECTED_DECISION_ID && regions.length) CURRENT_SELECTED_DECISION_ID = regions[0].decision_id;
+    const selected = regions.find(r => r.decision_id === CURRENT_SELECTED_DECISION_ID) || regions[0];
+
+    let html = `<h2>CCQ Analysis Results</h2>${renderSummaryBar(regions)}`;
+    html += `<div class="ccq-layout"><div class="ccq-sidebar">${renderDecisionsList(regions, selected.decision_id)}</div>`;
+    html += `<div class="ccq-detail">${renderDecisionDetail(selected)}</div></div>`;
+    html += `<h2>Patient Timeline (Merged Transcripts)</h2><div class="global-transcript">`;
+
+    turns.forEach(turn => {
+        const turnTags = [];
+        regions.forEach(r => collectTurnTagsForDecision(r, turn.index, turnTags));
+        const active = regions.filter(r => r.relevant_turn_indices && r.relevant_turn_indices.includes(turn.index));
+        let turnBg = "transparent", turnBorder = "transparent";
+        if (active.length) {
+            turnBg = active[0].colorTheme.bg;
+            turnBorder = active[0].colorTheme.border;
+        }
+        const tagsHtml = turnTags.map(t => `<span class="text-tag" style="background:${t.color};" title="${escAttr(t.title)}">${escHtml(t.text)}</span>`).join("");
+        html += `<div id="turn-${turn.index}" class="turn-container" style="background:${turnBg};border-left-color:${turnBorder};">
+            <div class="turn-meta"><div class="encounter-label" title="${escAttr(turn.encounter)}">${escHtml((turn.encounter || "").substring(0, 12))}...</div>
+            <div>[TURN ${turn.index}]</div><div style="color:#2f3640;">${escHtml(turn.speaker_line)}</div></div>
+            <div class="turn-content">${tagsHtml ? `<div class="turn-tags">${tagsHtml}</div>` : ""}${escHtml(turn.text_lines.join("\n"))}</div></div>`;
+    });
     html += `</div>`;
     results.innerHTML = html;
 }
+
 </script>
 </body>
 </html>
