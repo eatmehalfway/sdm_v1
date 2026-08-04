@@ -8,7 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12/dist/d3-sankey.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Newsreader:wght@200;300;400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
         :root {
             --navy: #06182b;
@@ -51,11 +51,11 @@
         }
         h1, h2, h3, h4 { color: var(--navy); letter-spacing: -0.02em; }
         h2 {
-            font-family: 'Newsreader', Georgia, serif;
-            font-weight: 400;
+            font-family: inherit;
+            font-weight: 800;
             font-size: clamp(2rem, 3.6vw, 3.1rem);
-            line-height: 1.05;
-            letter-spacing: -0.015em;
+            line-height: 1.08;
+            letter-spacing: -0.035em;
         }
         h3 { font-size: 1.05rem; font-weight: 700; }
 
@@ -158,11 +158,11 @@
             max-width: 14ch;
             margin: 0;
             color: #fff;
-            font-family: 'Newsreader', Georgia, serif;
+            font-family: inherit;
             font-size: clamp(2.9rem, 6vw, 5.2rem);
             line-height: 1.02;
             letter-spacing: -0.025em;
-            font-weight: 300;
+            font-weight: 800;
         }
         .app-hero h1 span { color: #8cdff1; }
         .hero-description {
@@ -342,15 +342,29 @@
         }
         .summary-stat::after { content: none; }
         .summary-stat-value {
-            font-family: 'Newsreader', Georgia, serif;
-            font-size: 2.9rem;
-            font-weight: 300;
+            font-family: inherit;
+            font-size: 2.45rem;
+            font-weight: 800;
             line-height: 1;
             color: var(--navy) !important;
             letter-spacing: -0.03em;
         }
         .summary-stat-label { margin-top: 16px; font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.16em; font-weight: 800; line-height: 1.5; }
         .summary-stat-sub { display: block; margin-top: 6px; text-transform: none; letter-spacing: normal; font-weight: 500; color: #90a7bd; }
+
+        .summary-stat.is-hero {
+            grid-column: span 2;
+            min-height: 148px;
+            background: #fdf1f1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .summary-stat.is-hero .summary-stat-value { font-size: 3.6rem; }
+        .summary-stat.is-hero .summary-stat-label { margin-top: 10px; font-size: 0.68rem; }
+        .summary-stat.is-secondary { min-height: 110px; padding: 20px 22px; }
+        .summary-stat.is-secondary .summary-stat-value { font-size: 1.7rem; }
+        .summary-stat.is-secondary .summary-stat-label { margin-top: 10px; font-size: 0.58rem; }
 
         /* ---------- CARDS ---------- */
         .tree-container { margin-bottom: 40px; }
@@ -393,7 +407,7 @@
             display: inline-block; padding: 4px 9px; background: #e8f0f8;
             border: 0; border-radius: 0; font-size: 0.75rem;
             cursor: pointer; transition: background 0.15s, color 0.15s; color: var(--primary);
-            margin: 2px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700;
+            margin: 2px; font-family: inherit; font-weight: 700;
         }
         .turn-link:hover { background: var(--secondary); color: white; transform: none; }
 
@@ -402,13 +416,13 @@
         .turn-container { display: flex; margin-bottom: 4px; border-radius: 0; border-left: 3px solid transparent; scroll-margin-top: 90px; }
         .turn-meta { width: 150px; flex-shrink: 0; padding: 12px; font-size: 0.68rem; font-weight: 800; color: var(--muted); text-align: right; border-right: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.08em; }
         .encounter-label { font-size: 0.6rem; color: var(--secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em; word-break: break-all; }
-        .turn-content { flex-grow: 1; padding: 12px 18px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9rem; line-height: 1.65; white-space: pre-wrap; }
+        .turn-content { flex-grow: 1; padding: 12px 18px; font-family: inherit; font-size: 0.9rem; line-height: 1.65; white-space: pre-wrap; }
 
         .turn-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
         .text-tag { font-size: 0.62rem; padding: 3px 7px; border-radius: 0; font-family: inherit; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 0.08em; }
 
         /* ---------- UTILITY ---------- */
-        .loading { display: none; padding: 24px; background: var(--surface); margin-bottom: 20px; border-radius: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem; }
+        .loading { display: none; padding: 24px; background: var(--surface); margin-bottom: 20px; border-radius: 0; font-family: inherit; font-size: 0.82rem; }
         .error { color: var(--danger); margin-top: 14px; font-size: 0.88rem; }
         .success-text { color: var(--success); font-weight: 700; font-size: 0.82rem; margin-top: 10px; margin-bottom: 0; display: block; }
 
@@ -419,18 +433,98 @@
         .ccq-layout { display: flex; gap: 1px; align-items: stretch; margin-bottom: 64px; flex-wrap: wrap; background: var(--border); }
         .ccq-sidebar { flex: 0 0 340px; max-width: 100%; background: var(--surface); }
         .ccq-detail { flex: 1 1 480px; min-width: 0; background: var(--surface); }
+
+        /* ---------- DECISION TIMELINE ---------- */
+        .decision-timeline { background: var(--surface); padding: 30px 34px; margin-bottom: 1px; }
+        .decision-timeline-rows { display: flex; flex-direction: column; gap: 10px; }
+        .decision-timeline-row { display: flex; align-items: center; gap: 16px; }
+        .decision-timeline-label {
+            flex: 0 0 260px; max-width: 260px; font-size: 0.82rem; color: #33475c; font-weight: 700;
+            display: flex; align-items: center; gap: 8px; cursor: pointer; line-height: 1.3;
+        }
+        .decision-timeline-row.is-primary .decision-timeline-label { font-size: 0.95rem; font-weight: 800; color: var(--navy); }
+        .decision-timeline-swatch { flex: 0 0 10px; width: 10px; height: 10px; border-radius: 50%; }
+        .decision-timeline-track { position: relative; flex: 1 1 auto; height: 20px; background: #eef3f9; }
+        .decision-timeline-row.is-primary .decision-timeline-track { height: 30px; }
+        .decision-timeline-bar {
+            position: absolute; top: 3px; bottom: 3px; min-width: 6px; cursor: pointer;
+            transition: filter 0.15s;
+        }
+        .decision-timeline-row.is-primary .decision-timeline-bar { top: 4px; bottom: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.18); }
+        .decision-timeline-bar:hover { filter: brightness(0.92); }
+        .decision-timeline-empty { position: absolute; inset: 0; display: flex; align-items: center; padding-left: 10px; font-size: 0.68rem; font-style: italic; color: #90a7bd; }
+        .decision-timeline-axis { display: flex; justify-content: space-between; margin: 16px 0 0 276px; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 800; }
+
         .decision-row { cursor: pointer; transition: background 0.15s; }
         .decision-row.selected { background: #e7f1fd !important; box-shadow: inset 3px 0 0 var(--secondary); }
         .decision-row:hover { background: #eff6fd; }
         .status-Resolved { color: var(--success); font-weight: 700; }
         .status-Deferred { color: var(--warning); font-weight: 700; }
         .status-Unresolved { color: #90a7bd; font-weight: 700; }
-        .section-block { margin-bottom: 44px; }
-        .section-block h3 { font-size: 0.7rem; margin: 0 0 20px 0; padding-bottom: 14px; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); font-weight: 800; }
-        .option-card { border: 0; border-left: 2px solid var(--border-strong); border-radius: 0; padding: 20px 24px; margin-bottom: 1px; background: #f6faff; }
-        .option-card h4 { margin: 0 0 12px 0; font-size: 1rem; }
-        .field-label { font-size: 0.6rem; text-transform: uppercase; color: var(--muted); font-weight: 800; letter-spacing: 0.16em; margin-top: 16px; margin-bottom: 6px; }
+        .section-block { margin: 0 0 54px; padding-top: 6px; }
+        .section-block h3, .decision-list-title {
+            display: flex;
+            align-items: center;
+            min-height: 58px;
+            margin: 0 0 24px;
+            padding: 0 0 16px;
+            border-bottom: 3px solid var(--navy);
+            color: var(--navy);
+            font-size: clamp(1.2rem, 2vw, 1.55rem);
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -0.025em;
+            text-transform: none;
+        }
+        .decision-heading {
+            margin: 0 0 8px;
+            font-size: clamp(1.45rem, 2.4vw, 2rem);
+            line-height: 1.15;
+        }
+        .decision-context { margin-bottom: 36px; }
+        .chosen-surgery-banner { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-top:14px; padding:14px 18px; background:#eef6ff; border-left:3px solid var(--secondary); }
+        .chosen-surgery-banner .field-label { margin:0; }
+        .chosen-surgery-banner strong { font-size:1.05rem; color:var(--navy); }
+        .subhead { font-size:clamp(1.05rem, 1.6vw, 1.3rem); font-weight:800; text-transform:none; letter-spacing:-0.01em; color:var(--navy); margin:30px 0 16px; padding-bottom:10px; border-bottom:2px solid var(--secondary-soft); }
+        .subhead:first-of-type { margin-top:6px; }
+        .detail-disclosure { margin-top: 18px; border-top: 1px solid var(--border); }
+        .detail-disclosure > summary { cursor: pointer; padding: 16px 0; color: var(--secondary-dark); font-weight: 800; }
+        .options-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; align-items:start; margin:4px 0 28px; }
+        .option-card { border: 1px solid var(--border); border-top: 4px solid var(--border-strong); border-radius: 0; padding: 0; background: #f6faff; overflow:hidden; }
+        .option-card.selected { border-top-color:var(--secondary); background:#f2f7fd; }
+        .option-card > summary { cursor:pointer; list-style:none; padding:20px 22px; }
+        .option-card > summary::-webkit-details-marker { display:none; }
+        .option-card > summary::after { content:"+"; float:right; color:var(--secondary); font-size:1.15rem; font-weight:800; }
+        .option-card[open] > summary::after { content:"−"; }
+        .option-card h4 { display:inline; margin:0; font-size:1.05rem; }
+        .option-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1px; padding:1px; background:var(--border); border-top:1px solid var(--border); }
+        .option-fact { min-height:154px; padding:18px; background:var(--surface); }
+        .option-fact.benefit { box-shadow:inset 0 3px 0 #79b7a7; }
+        .option-fact.risk { box-shadow:inset 0 3px 0 #d58a96; }
+        .option-fact.burden { box-shadow:inset 0 3px 0 #d8ad6f; }
+        .option-fact .field-label { margin-top:0; }
+        .evidence-line { display:block; margin-top:10px; padding-top:9px; border-top:1px solid var(--border); font-size:.8rem; font-style:italic; color:var(--muted); }
+        .field-label { font-size: 0.64rem; text-transform: uppercase; color: var(--secondary-dark); font-weight: 800; letter-spacing: 0.14em; margin-top: 16px; margin-bottom: 6px; }
         .field-value { font-size: 0.9rem; line-height: 1.65; color: #33475c; }
+        .callout { margin-top:22px; padding:20px 22px; background:#f6faff; border-left:4px solid var(--secondary); }
+        .callout .field-label { margin-top:0; }
+        .callout-value { font-size:1.1rem; font-weight:700; font-style:italic; color:var(--navy); }
+        .info-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; margin-top:4px; }
+        .info-panel { padding:18px 20px; background:#f6faff; border-left:3px solid var(--border-strong); }
+        .fact-list { margin:0; padding:0; list-style:none; }
+        .fact-list li { margin-bottom:12px; font-size:0.88rem; line-height:1.6; color:#33475c; }
+        .fact-list li:last-child { margin-bottom:0; }
+        .level-pill { display:inline-block; padding:3px 10px; font-size:0.65rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; }
+        .level-Not-compared { background:#f7dede; color:#a33f4f; }
+        .level-Limited-comparison { background:#fbe8cf; color:#9c5f10; }
+        .level-Meaningful-comparison { background:#dcf3e6; color:#0b7d70; }
+        .yesno-Yes { color: var(--success); font-weight:800; }
+        .yesno-No { color:#a33f4f; font-weight:800; }
+        .stat-row-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1px; background:var(--border); margin-top:22px; }
+        .stat-row-item { background:var(--surface); padding:18px 20px; }
+        .stat-row-item .stat-value { font-size:1.4rem; font-weight:800; color:var(--navy); }
+        .stat-row-item .stat-label { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted); font-weight:800; margin-top:6px; }
+        .intervention-block { padding:26px; margin-bottom:22px; background:#fff; border:1px solid var(--border); border-top:4px solid var(--secondary); }
         .qual-tag { display: inline-block; background: #e8f1fb; color: #3d6183; font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 0; margin: 2px 4px 2px 0; text-transform: uppercase; letter-spacing: 0.08em; }
         .framing-badge { display: inline-block; padding: 10px 16px; border-radius: 0; font-size: 0.78rem; font-weight: 800; background: var(--navy); color: #fff; text-transform: uppercase; letter-spacing: 0.12em; }
         .legacy-banner { background: #eaf2fa; border: 0; border-left: 3px solid var(--secondary); padding: 18px 22px; border-radius: 0; margin-bottom: 24px; color: #33475c; font-size: 0.88rem; }
@@ -461,8 +555,8 @@
             line-height: 1.6; box-shadow: none;
             opacity: 0; transition: opacity 0.1s; max-width: 270px;
         }
-        .clinician-legend { display: flex; flex-wrap: wrap; gap: 22px; margin: 0 0 22px; }
-        .clinician-legend span { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; border-radius: 0; background: transparent; font-size: 0.7rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+        .clinician-legend { display: flex; flex-wrap: wrap; gap: 14px; }
+        .clinician-legend span { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; border-radius: 0; background: transparent; font-size: 0.62rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
         .clinician-swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
         .episode-table-wrap { max-height: 420px; overflow: auto; border: 0; border-radius: 0; background: var(--surface); box-shadow: none; }
         .dept-controls { display:flex; align-items:center; gap:18px; flex-wrap:wrap; padding:18px 0 28px; }
@@ -474,6 +568,38 @@
         .rank-fill { height:100%; background:var(--secondary); }
         #sankeyPlot { min-height:320px; position:relative; }
         #sankeyPlot svg { display:block; width:100%; height:auto; }
+        .visual-story { margin: 12px 0 72px; }
+        .story-step { min-height: min(78vh, 760px); display:flex; flex-direction:column; justify-content:center; scroll-margin-top:78px; }
+        .story-step .analytics-card, .story-step .jitter-wrap { width:100%; margin:0; }
+        .chart-heading { margin:0 0 10px; font-size:clamp(1.4rem,2.5vw,2rem); }
+        .flow-stage { position:relative; }
+        .flow-caption {
+            position:absolute;
+            z-index:2;
+            top:26px;
+            left:0;
+            width:min(250px,24%);
+            padding-right:24px;
+            pointer-events:none;
+        }
+        .flow-caption .jitter-hint { margin-bottom:0; }
+        .plot-stage { position:relative; }
+        .plot-legend {
+            position:absolute;
+            z-index:3;
+            top:20px;
+            right:28px;
+            display:grid;
+            grid-template-columns:repeat(2,max-content);
+            row-gap:8px;
+            column-gap:18px;
+            max-width:min(620px,72%);
+            justify-content:flex-end;
+            padding:10px 12px;
+            background:rgba(255,255,255,.9);
+        }
+        .plot-caption { max-width:820px; margin:22px 0 0 68px; }
+        .plot-caption .jitter-hint { margin-bottom:0; }
         @media (max-width: 800px) { .analytics-grid { grid-template-columns:1fr; } }
 
         @media (max-width: 800px) {
@@ -491,8 +617,15 @@
             .decision-card, .jitter-wrap, .global-transcript { padding: 24px 18px; }
             .summary-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .summary-stat { min-width: 0; }
+            .summary-stat.is-hero { grid-column: span 2; }
+            .options-grid, .option-facts, .info-grid, .stat-row-grid { grid-template-columns:1fr; }
+            .option-fact { min-height:0; }
             .turn-container { display: block; }
             .turn-meta { width: auto; text-align: left; border-right: 0; border-bottom: 1px solid var(--border); }
+            .story-step { min-height:auto; margin-bottom:64px; }
+            .flow-caption { position:static; width:auto; padding:0 0 20px; }
+            .plot-legend { position:static; max-width:none; justify-content:flex-start; padding:0 0 14px; background:transparent; }
+            .plot-caption { margin:18px 0 0; }
         }
     </style>
 </head>
@@ -775,30 +908,45 @@ function renderDepartmentShell(data, episodes) {
         <button class="run-btn" type="button" onclick="loadDepartmentOverview()">Refresh</button>
     </div>
     <div class="summary-bar">
-        <div class="summary-stat"><div class="summary-stat-value">${episodes.length}</div><div class="summary-stat-label">Patient Episodes Shown</div></div>
-        <div class="summary-stat" style="border-top-color:var(--secondary);"><div class="summary-stat-value" style="color:var(--secondary);">${(data.clinicians || []).length}</div><div class="summary-stat-label">Clinicians</div></div>
-        <div class="summary-stat" style="border-top-color:#e74c3c;"><div class="summary-stat-value" style="color:#e74c3c;">${avgCoreRisk(episodes)}</div><div class="summary-stat-label">Mean Core Risks Discussed</div></div>
-        <div class="summary-stat" style="border-top-color:var(--success);"><div class="summary-stat-value" style="color:var(--success);">${pctMeaningful(episodes)}</div><div class="summary-stat-label">Meaningful Comparisons</div></div>
-        <div class="summary-stat"><div class="summary-stat-value">${avgCompleteness(episodes)}</div><div class="summary-stat-label">Avg. Transcript Completeness</div></div>
-        <div class="summary-stat"><div class="summary-stat-value">${recommendationExplainedPct(episodes)}</div><div class="summary-stat-label">Recommendations Explained</div></div>
-        <div class="summary-stat"><div class="summary-stat-value">${questionsAnswered(episodes)}</div><div class="summary-stat-label">Questions Answered</div></div>
+        <div class="summary-stat is-hero" style="border-top-color:#e74c3c;"><div class="summary-stat-value" style="color:#e74c3c;">${avgCoreRisk(episodes)}</div><div class="summary-stat-label">Mean Core Risks Discussed</div></div>
+        <div class="summary-stat is-secondary"><div class="summary-stat-value">${episodes.length}</div><div class="summary-stat-label">Patient Episodes Shown</div></div>
+        <div class="summary-stat is-secondary" style="border-top-color:var(--secondary);"><div class="summary-stat-value" style="color:var(--secondary);">${(data.clinicians || []).length}</div><div class="summary-stat-label">Clinicians</div></div>
+        <div class="summary-stat is-secondary" style="border-top-color:var(--success);"><div class="summary-stat-value" style="color:var(--success);">${pctMeaningful(episodes)}</div><div class="summary-stat-label">Meaningful Comparisons</div></div>
+        <div class="summary-stat is-secondary"><div class="summary-stat-value">${avgCompleteness(episodes)}</div><div class="summary-stat-label">Avg. Transcript Completeness</div></div>
+        <div class="summary-stat is-secondary"><div class="summary-stat-value">${recommendationExplainedPct(episodes)}</div><div class="summary-stat-label">Recommendations Explained</div></div>
+        <div class="summary-stat is-secondary"><div class="summary-stat-value">${questionsAnswered(episodes)}</div><div class="summary-stat-label">Questions Answered</div></div>
     </div>
     <div class="dept-controls">
         <label for="completenessSlider"><strong>Minimum transcript completeness: ${COMPLETENESS_THRESHOLD}%</strong></label>
         <input id="completenessSlider" type="range" min="0" max="100" step="5" value="${COMPLETENESS_THRESHOLD}" oninput="setCompletenessThreshold(this.value)">
         <span>${episodes.length} of ${DEPARTMENT_EPISODES.length} episodes included</span>
     </div>
-    <div class="analytics-card">
-        <p class="section-kicker">Flagship orientation</p>
-        <h3>How Treatment Options Were Discussed</h3>
-        <p class="jitter-hint">Each episode follows its consent-relevant index decision. Episodes without one remain visible as N/A.</p>
-        <div id="sankeyPlot"></div>
-    </div>
-    <div class="jitter-wrap">
-        <p class="section-kicker" style="margin-left:12px;">Communication quality map</p>
-        <p class="jitter-hint">Each point is one patient episode. <strong>X</strong> = Single option → Not compared → Limited → Meaningful. <strong>Y</strong> = % of core risks discussed. The N/A lane retains episodes with no consent-relevant index decision.</p>
-        <div class="clinician-legend">${legend}</div>
-        <div id="jitterPlot"></div>
+    <div class="visual-story">
+        <section class="story-step" aria-labelledby="flow-heading">
+            <div class="analytics-card">
+                <div class="flow-stage">
+                    <div class="flow-caption">
+                        <p class="section-kicker">Episode flow</p>
+                        <h3 class="chart-heading" id="flow-heading">How Treatment Options Were Discussed</h3>
+                        <p class="jitter-hint">Every endpoint continues into the same communication-quality lane below.</p>
+                    </div>
+                    <div id="sankeyPlot"></div>
+                </div>
+            </div>
+        </section>
+        <section class="story-step" aria-labelledby="quality-map-heading">
+            <div class="jitter-wrap">
+                <div class="plot-stage">
+                    <div class="clinician-legend plot-legend" aria-label="Clinician colors">${legend}</div>
+                    <div id="jitterPlot"></div>
+                </div>
+                <div class="plot-caption">
+                    <!-- <p class="section-kicker">Patient-level detail</p> -->
+                    <!-- <h3 class="chart-heading" id="quality-map-heading">Communication Quality by Episode</h3> -->
+                    <!-- <p class="jitter-hint"><strong>X</strong> = discussion category. <strong>Y</strong> = core risks discussed for the chosen surgery. Episodes without a chosen surgery remain visible as N/A.</p> -->
+                </div>
+            </div>
+        </section>
     </div>
     <div class="analytics-grid">
         <div class="analytics-card"><p class="section-kicker">Risk follow-up</p><h3>Most Frequent Core Risks Not Discussed</h3>${renderRiskFrequencyChart(data.risk_frequency || [], episodes)}</div>
@@ -839,6 +987,16 @@ function questionsAnswered(episodes) {
     const answered = episodes.reduce((sum, ep) => sum + (ep.questions_answered_count || 0), 0);
     const total = episodes.reduce((sum, ep) => sum + (ep.questions_total_count || 0), 0);
     return `${answered}/${total}`;
+}
+
+const DISCUSSION_CATEGORIES = ['Single option presented', 'Not compared', 'Limited comparison', 'Meaningful comparison', 'No consent-relevant decision'];
+const CHART_LANE_MARGIN = { left: 68, right: 32, inset: 50 };
+
+function chartLaneScale(width) {
+    return d3.scalePoint()
+        .domain(DISCUSSION_CATEGORIES)
+        .range([CHART_LANE_MARGIN.left + CHART_LANE_MARGIN.inset, width - CHART_LANE_MARGIN.right - CHART_LANE_MARGIN.inset])
+        .padding(0.25);
 }
 
 function jitterCategory(ep) {
@@ -883,46 +1041,95 @@ function renderQuestionRollup(rows, episodes) {
 }
 
 function buildSankeyData(episodes) {
-    const categories = ['No consent-relevant decision', 'Single option presented', 'Not compared', 'Limited comparison', 'Meaningful comparison'];
-    const counts = new Map(categories.map(category => [category, 0]));
-    episodes.forEach(ep => counts.set(jitterCategory(ep), (counts.get(jitterCategory(ep)) || 0) + 1));
-    const nodes = [
-        {name:'All episodes'}, {name:'No consent-relevant decision'}, {name:'Single option presented'},
-        {name:'Alternatives presented'}, {name:'Not compared'}, {name:'Limited comparison'}, {name:'Meaningful comparison'}
-    ];
+    const counts = new Map(DISCUSSION_CATEGORIES.map(category => [category, 0]));
+    episodes.forEach(ep => {
+        const category = jitterCategory(ep) || 'No consent-relevant decision';
+        counts.set(category, (counts.get(category) || 0) + 1);
+    });
     const links = [
-        {source:0,target:1,value:counts.get('No consent-relevant decision') || 0},
-        {source:0,target:2,value:counts.get('Single option presented') || 0},
-        {source:0,target:3,value:(counts.get('Not compared') || 0)+(counts.get('Limited comparison') || 0)+(counts.get('Meaningful comparison') || 0)},
-        {source:3,target:4,value:counts.get('Not compared') || 0},
-        {source:3,target:5,value:counts.get('Limited comparison') || 0},
-        {source:3,target:6,value:counts.get('Meaningful comparison') || 0}
+        {source:'all',target:'No consent-relevant decision',value:counts.get('No consent-relevant decision') || 0},
+        {source:'all',target:'Single option presented',value:counts.get('Single option presented') || 0},
+        {source:'all',target:'alternatives',value:(counts.get('Not compared') || 0)+(counts.get('Limited comparison') || 0)+(counts.get('Meaningful comparison') || 0)},
+        {source:'alternatives',target:'Not compared',value:counts.get('Not compared') || 0},
+        {source:'alternatives',target:'Limited comparison',value:counts.get('Limited comparison') || 0},
+        {source:'alternatives',target:'Meaningful comparison',value:counts.get('Meaningful comparison') || 0}
     ].filter(link => link.value > 0);
-    return {nodes, links};
+    return {counts, links};
 }
 
 function renderSankey(episodes) {
     const el = document.getElementById('sankeyPlot');
-    if (!el || !d3.sankey) return;
-    const width = Math.max(el.clientWidth || 900, 620), height = 320;
-    const graph = d3.sankey().nodeWidth(18).nodePadding(20).extent([[10,10],[width-10,height-30]])(buildSankeyData(episodes));
+    if (!el || typeof d3 === 'undefined') return;
+    el.innerHTML = '';
+    const width = Math.max(el.clientWidth || 1000, 760), height = 560;
+    const { counts, links } = buildSankeyData(episodes);
+    const laneX = chartLaneScale(width);
+    const nodes = new Map();
+    nodes.set('all', {id:'all', name:'All episodes', x:width / 2, y:55, value:episodes.length, kind:'root'});
+    nodes.set('alternatives', {id:'alternatives', name:'Alternatives presented', x:d3.mean(['Not compared','Limited comparison','Meaningful comparison'], laneX), y:245, value:links.find(l => l.target === 'alternatives')?.value || 0, kind:'branch'});
+    DISCUSSION_CATEGORIES.forEach(category => nodes.set(category, {id:category, name:category, x:laneX(category), y:475, value:counts.get(category) || 0, kind:'terminal'}));
+    const maxValue = Math.max(1, episodes.length);
+    const maxBarWidth = Math.min(width * 0.42, 420);
+    const widthUnit = maxBarWidth / maxValue;
+    const flowWidth = value => Math.max(1, value * widthUnit);
+    const barWidth = value => flowWidth(value);
+    const outgoingOffset = new Map();
+    const incomingOffset = new Map();
+    nodes.forEach((_, nodeId) => {
+        let offset = 0;
+        links.filter(link => link.source === nodeId)
+            .sort((a, b) => nodes.get(a.target).x - nodes.get(b.target).x)
+            .forEach(link => {
+                outgoingOffset.set(link, offset);
+                offset += flowWidth(link.value);
+            });
+        offset = 0;
+        links.filter(link => link.target === nodeId)
+            .sort((a, b) => nodes.get(a.source).x - nodes.get(b.source).x)
+            .forEach(link => {
+                incomingOffset.set(link, offset);
+                offset += flowWidth(link.value);
+            });
+    });
+    const ribbonPath = link => {
+        const source = nodes.get(link.source), target = nodes.get(link.target);
+        const ribbonWidth = flowWidth(link.value);
+        const sourceLeft = source.x - barWidth(source.value) / 2;
+        const targetLeft = target.x - barWidth(target.value) / 2;
+        const sourceCenter = sourceLeft + (outgoingOffset.get(link) || 0) + ribbonWidth / 2;
+        const targetCenter = targetLeft + (incomingOffset.get(link) || 0) + ribbonWidth / 2;
+        const sourceY = source.y + 10;
+        const targetY = target.y - 10;
+        const midY = (sourceY + targetY) / 2;
+        return [
+            `M${sourceCenter - ribbonWidth / 2},${sourceY}`,
+            `C${sourceCenter - ribbonWidth / 2},${midY} ${targetCenter - ribbonWidth / 2},${midY} ${targetCenter - ribbonWidth / 2},${targetY}`,
+            `L${targetCenter + ribbonWidth / 2},${targetY}`,
+            `C${targetCenter + ribbonWidth / 2},${midY} ${sourceCenter + ribbonWidth / 2},${midY} ${sourceCenter + ribbonWidth / 2},${sourceY}`,
+            'Z'
+        ].join(' ');
+    };
     const svg = d3.select(el).append('svg').attr('viewBox',`0 0 ${width} ${height}`).attr('role','img').attr('aria-label','Flow of treatment option discussion quality');
-    svg.append('g').attr('fill','none').selectAll('path').data(graph.links).join('path').attr('d',d3.sankeyLinkHorizontal()).attr('stroke','#7eaee8').attr('stroke-opacity',.42).attr('stroke-width',d=>Math.max(1,d.width)).append('title').text(d=>`${d.source.name} → ${d.target.name}: ${d.value} episodes`);
-    const node = svg.append('g').selectAll('g').data(graph.nodes).join('g');
-    node.append('rect').attr('x',d=>d.x0).attr('y',d=>d.y0).attr('width',d=>d.x1-d.x0).attr('height',d=>Math.max(1,d.y1-d.y0)).attr('fill',d=>d.name.startsWith('No consent')?'#95a5a6':'#1769e0');
-    node.append('text').attr('x',d=>d.x0<width/2?d.x1+7:d.x0-7).attr('y',d=>(d.y0+d.y1)/2).attr('dy','.35em').attr('text-anchor',d=>d.x0<width/2?'start':'end').style('font-size','11px').style('font-weight',700).text(d=>`${d.name} (${d.value || 0})`);
+    svg.append('g').selectAll('path').data(links).join('path')
+        .attr('d',ribbonPath).attr('fill','#7eaee8').attr('fill-opacity',.46)
+        .append('title').text(d=>`${nodes.get(d.source).name} → ${nodes.get(d.target).name}: ${d.value} episodes`);
+    const visibleNodes = [...nodes.values()].filter(node => node.kind !== 'terminal' || node.value > 0);
+    const node = svg.append('g').selectAll('g').data(visibleNodes).join('g');
+    node.append('rect').attr('x',d=>d.x-barWidth(d.value)/2).attr('y',d=>d.y-10).attr('width',d=>barWidth(d.value)).attr('height',20).attr('rx',3)
+        .attr('fill',d=>d.name.startsWith('No consent')?'#7f8fa6':d.kind === 'root'?'#06182b':'#1769e0');
+    node.append('text').attr('x',d=>d.x).attr('y',d=>d.y + (d.kind === 'terminal' ? 34 : -20)).attr('text-anchor','middle')
+        .style('font-size','12px').style('font-weight',800).text(d=>`${d.name} (${d.value || 0})`);
 }
 
 function renderJitterPlot(episodes, clinicians) {
     const el = document.getElementById('jitterPlot');
     if (!el || typeof d3 === 'undefined') return;
 
-    const tradeoffOrder = ['Single option presented', 'Not compared', 'Limited comparison', 'Meaningful comparison', 'No consent-relevant decision'];
     const clinicianColors = new Map((clinicians || []).map(c => [c.name, c.color]));
-    const width = Math.max(el.clientWidth || 900, 620);
-    const height = 440;
-    const margin = { top: 18, right: 28, bottom: 68, left: 62 };
-    const radius = 6;
+    const width = Math.max(el.clientWidth || 1000, 760);
+    const height = 520;
+    const margin = { top: 28, right: CHART_LANE_MARGIN.right, bottom: 78, left: CHART_LANE_MARGIN.left };
+    const radius = 7;
 
     el.innerHTML = '';
     const tooltip = d3.select(el)
@@ -936,10 +1143,7 @@ function renderJitterPlot(episodes, clinicians) {
         .style('font-family', 'inherit')
         .attr('aria-label', 'Patient episodes by tradeoff comparison quality and percentage of core risks discussed');
 
-    const x = d3.scalePoint()
-        .domain(tradeoffOrder)
-        .range([margin.left + 55, width - margin.right - 55])
-        .padding(0.25);
+    const x = chartLaneScale(width);
     const y = d3.scaleLinear()
         .domain([0, 100])
         .range([height - margin.bottom, margin.top]);
@@ -1156,15 +1360,20 @@ const AUTO_DETECT_SCHEMA = {
 };
 
 const DECISION_DETECTION_PROMPT = `Identify clinical decisions in this encounter transcript.
-A clinical decision is a choice between meaningful paths (e.g., surgery vs conservative management, which medication, whether to defer).
-Group options under one decision unless they are genuinely distinct clinical forks.
+A clinical decision is a choice between meaningful paths. For treatment conversations involving surgery, use this hierarchy when supported by the transcript:
+1. A top-level treatment approach decision (nonsurgical vs surgical management).
+2. Beneath surgical management, a surgical timing decision (proceed now vs watchful waiting).
+3. Beneath surgical timing, an optional procedure-choice decision when distinct operations are compared.
+Watchful waiting is a timing sub-decision under surgical management, never a sibling treatment alongside surgery.
+Group options under one decision unless they are genuinely distinct clinical forks. Do not invent hierarchy levels that were not discussed.
 For each decision provide:
 - decision_label (e.g., "Management of lumbar stenosis")
 - option_names (short labels for paths discussed)
 - status: exactly "Resolved" when a clear choice was made; "Deferred" when the choice was intentionally postponed; or "Unresolved" when no clear choice was made and no intentional postponement was established
 - selected_option: the chosen path if Resolved, else null or empty string
+- selected_intervention: the specific surgical procedure ultimately chosen, if one was clearly chosen; otherwise null or empty string
 - start_turn_index and end_turn_index (global turn numbers from the transcript)
-Use parent_decision_id only for nested sub-decisions.`;
+Use parent_decision_id to connect surgical timing to treatment approach and procedure choice to surgical timing.`;
 
 const DECISION_DETECTION_SCHEMA = {
     type: "object",
@@ -1180,6 +1389,7 @@ const DECISION_DETECTION_SCHEMA = {
                     option_names: { type: "array", items: { type: "string" } },
                     status: { type: "string", enum: ["Resolved", "Deferred", "Unresolved"] },
                     selected_option: { type: "string" },
+                    selected_intervention: { type: "string" },
                     start_turn_index: { type: "integer" },
                     end_turn_index: { type: "integer" }
                 },
@@ -1191,7 +1401,9 @@ const DECISION_DETECTION_SCHEMA = {
 };
 
 const DECISION_MERGE_PROMPT = `Merge clinical decisions detected across multiple encounters that refer to the same underlying clinical question.
-For each merged decision, resolve status and selected_option from the latest encounter when the timeline shows progression.
+For each merged decision, resolve status, selected_option, and selected_intervention from the latest encounter when the timeline shows progression.
+Preserve this hierarchy when supported: treatment approach → surgical timing (proceed now vs watchful waiting) → optional procedure choice.
+Watchful waiting must remain nested under surgical management. Set selected_intervention only when a specific surgery was ultimately chosen; leave it empty for watchful waiting, deferred, unresolved, and nonsurgical choices.
 Preserve parent_decision_id when a decision is a genuinely distinct nested sub-decision.
 Output unified global turn indices and encounter file names involved.`;
 
@@ -1208,6 +1420,7 @@ const DECISION_MERGE_SCHEMA = {
                     decision_label: { type: "string" },
                     status: { type: "string", enum: ["Resolved", "Deferred", "Unresolved"] },
                     selected_option: { type: "string" },
+                    selected_intervention: { type: "string" },
                     option_names: { type: "array", items: { type: "string" } },
                     encounter_files: { type: "array", items: { type: "string" } },
                     turn_indices: { type: "array", items: { type: "integer" } }
@@ -1438,7 +1651,7 @@ For tradeoff_comparisons, assess relevant pairs of options separately (Not compa
 For understanding_verification, only flag whether the clinician actively checked understanding — never conclude the patient understood.
 Ground every option detail, clinician recommendation, patient goal, and preference with an exact quote and global turn_indices. Use empty quote/turn_indices only when the field is absent.
 For clinician_recommendation, preserve evidence that lets a reviewer determine whether it occurred before or after alternatives were discussed.
-List linked_interventions (procedures/interventions) only if informed-consent-style risk discussion applies.`;
+List linked_interventions for surgical procedures discussed in this decision, including candidates that were not chosen. This list supports ontology matching; it does not imply that risks should be aggregated across procedures.`;
 }
 
 function getInformedConsentPrompt(interventionName, ontologyText) {
@@ -1470,6 +1683,39 @@ function findOntologyKey(name) {
     const exact = keys.find(k => k.toLowerCase() === lower);
     if (exact) return exact;
     return keys.find(k => lower.includes(k.toLowerCase()) || k.toLowerCase().includes(lower)) || null;
+}
+
+function normalizeSelectedIntervention(name) {
+    return findOntologyKey(name) || (name ? String(name).trim() : null);
+}
+
+function selectedInterventionName(decision) {
+    if (!decision || decision.status !== "Resolved") return null;
+    if (decision.selected_intervention) return normalizeSelectedIntervention(decision.selected_intervention);
+    const consent = decision.informed_consent_analysis?.interventions || [];
+    const selectedText = String(decision.selected_option || "").toLowerCase();
+    const direct = consent.find(intv => {
+        const name = String(intv.intervention_name || "").toLowerCase();
+        return name && (selectedText.includes(name) || name.includes(selectedText));
+    });
+    if (direct) return direct.intervention_name;
+    // Backward compatibility for saved v2 runs that predate selected_intervention.
+    const looksOperative = /(surg|decompress|fusion|arthro|replacement|repair|procedure)/.test(selectedText)
+        && !/(watch|wait|defer|non.?surg|conservative|therapy|injection)/.test(selectedText);
+    if (consent.length === 1 && (decision.linked_interventions || []).length === 1 && looksOperative) {
+        return consent[0].intervention_name;
+    }
+    return null;
+}
+
+function chosenConsentInterventions(decision) {
+    const selected = selectedInterventionName(decision);
+    if (!selected) return [];
+    const normalized = normalizeSelectedIntervention(selected);
+    return (decision.informed_consent_analysis?.interventions || []).filter(intv => {
+        const candidate = normalizeSelectedIntervention(intv.intervention_name);
+        return candidate && normalized && candidate.toLowerCase() === normalized.toLowerCase();
+    });
 }
 
 function buildOntologyTextForIntervention(interventionKey) {
@@ -1535,21 +1781,50 @@ function renderTurnLinks(indices) {
 function renderTextField(field, emptyLabel) {
     if (!field || !field.text) return `<span style="color:#95a5a6;font-style:italic;">${emptyLabel || "—"}</span>`;
     const quals = (field.qualifying_language || []).filter(Boolean).map(q => `<span class="qual-tag">${escHtml(q)}</span>`).join("");
-    const evidence = field.quote ? `<div style="font-size:.82rem;font-style:italic;margin-top:5px;">"${escHtml(field.quote)}" ${renderTurnLinks(field.turn_indices)}</div>` : renderTurnLinks(field.turn_indices);
+    const hasEvidence = field.quote || (field.turn_indices || []).length;
+    const evidence = hasEvidence
+        ? `<span class="evidence-line">${field.quote ? `"${escHtml(field.quote)}"` : "Transcript reference"} ${renderTurnLinks(field.turn_indices)}</span>`
+        : "";
     return `<span class="field-value">${escHtml(field.text)}</span>${quals ? `<div style="margin-top:4px;">${quals}</div>` : ""}${evidence}`;
 }
 
-async function callGemini(key, systemPrompt, schema, userContent) {
+async function callGemini(key, systemPrompt, schema, userContent, { timeoutMs = 120000, retries = 2 } = {}) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent?key=${key}`;
     const payload = {
         system_instruction: { parts: [{ text: systemPrompt || CCQ_SYSTEM_INSTRUCTION }] },
         contents: [{ parts: [{ text: `${userContent}` }] }],
         generationConfig: { response_mime_type: "application/json", response_schema: schema, temperature: 0.1 }
     };
-    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    if (!res.ok) throw new Error(await res.text());
-    const data = await res.json();
-    return JSON.parse(data.candidates[0].content.parts[0].text);
+
+    let lastError;
+    for (let attempt = 1; attempt <= retries + 1; attempt++) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+                signal: controller.signal
+            });
+            clearTimeout(timer);
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text == null) throw new Error(`Unexpected Gemini response shape: ${JSON.stringify(data).slice(0, 300)}`);
+            return JSON.parse(text);
+        } catch (err) {
+            clearTimeout(timer);
+            lastError = err?.name === "AbortError"
+                ? new Error(`Gemini request timed out after ${Math.round(timeoutMs / 1000)}s`)
+                : err;
+            if (attempt <= retries) {
+                logStatus(`Gemini call failed (${lastError.message}). Retrying — attempt ${attempt + 1} of ${retries + 1}...`);
+                await new Promise(r => setTimeout(r, 1500 * attempt));
+            }
+        }
+    }
+    throw lastError;
 }
 
 function parseMultipleTranscriptsToTurns(fileDataArray) {
@@ -1656,15 +1931,17 @@ async function runAnalysis() {
             let informedConsent = null;
             const interventions = (ccqData.linked_interventions || []).map(s => findOntologyKey(s) || s).filter(Boolean);
             const uniqueInterventions = [...new Set(interventions)];
-            if (uniqueInterventions.length > 0) {
-                logStatus(`Pass C: Informed consent for ${uniqueInterventions.length} intervention(s)...`);
+            const selectedIntervention = md.status === "Resolved" ? normalizeSelectedIntervention(md.selected_intervention) : null;
+            if (selectedIntervention) {
+                logStatus(`Pass C: Informed consent for chosen surgery: ${selectedIntervention}...`);
                 const consentInterventions = [];
-                for (const intName of uniqueInterventions) {
-                    const ontKey = findOntologyKey(intName) || procName;
-                    const ontText = buildOntologyTextForIntervention(ontKey);
-                    if (!ontText) continue;
+                const ontKey = findOntologyKey(selectedIntervention);
+                const ontText = ontKey ? buildOntologyTextForIntervention(ontKey) : "";
+                if (ontText) {
                     const consentChunk = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, INFORMED_CONSENT_SCHEMA, `${getInformedConsentPrompt(ontKey, ontText)}\n\nTranscript:\n${filteredText}`);
                     (consentChunk.interventions || []).forEach(intv => consentInterventions.push(intv));
+                } else {
+                    logStatus(`No ontology match for chosen surgery "${selectedIntervention}"; core-risk score will be N/A.`);
                 }
                 if (consentInterventions.length) informedConsent = { interventions: consentInterventions };
             }
@@ -1675,6 +1952,7 @@ async function runAnalysis() {
                 decision_label: md.decision_label,
                 status: md.status,
                 selected_option: md.selected_option || null,
+                selected_intervention: selectedIntervention,
                 option_names: md.option_names || [],
                 encounter_ids: md.encounter_files || [],
                 relevant_turn_indices: filtered,
@@ -1724,7 +2002,7 @@ function computeSummaryStats(regions) {
             stats.totalComparisons++;
             if (tc.level === "Meaningful comparison") stats.meaningfulComparisons++;
         });
-        (r.informed_consent_analysis?.interventions || []).forEach(intv => {
+        chosenConsentInterventions(r).forEach(intv => {
             (intv.core_risks || []).forEach(risk => {
                 stats.coreTotal++;
                 if (risk.detection_status === "Discussed") stats.coreDiscussed++;
@@ -1745,19 +2023,21 @@ function renderSummaryBar(regions) {
     const s = computeSummaryStats(regions);
     if (s.total === 0) return "";
     const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : 0);
+    const coreRiskValue = s.coreTotal ? `${pct(s.coreDiscussed, s.coreTotal)}%` : "N/A";
+    const coreRiskSub = s.coreTotal ? `${s.coreDiscussed} of ${s.coreTotal}` : "No chosen surgery";
     return `<div class="summary-bar">
-        <div class="summary-stat"><div class="summary-stat-value">${s.total}</div><div class="summary-stat-label">Decisions Detected</div></div>
-        <div class="summary-stat" style="border-top-color:var(--success);"><div class="summary-stat-value" style="color:var(--success);">${s.resolved}</div><div class="summary-stat-label">Resolved</div></div>
-        <div class="summary-stat" style="border-top-color:var(--warning);"><div class="summary-stat-value" style="color:var(--warning);">${s.deferred}</div><div class="summary-stat-label">Deferred</div></div>
-        <div class="summary-stat"><div class="summary-stat-value">${s.unresolved}</div><div class="summary-stat-label">Unresolved</div></div>
-        <div class="summary-stat" style="border-top-color:var(--secondary);"><div class="summary-stat-value" style="color:var(--secondary);">${pct(s.meaningfulComparisons, s.totalComparisons)}%</div><div class="summary-stat-label">Meaningful Tradeoff Comparisons<span class="summary-stat-sub">${s.meaningfulComparisons} of ${s.totalComparisons} pairs</span></div></div>
-        <div class="summary-stat" style="border-top-color:#e74c3c;"><div class="summary-stat-value" style="color:#e74c3c;">${pct(s.coreDiscussed, s.coreTotal)}%</div><div class="summary-stat-label">Core Risks Discussed<span class="summary-stat-sub">${s.coreDiscussed} of ${s.coreTotal}</span></div></div>
-        <div class="summary-stat"><div class="summary-stat-value">${s.recommendationsExplained}/${s.recommendationsTotal}</div><div class="summary-stat-label">Recommendations Explained</div></div>
-        <div class="summary-stat"><div class="summary-stat-value">${s.questionsAnswered}/${s.questionsTotal}</div><div class="summary-stat-label">Questions Answered</div></div>
+        <div class="summary-stat is-hero" style="border-top-color:#e74c3c;"><div class="summary-stat-value" style="color:#e74c3c;">${coreRiskValue}</div><div class="summary-stat-label">Chosen-Surgery Core Risks<span class="summary-stat-sub">${coreRiskSub}</span></div></div>
+        <div class="summary-stat is-secondary"><div class="summary-stat-value">${s.total}</div><div class="summary-stat-label">Decisions Detected</div></div>
+        <div class="summary-stat is-secondary" style="border-top-color:var(--success);"><div class="summary-stat-value" style="color:var(--success);">${s.resolved}</div><div class="summary-stat-label">Resolved</div></div>
+        <div class="summary-stat is-secondary" style="border-top-color:var(--warning);"><div class="summary-stat-value" style="color:var(--warning);">${s.deferred}</div><div class="summary-stat-label">Deferred</div></div>
+        <div class="summary-stat is-secondary"><div class="summary-stat-value">${s.unresolved}</div><div class="summary-stat-label">Unresolved</div></div>
+        <div class="summary-stat is-secondary" style="border-top-color:var(--secondary);"><div class="summary-stat-value" style="color:var(--secondary);">${pct(s.meaningfulComparisons, s.totalComparisons)}%</div><div class="summary-stat-label">Meaningful Tradeoff Comparisons<span class="summary-stat-sub">${s.meaningfulComparisons} of ${s.totalComparisons} pairs</span></div></div>
+        <div class="summary-stat is-secondary"><div class="summary-stat-value">${s.recommendationsExplained}/${s.recommendationsTotal}</div><div class="summary-stat-label">Recommendations Explained</div></div>
+        <div class="summary-stat is-secondary"><div class="summary-stat-value">${s.questionsAnswered}/${s.questionsTotal}</div><div class="summary-stat-label">Questions Answered</div></div>
     </div>`;
 }
 
-function renderDecisionsList(regions, selectedId) {
+function orderDecisionsHierarchical(regions) {
     const byParent = new Map();
     regions.forEach(r => {
         const parent = r.parent_decision_id && regions.some(candidate => candidate.decision_id === r.parent_decision_id) ? r.parent_decision_id : null;
@@ -1775,6 +2055,11 @@ function renderDecisionsList(regions, selectedId) {
     };
     visit(null, 0);
     regions.filter(r => !ordered.some(item => item.r === r)).forEach(r => ordered.push({r, depth:0}));
+    return ordered;
+}
+
+function renderDecisionsList(regions, selectedId) {
+    const ordered = orderDecisionsHierarchical(regions);
     let rows = ordered.map(({r, depth}) => {
         const sel = r.decision_id === selectedId ? "selected" : "";
         const opt = r.selected_option ? escHtml(r.selected_option) : "—";
@@ -1784,8 +2069,46 @@ function renderDecisionsList(regions, selectedId) {
             <td>${opt}</td>
         </tr>`;
     }).join("");
-    return `<div class="map-options" style="background:#fff;"><strong>1. Decisions Detected</strong>
+    return `<div class="map-options" style="background:#fff;"><h3 class="decision-list-title">1. Decisions Detected</h3>
         <table class="risk-table"><thead><tr><th>Decision</th><th>Status</th><th>Selected option</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function jumpToDecisionTurn(decisionId, turnIndex) {
+    selectDecision(decisionId);
+    if (turnIndex != null) scrollToTurn(turnIndex);
+}
+
+function renderDecisionTimeline(regions, turns) {
+    if (!regions.length || !turns.length) return "";
+    const maxTurn = Math.max(1, ...turns.map(t => t.index));
+    const ordered = orderDecisionsHierarchical(regions);
+    const rows = ordered.map(({r, depth}) => {
+        const indices = (r.relevant_turn_indices || []).slice().sort((a, b) => a - b);
+        const primaryClass = depth === 0 ? "is-primary" : "";
+        let trackHtml;
+        if (indices.length) {
+            const start = indices[0], end = indices[indices.length - 1];
+            const leftPct = (start / maxTurn) * 100;
+            const widthPct = Math.max(((end - start) / maxTurn) * 100, 1.2);
+            trackHtml = `<div class="decision-timeline-bar" style="left:${leftPct}%;width:${widthPct}%;background:${r.colorTheme.border};"
+                onclick="jumpToDecisionTurn('${escAttr(r.decision_id)}', ${start})"
+                title="${escAttr(r.decision_label)}: turns ${start}–${end}"></div>`;
+        } else {
+            trackHtml = `<div class="decision-timeline-empty">No turns detected</div>`;
+        }
+        return `<div class="decision-timeline-row ${primaryClass}">
+            <div class="decision-timeline-label" onclick="jumpToDecisionTurn('${escAttr(r.decision_id)}', ${indices.length ? indices[0] : 'null'})" style="padding-left:${depth * 18}px;">
+                <span class="decision-timeline-swatch" style="background:${r.colorTheme.border};"></span>
+                <span>${depth ? '↳ ' : ''}${escHtml(r.decision_label)}</span>
+            </div>
+            <div class="decision-timeline-track">${trackHtml}</div>
+        </div>`;
+    }).join("");
+    return `<div class="decision-timeline">
+        <h3 class="decision-list-title">When decisions happened</h3>
+        <div class="decision-timeline-rows">${rows}</div>
+        <div class="decision-timeline-axis"><span>Turn 0</span><span>Turn ${maxTurn}</span></div>
+    </div>`;
 }
 
 function renderRiskRows(risks, showContext) {
@@ -1805,26 +2128,34 @@ function renderRiskRows(risks, showContext) {
     </tbody></table>`;
 }
 
-function renderInformedConsentSection(ica) {
-    if (!ica || !ica.interventions || !ica.interventions.length) {
-        return `<div class="section-block"><h3>4. Informed Consent Analysis</h3><p style="color:#7f8fa6;">Not applicable — no intervention-specific informed-consent analysis for this decision.</p></div>`;
+function renderInformedConsentSection(decision) {
+    const interventions = chosenConsentInterventions(decision);
+    if (!interventions.length) {
+        const reason = decision.status === "Resolved"
+            ? "N/A — no specific chosen surgery could be matched to the risk ontology."
+            : "N/A until a specific surgery is chosen.";
+        return `<div class="section-block"><h3>4. Informed Consent Analysis</h3><p style="color:#7f8fa6;">${reason}</p></div>`;
     }
     let html = `<div class="section-block"><h3>4. Informed Consent Analysis</h3>`;
-    ica.interventions.forEach(intv => {
+    interventions.forEach(intv => {
         const sum = intv.risk_communication_summary || {};
-        html += `<div class="map-options" style="background:#fff;margin-bottom:16px;">
-            <strong>Intervention analyzed:</strong> ${escHtml(intv.intervention_name)}
-            <div class="field-label" style="margin-top:12px;">Core risks</div>${renderRiskRows(intv.core_risks, false)}
-            <div class="field-label">Relevant risks</div>${renderRiskRows(intv.relevant_risks, false)}
+        const summaryRows = [
+            ["Core", sum.core_discussed, sum.core_not_detected],
+            ["Relevant", sum.relevant_discussed, sum.relevant_not_detected],
+        ].map(([tier, discussed, notDetected]) => `<tr>
+                <td><strong>${tier}</strong></td>
+                <td class="status-Discussed">${(discussed || []).join(", ") || "—"}</td>
+                <td class="status-Not-detected">${(notDetected || []).join(", ") || "—"}</td>
+            </tr>`).join("");
+        html += `<div class="intervention-block">
+            <p class="subhead" style="margin-top:0;">Intervention analyzed: ${escHtml(intv.intervention_name)}</p>
+            <div class="field-label">Core risks</div>${renderRiskRows(intv.core_risks, false)}
+            <details class="detail-disclosure"><summary>Relevant risks</summary>${renderRiskRows(intv.relevant_risks, false)}</details>
             <details class="ctx-risks"><summary>Context-dependent risks</summary>${renderRiskRows(intv.context_dependent_risks, true)}</details>
-            <div class="field-label" style="margin-top:12px;">Risk communication summary</div>
-            <div class="field-value" style="font-size:0.88rem;line-height:1.6;">
-                <div><strong>Core discussed:</strong> ${(sum.core_discussed || []).join(", ") || "—"}</div>
-                <div><strong>Core not detected:</strong> ${(sum.core_not_detected || []).join(", ") || "—"}</div>
-                <div><strong>Relevant discussed:</strong> ${(sum.relevant_discussed || []).join(", ") || "—"}</div>
-                <div><strong>Relevant not detected:</strong> ${(sum.relevant_not_detected || []).join(", ") || "—"}</div>
-                <div><strong>Context-dependent may warrant review:</strong> ${(sum.context_dependent_warrant_review || []).join(", ") || "—"}</div>
-            </div>
+            <div class="field-label" style="margin-top:20px;">Risk communication summary</div>
+            <table class="risk-table"><thead><tr><th>Tier</th><th>Discussed</th><th>Not detected</th></tr></thead><tbody>${summaryRows}</tbody></table>
+            <div class="field-label" style="margin-top:16px;">Context-dependent risks warranting review</div>
+            <div class="field-value">${escHtml((sum.context_dependent_warrant_review || []).join(", ") || "—")}</div>
         </div>`;
     });
     html += `</div>`;
@@ -1836,59 +2167,122 @@ function renderDecisionDetail(r) {
     const comm = r.communication_analysis || {};
     const pe = comm.patient_engagement || {};
     const cr = comm.clinician_response || {};
+    const chosenSurgery = selectedInterventionName(r);
 
-    let optionsHtml = (ov.options_considered || []).map(opt => {
+    const selectedOptionText = `${r.selected_option || ""} ${r.selected_intervention || ""}`.toLowerCase();
+    const optionCards = (ov.options_considered || []).map((opt, index) => {
+        const optionName = String(opt.option_name || "");
+        const normalizedName = optionName.toLowerCase();
+        const isSelected = normalizedName && selectedOptionText.includes(normalizedName);
         const namedOnly = opt.named_only ? `<span class="badge" style="background:#95a5a6;color:#fff;">Named only</span>` : "";
-        return `<div class="option-card"><h4>${escHtml(opt.option_name)} ${namedOnly}</h4>
-            <div class="field-label">What it involves</div>${renderTextField(opt.what_it_involves, "Not discussed")}
-            <div class="field-label">Benefits / expected outcomes</div>${renderTextField(opt.benefits, "Not discussed")}
-            <div class="field-label">Risks</div>${renderTextField(opt.risks, "Not discussed")}
-            <div class="field-label">Burdens / practical considerations</div>${renderTextField(opt.burdens, "Not discussed")}
-        </div>`;
-    }).join("") || "<p>No options extracted.</p>";
+        const selectedBadge = isSelected ? `<span class="badge risk-badge">Selected path</span>` : "";
+        const open = isSelected || (!selectedOptionText && index === 0) ? " open" : "";
+        return `<details class="option-card${isSelected ? " selected" : ""}"${open}>
+            <summary><h4>${escHtml(optionName)}</h4> ${selectedBadge}${namedOnly}</summary>
+            <div class="option-facts">
+                <div class="option-fact"><div class="field-label">What it involves</div>${renderTextField(opt.what_it_involves, "Not discussed")}</div>
+                <div class="option-fact benefit"><div class="field-label">Benefits / expected outcomes</div>${renderTextField(opt.benefits, "Not discussed")}</div>
+                <div class="option-fact risk"><div class="field-label">Risks</div>${renderTextField(opt.risks, "Not discussed")}</div>
+                <div class="option-fact burden"><div class="field-label">Practical considerations</div>${renderTextField(opt.burdens, "Not discussed")}</div>
+            </div>
+        </details>`;
+    }).join("");
+    const optionsHtml = optionCards ? `<div class="options-grid">${optionCards}</div>` : "<p>No options extracted.</p>";
 
     const rec = ov.clinician_recommendation || {};
     const pc = ov.patient_considerations || {};
-    const renderGroundedStatements = items => (items || []).map(item => {
-        const statement = typeof item === "string" ? {text:item, quote:"", turn_indices:[]} : item;
-        return `<div>${escHtml(statement.text || "—")}${statement.quote ? ` — <em>"${escHtml(statement.quote)}"</em>` : ""} ${renderTurnLinks(statement.turn_indices)}</div>`;
-    }).join("") || "—";
+    const renderGroundedStatements = items => {
+        const rows = (items || []).map(item => {
+            const statement = typeof item === "string" ? {text:item, quote:"", turn_indices:[]} : item;
+            const evidence = statement.quote ? `<span class="evidence-line">"${escHtml(statement.quote)}" ${renderTurnLinks(statement.turn_indices)}</span>` : "";
+            return `<li>${escHtml(statement.text || "—")}${evidence}</li>`;
+        }).join("");
+        return rows || `<li style="color:#95a5a6;font-style:italic;">Not discussed</li>`;
+    };
     const qRows = (pc.questions || []).map(q => `<tr><td>${escHtml(q.question)}</td><td>${escHtml(q.response || "—")}</td><td>${escHtml(q.response_status)}</td><td>${renderTurnLinks(q.turn_indices)}</td></tr>`).join("");
 
-    const tradeoffs = (comm.tradeoff_comparisons || []).map(tc => `<li><strong>${escHtml(tc.option_a)}</strong> vs <strong>${escHtml(tc.option_b)}</strong>: ${escHtml(tc.level)}<br><span style="font-style:italic;font-size:0.85rem;">"${escHtml(tc.evidence_quote)}"</span> ${renderTurnLinks(tc.turn_indices)}</li>`).join("") || "<li>No pairwise comparisons assessed.</li>";
+    const levelClass = level => `level-pill level-${String(level || "").replace(/\s+/g, "-")}`;
+    const tradeoffRows = (comm.tradeoff_comparisons || []).map(tc => `<tr>
+            <td><strong>${escHtml(tc.option_a)}</strong> vs <strong>${escHtml(tc.option_b)}</strong></td>
+            <td><span class="${levelClass(tc.level)}">${escHtml(tc.level)}</span></td>
+            <td style="font-size:0.85rem;font-style:italic;">"${escHtml(tc.evidence_quote)}" ${renderTurnLinks(tc.turn_indices)}</td>
+        </tr>`).join("");
+    const tradeoffsHtml = tradeoffRows
+        ? `<table class="risk-table"><thead><tr><th>Options compared</th><th>Comparison level</th><th>Evidence</th></tr></thead><tbody>${tradeoffRows}</tbody></table>`
+        : `<p style="color:#95a5a6;">No pairwise comparisons assessed.</p>`;
 
-    const eng = `<ul style="font-size:0.9rem;line-height:1.7;">
-        <li>Goals / priorities elicited: <strong>${pe.goals_priorities_elicited ? "Yes" : "No"}</strong>${pe.goals_priorities_evidence ? ` — <em>${escHtml(pe.goals_priorities_evidence)}</em>` : ""}</li>
-        <li>Preferences elicited: <strong>${pe.preferences_elicited ? "Yes" : "No"}</strong>${pe.preferences_elicited_evidence ? ` — <em>${escHtml(pe.preferences_elicited_evidence)}</em>` : ""}</li>
-        <li>Questions invited: <strong>${pe.questions_invited ? "Yes" : "No"}</strong>${pe.questions_invited_evidence ? ` — <em>${escHtml(pe.questions_invited_evidence)}</em>` : ""}</li>
-    </ul>`;
+    const yesNo = flag => `<span class="yesno-${flag ? "Yes" : "No"}">${flag ? "Yes" : "No"}</span>`;
+    const engagementRows = [
+        ["Goals / priorities elicited", pe.goals_priorities_elicited, pe.goals_priorities_evidence],
+        ["Preferences elicited", pe.preferences_elicited, pe.preferences_elicited_evidence],
+        ["Questions invited", pe.questions_invited, pe.questions_invited_evidence],
+    ].map(([label, flag, evidence]) => `<tr>
+            <td>${label}</td>
+            <td>${yesNo(flag)}</td>
+            <td style="font-size:0.85rem;font-style:italic;">${evidence ? escHtml(evidence) : "—"}</td>
+        </tr>`).join("");
+    const engagementHtml = `<table class="risk-table"><thead><tr><th>Signal</th><th>Elicited</th><th>Evidence</th></tr></thead><tbody>${engagementRows}</tbody></table>`;
 
     return `<div class="decision-card" style="box-shadow: inset 3px 0 0 ${r.colorTheme.border};">
-        <h4 style="margin-top:0;">${escHtml(r.decision_label)}</h4>
-        <div>${(r.encounter_ids || []).map(e => `<span class="encounter-badge">${escHtml(e)}</span>`).join(" ")}</div>
+        <h2 class="decision-heading">${escHtml(r.decision_label)}</h2>
+        <div class="decision-context">
+            ${(r.encounter_ids || []).map(e => `<span class="encounter-badge">${escHtml(e)}</span>`).join(" ")}
+            <div class="chosen-surgery-banner">
+                <span class="field-label">Chosen surgery</span>
+                <strong>${escHtml(chosenSurgery || "N/A — no specific surgery chosen")}</strong>
+            </div>
+        </div>
 
         <div class="section-block"><h3>2. Decision Overview</h3>
-            <div class="field-label">Options considered</div>${optionsHtml}
-            <div class="field-label">Clinician recommendation</div>
-            <div class="field-value"><strong>${escHtml(rec.recommended_option || "None stated")}</strong><br>${escHtml(rec.rationale || "")}${rec.qualification ? `<br><em>Qualification: ${escHtml(rec.qualification)}</em>` : ""}${rec.quote ? `<br><em>"${escHtml(rec.quote)}"</em>` : ""} ${renderTurnLinks(rec.turn_indices)}</div>
-            <div class="field-label" style="margin-top:14px;">Patient considerations</div>
-            <div class="field-value"><strong>Goals / priorities:</strong> ${renderGroundedStatements(pc.goals_priorities)}</div>
-            <div class="field-value" style="margin-top:6px;"><strong>Preferences:</strong> ${renderGroundedStatements(pc.preferences)}</div>
-            ${qRows ? `<div class="field-label">Questions raised</div><table class="risk-table"><thead><tr><th>Question</th><th>Response</th><th>Status</th><th>Turns</th></tr></thead><tbody>${qRows}</tbody></table>` : ""}
+            <p class="subhead">Options considered</p>
+            ${optionsHtml}
+
+            <div class="callout">
+                <div class="field-label">Clinician recommendation</div>
+                <div class="callout-value">${escHtml(rec.recommended_option || "None stated")}</div>
+                ${rec.rationale ? `<div class="field-value" style="margin-top:8px;">${escHtml(rec.rationale)}</div>` : ""}
+                ${rec.qualification ? `<div style="margin-top:8px;"><span class="qual-tag">Qualification: ${escHtml(rec.qualification)}</span></div>` : ""}
+                ${(rec.quote || (rec.turn_indices || []).length) ? `<span class="evidence-line">${rec.quote ? `"${escHtml(rec.quote)}"` : "Transcript reference"} ${renderTurnLinks(rec.turn_indices)}</span>` : ""}
+            </div>
+
+            <p class="subhead">Patient considerations</p>
+            <div class="info-grid">
+                <div class="info-panel">
+                    <div class="field-label">Goals &amp; priorities</div>
+                    <ul class="fact-list">${renderGroundedStatements(pc.goals_priorities)}</ul>
+                </div>
+                <div class="info-panel">
+                    <div class="field-label">Preferences</div>
+                    <ul class="fact-list">${renderGroundedStatements(pc.preferences)}</ul>
+                </div>
+            </div>
+            ${qRows ? `<div class="field-label" style="margin-top:24px;">Questions raised</div><table class="risk-table"><thead><tr><th>Question</th><th>Response</th><th>Status</th><th>Turns</th></tr></thead><tbody>${qRows}</tbody></table>` : ""}
         </div>
 
         <div class="section-block"><h3>3. Communication Analysis</h3>
             <div class="field-label">Decision framing</div><span class="framing-badge">${escHtml(comm.decision_framing || "—")}</span>
-            <div class="field-label" style="margin-top:14px;">Tradeoffs discussed</div><ul style="font-size:0.9rem;">${tradeoffs}</ul>
-            <div class="field-label">Patient engagement</div>${eng}
-            <div class="field-label">Clinician response</div>
-            <div class="field-value">Questions addressed: <strong>${cr.questions_answered_count ?? 0}</strong> of <strong>${cr.questions_total_count ?? 0}</strong><br>
-            Recommendation explained: <strong>${escHtml(cr.recommendation_explained || "—")}</strong></div>
-            <div class="field-label" style="margin-top:10px;">Verification of understanding / teach-back</div>
+
+            <p class="subhead">Tradeoffs discussed</p>
+            ${tradeoffsHtml}
+
+            <p class="subhead">Patient engagement</p>
+            ${engagementHtml}
+
+            <div class="stat-row-grid">
+                <div class="stat-row-item">
+                    <div class="stat-value">${cr.questions_answered_count ?? 0} / ${cr.questions_total_count ?? 0}</div>
+                    <div class="stat-label">Questions addressed</div>
+                </div>
+                <div class="stat-row-item">
+                    <div class="stat-value">${escHtml(cr.recommendation_explained || "—")}</div>
+                    <div class="stat-label">Recommendation explained</div>
+                </div>
+            </div>
+            <div class="field-label" style="margin-top:20px;">Verification of understanding / teach-back</div>
             <div class="field-value">${escHtml(comm.understanding_verification || "—")}</div>
         </div>
 
-        ${renderInformedConsentSection(r.informed_consent_analysis)}
+        ${renderInformedConsentSection(r)}
     </div>`;
 }
 
@@ -1912,7 +2306,7 @@ function collectTurnTagsForDecision(r, turnIndex, tags) {
     (r.communication_analysis?.tradeoff_comparisons || []).forEach(tc => {
         if ((tc.turn_indices || []).includes(turnIndex)) tags.push({ text: `Tradeoff: ${tc.option_a} vs ${tc.option_b}`, color: "#16a085", title: tc.level });
     });
-    (r.informed_consent_analysis?.interventions || []).forEach(intv => {
+    chosenConsentInterventions(r).forEach(intv => {
         ["core_risks", "relevant_risks", "context_dependent_risks"].forEach(key => {
             (intv[key] || []).forEach(risk => {
                 if ((risk.turn_indices || []).includes(turnIndex) && risk.detection_status === "Discussed") {
@@ -1942,6 +2336,7 @@ function renderUI(regions, turns, schemaVersion) {
     let html = `<h2>CCQ Analysis Results</h2>${renderSummaryBar(regions)}`;
     html += `<div class="ccq-layout"><div class="ccq-sidebar">${renderDecisionsList(regions, selected.decision_id)}</div>`;
     html += `<div class="ccq-detail">${renderDecisionDetail(selected)}</div></div>`;
+    html += renderDecisionTimeline(regions, turns);
     html += `<h2>Patient Timeline (Merged Transcripts)</h2><div class="global-transcript">`;
 
     turns.forEach(turn => {

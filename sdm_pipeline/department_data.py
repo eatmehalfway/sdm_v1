@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import random
+import re
 from typing import Any
 
 DEPARTMENT_NAME = "Spine & Orthopedics"
@@ -132,7 +133,8 @@ def _grounded_text(text: str, qualifiers: list[str] | None = None, turn: int | N
 def _mock_region(metrics: dict[str, Any], episode_id: str) -> dict[str, Any]:
     framing = metrics["decision_framing"]
     status = metrics["status"]
-    selected = "Surgery" if status == "Resolved" else ("Deferred — follow-up" if status == "Deferred" else None)
+    selected = "Proceed with surgery" if status == "Resolved" else ("Watchful waiting" if status == "Deferred" else None)
+    selected_intervention = "Lumbar decompression with possible fusion" if status == "Resolved" else None
     tradeoff_level = metrics.get("tradeoff_level") or (
         "Meaningful comparison"
         if metrics["tradeoff_pct"] >= 65
@@ -146,10 +148,12 @@ def _mock_region(metrics: dict[str, Any], episode_id: str) -> dict[str, Any]:
     core_discussed = metrics["core_risk_pct"] >= 50
     return {
         "decision_id": f"{episode_id}_d1",
-        "decision_label": "Management of lumbar stenosis",
+        "decision_label": "Timing of surgical management",
+        "parent_decision_id": f"{episode_id}_treatment",
         "status": status,
         "selected_option": selected,
-        "option_names": ["Physical therapy", "Epidural injection", "Surgery"],
+        "selected_intervention": selected_intervention,
+        "option_names": ["Proceed with surgery", "Watchful waiting"],
         "encounter_ids": [f"{episode_id}_consult.txt"],
         "relevant_turn_indices": [0, 1, 2, 3, 4],
         "colorTheme": _COLOR_THEMES[0],
@@ -314,7 +318,23 @@ def build_demo_episodes(n_per_clinician: int = 10) -> list[dict[str, Any]]:
             episode_id = f"demo_{clin['id']}_{i + 1:02d}"
             rng = _rng(episode_id)
             metrics = _episode_score(rng, bias)
-            has_index_decision = i != n_per_clinician - 1
+            # Guarantee every clinician contributes examples to the full category
+            # range so empty lanes do not obscure the intended comparison model.
+            if i == 0:
+                metrics.update({
+                    "status": "Resolved",
+                    "decision_framing": "Single option presented",
+                    "tradeoff_level": "Not compared",
+                    "tradeoff_pct": 0,
+                })
+            elif i == 1:
+                metrics.update({
+                    "status": "Resolved",
+                    "decision_framing": "Alternatives explicitly presented",
+                    "tradeoff_level": "Not compared",
+                    "tradeoff_pct": 20,
+                })
+            has_index_decision = i != n_per_clinician - 1 and metrics["status"] == "Resolved"
             transcribed_encounters = 1 + int(rng.random() > 0.82)
             total_encounters = transcribed_encounters + int(rng.random() > 0.72)
             patient_label = f"Patient {1000 + episode_num}"
@@ -328,7 +348,7 @@ def build_demo_episodes(n_per_clinician: int = 10) -> list[dict[str, Any]]:
                     "clinician_name": clin["name"],
                     "clinician_color": clin["color"],
                     "patient_label": patient_label,
-                    "decision_label": "Management of lumbar stenosis" if has_index_decision else "Conservative management follow-up",
+                    "decision_label": "Timing of surgical management" if has_index_decision else "No chosen surgery",
                     "index_decision_id": f"{episode_id}_d1" if has_index_decision else None,
                     "has_index_decision": has_index_decision,
                     "status": metrics["status"],
@@ -394,16 +414,30 @@ def get_demo_episode_detail(episode_id: str) -> dict[str, Any] | None:
         "status": meta["status"],
     }
     region = _mock_region(metrics, episode_id)
+    treatment_parent = copy.deepcopy(region)
+    treatment_parent["decision_id"] = f"{episode_id}_treatment"
+    treatment_parent["parent_decision_id"] = None
+    treatment_parent["decision_label"] = "Management of lumbar stenosis"
+    treatment_parent["status"] = "Resolved" if meta.get("has_index_decision") else meta["status"]
+    treatment_parent["selected_option"] = "Surgical management" if meta.get("has_index_decision") else "Nonsurgical management"
+    treatment_parent["selected_intervention"] = None
+    treatment_parent["option_names"] = ["Nonsurgical management", "Surgical management"]
+    treatment_parent["linked_interventions"] = []
+    treatment_parent["informed_consent_analysis"] = None
     if not meta.get("has_index_decision"):
         region["decision_label"] = meta["decision_label"]
+        region["selected_intervention"] = None
         region["linked_interventions"] = []
         region["informed_consent_analysis"] = None
-    decisions = [region]
+    decisions = [treatment_parent, region]
     # Exercise the multiple-qualifying-decision tie-break in demo data.
-    if episode_id.endswith("_09"):
+    if episode_id.endswith("_09") and region.get("informed_consent_analysis"):
         secondary = copy.deepcopy(region)
         secondary["decision_id"] = f"{episode_id}_d2"
         secondary["decision_label"] = "Choice of anesthesia"
+        secondary["parent_decision_id"] = region["decision_id"]
+        secondary["selected_option"] = "Regional anesthesia"
+        secondary["selected_intervention"] = "Regional anesthesia"
         secondary["linked_interventions"] = ["Regional anesthesia"]
         secondary["informed_consent_analysis"]["interventions"][0]["intervention_name"] = "Regional anesthesia"
         decisions.append(secondary)
@@ -425,8 +459,48 @@ def get_demo_episode_detail(episode_id: str) -> dict[str, Any] | None:
 def _core_risk_count(decision: dict[str, Any]) -> int:
     return sum(
         len(intervention.get("core_risks") or [])
-        for intervention in (decision.get("informed_consent_analysis") or {}).get("interventions") or []
+        for intervention in _chosen_interventions(decision)
     )
+
+
+def _selected_intervention_name(decision: dict[str, Any]) -> str | None:
+    """Return the chosen surgery, with a narrow fallback for pre-field v2 runs."""
+    if decision.get("status") != "Resolved":
+        return None
+    selected = decision.get("selected_intervention")
+    if selected:
+        return str(selected)
+    interventions = (decision.get("informed_consent_analysis") or {}).get("interventions") or []
+    selected_option = str(decision.get("selected_option") or "").casefold()
+    for intervention in interventions:
+        name = str(intervention.get("intervention_name") or "")
+        if name and (name.casefold() in selected_option or selected_option in name.casefold()):
+            return name
+    if (
+        len(interventions) == 1
+        and len(decision.get("linked_interventions") or []) == 1
+        and re.search(
+            r"surg|decompress|fusion|arthro|replacement|repair|procedure",
+            selected_option,
+        )
+        and not re.search(
+            r"watch|wait|defer|non.?surg|conservative|therapy|injection",
+            selected_option,
+        )
+    ):
+        return str(interventions[0].get("intervention_name") or "") or None
+    return None
+
+
+def _chosen_interventions(decision: dict[str, Any]) -> list[dict[str, Any]]:
+    selected = _selected_intervention_name(decision)
+    if not selected:
+        return []
+    return [
+        intervention
+        for intervention in (decision.get("informed_consent_analysis") or {}).get("interventions") or []
+        if str(intervention.get("intervention_name") or "").casefold() == selected.casefold()
+    ]
 
 
 def select_index_decision(
@@ -436,8 +510,8 @@ def select_index_decision(
     qualifying = [
         decision
         for decision in decisions
-        if decision.get("linked_interventions")
-        and isinstance(decision.get("informed_consent_analysis"), dict)
+        if _selected_intervention_name(decision)
+        and _chosen_interventions(decision)
     ]
     if not qualifying:
         return None
@@ -448,8 +522,9 @@ def select_index_decision(
         for decision in qualifying
         if default_procedure
         and any(
-            str(intervention).casefold() == default_procedure.casefold()
-            for intervention in decision.get("linked_interventions") or []
+            str(intervention.get("intervention_name") or "").casefold()
+            == default_procedure.casefold()
+            for intervention in _chosen_interventions(decision)
         )
     ]
     return max(matching or qualifying, key=_core_risk_count)
@@ -522,7 +597,7 @@ def metrics_from_regions(regions_payload: Any) -> dict[str, Any]:
     engagement_scores.append(100 * sum(1 for flag in flags if flag) / 3)
     teachback = comm.get("understanding_verification") == "Active understanding check detected"
     core_risk_items = []
-    for intervention in (decision.get("informed_consent_analysis") or {}).get("interventions") or []:
+    for intervention in _chosen_interventions(decision):
         for risk in intervention.get("core_risks") or []:
             core_risk_items.append({
                 "risk_name": risk.get("risk_name") or "Unnamed risk",

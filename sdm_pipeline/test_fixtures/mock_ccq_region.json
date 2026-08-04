@@ -1,13 +1,44 @@
 {
+  "schema_version": 2,
+  "default_procedure": "Lumbar decompression with possible fusion",
+  "decisions": [
+{
   "decision_id": "d1",
   "decision_label": "Management of lumbar stenosis",
   "status": "Resolved",
-  "selected_option": "Lumbar decompression surgery",
-  "option_names": ["Physical therapy", "Epidural injection", "Surgery"],
+  "selected_option": "Surgical management",
+  "selected_intervention": null,
+  "option_names": ["Nonsurgical management", "Surgical management"],
   "encounter_ids": ["encounter_1_consult.txt", "encounter_2_followup.txt"],
   "relevant_turn_indices": [0, 1, 2, 3, 4, 5],
   "colorTheme": { "bg": "#e8f4f8", "border": "#3498db", "tag": "#2980b9" },
-  "linked_interventions": ["Lumbar decompression with possible fusion"],
+  "linked_interventions": [],
+  "decision_overview": {
+    "options_considered": [],
+    "clinician_recommendation": { "recommended_option": "Surgical management", "rationale": "Symptoms progressed", "qualification": "", "quote": "", "turn_indices": [] },
+    "patient_considerations": { "goals_priorities": [], "preferences": [], "questions": [] }
+  },
+  "communication_analysis": {
+    "decision_framing": "Alternatives explicitly presented",
+    "tradeoff_comparisons": [],
+    "patient_engagement": { "goals_priorities_elicited": true, "goals_priorities_evidence": "", "preferences_elicited": true, "preferences_elicited_evidence": "", "questions_invited": true, "questions_invited_evidence": "" },
+    "clinician_response": { "questions_answered_count": 0, "questions_total_count": 0, "recommendation_explained": "Explained" },
+    "understanding_verification": "No active understanding check detected"
+  },
+  "informed_consent_analysis": null
+},
+{
+  "decision_id": "d2",
+  "parent_decision_id": "d1",
+  "decision_label": "Timing of surgical management",
+  "status": "Resolved",
+  "selected_option": "Proceed with lumbar decompression surgery",
+  "selected_intervention": "Lumbar decompression with possible fusion",
+  "option_names": ["Proceed with surgery", "Watchful waiting"],
+  "encounter_ids": ["encounter_1_consult.txt", "encounter_2_followup.txt"],
+  "relevant_turn_indices": [0, 1, 2, 3, 4, 5],
+  "colorTheme": { "bg": "#e8f4f8", "border": "#3498db", "tag": "#2980b9" },
+  "linked_interventions": ["Lumbar decompression with possible fusion", "Lumbar fusion"],
   "decision_overview": {
     "options_considered": [
       {
@@ -87,4 +118,6 @@
       }
     ]
   }
+}
+  ]
 }
