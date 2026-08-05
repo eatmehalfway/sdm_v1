@@ -25,6 +25,12 @@ FRAMING_LEVELS = [
 
 STATUSES = ["Resolved", "Deferred", "Unresolved"]
 
+PROCEDURES = [
+    "Lumbar decompression with possible fusion",
+    "Lumbar laminectomy",
+    "Posterior lumbar fusion",
+]
+
 _COLOR_THEMES = [
     {"bg": "#e6f2ff", "border": "#2e7de1", "tag": "#1769e0"},
     {"bg": "#e7f8fb", "border": "#23a7bf", "tag": "#137f9a"},
@@ -130,11 +136,12 @@ def _grounded_text(text: str, qualifiers: list[str] | None = None, turn: int | N
     }
 
 
-def _mock_region(metrics: dict[str, Any], episode_id: str) -> dict[str, Any]:
+def _mock_region(metrics: dict[str, Any], episode_id: str, procedure: str | None = None) -> dict[str, Any]:
     framing = metrics["decision_framing"]
     status = metrics["status"]
+    procedure = procedure or PROCEDURES[0]
     selected = "Proceed with surgery" if status == "Resolved" else ("Watchful waiting" if status == "Deferred" else None)
-    selected_intervention = "Lumbar decompression with possible fusion" if status == "Resolved" else None
+    selected_intervention = procedure if status == "Resolved" else None
     tradeoff_level = metrics.get("tradeoff_level") or (
         "Meaningful comparison"
         if metrics["tradeoff_pct"] >= 65
@@ -157,7 +164,7 @@ def _mock_region(metrics: dict[str, Any], episode_id: str) -> dict[str, Any]:
         "encounter_ids": [f"{episode_id}_consult.txt"],
         "relevant_turn_indices": [0, 1, 2, 3, 4],
         "colorTheme": _COLOR_THEMES[0],
-        "linked_interventions": ["Lumbar decompression with possible fusion"],
+        "linked_interventions": [procedure],
         "decision_overview": {
             "options_considered": [
                 {
@@ -241,7 +248,7 @@ def _mock_region(metrics: dict[str, Any], episode_id: str) -> dict[str, Any]:
         "informed_consent_analysis": {
             "interventions": [
                 {
-                    "intervention_name": "Lumbar decompression with possible fusion",
+                    "intervention_name": procedure,
                     "core_risks": [
                         {
                             "risk_name": "Dural tear / CSF leak",
@@ -335,6 +342,7 @@ def build_demo_episodes(n_per_clinician: int = 10) -> list[dict[str, Any]]:
                     "tradeoff_pct": 20,
                 })
             has_index_decision = i != n_per_clinician - 1 and metrics["status"] == "Resolved"
+            procedure = rng.choice(PROCEDURES)
             transcribed_encounters = 1 + int(rng.random() > 0.82)
             total_encounters = transcribed_encounters + int(rng.random() > 0.72)
             patient_label = f"Patient {1000 + episode_num}"
@@ -351,6 +359,7 @@ def build_demo_episodes(n_per_clinician: int = 10) -> list[dict[str, Any]]:
                     "decision_label": "Timing of surgical management" if has_index_decision else "No chosen surgery",
                     "index_decision_id": f"{episode_id}_d1" if has_index_decision else None,
                     "has_index_decision": has_index_decision,
+                    "procedure": procedure if has_index_decision else None,
                     "status": metrics["status"],
                     "ccq_score": metrics["ccq_score"],
                     "decision_framing": metrics["decision_framing"] if has_index_decision else None,
@@ -390,7 +399,7 @@ _DETAIL_CACHE: dict[str, dict[str, Any]] = {}
 def get_demo_episodes() -> list[dict[str, Any]]:
     global _EPISODE_CACHE
     if _EPISODE_CACHE is None:
-        eps = build_demo_episodes(10)
+        eps = build_demo_episodes(30)
         _EPISODE_CACHE = {e["episode_id"]: e for e in eps}
     return list(_EPISODE_CACHE.values())
 
@@ -413,7 +422,8 @@ def get_demo_episode_detail(episode_id: str) -> dict[str, Any] | None:
         "teachback": meta["teachback"],
         "status": meta["status"],
     }
-    region = _mock_region(metrics, episode_id)
+    procedure = meta.get("procedure")
+    region = _mock_region(metrics, episode_id, procedure=procedure)
     treatment_parent = copy.deepcopy(region)
     treatment_parent["decision_id"] = f"{episode_id}_treatment"
     treatment_parent["parent_decision_id"] = None
@@ -447,7 +457,7 @@ def get_demo_episode_detail(episode_id: str) -> dict[str, Any] | None:
         "turns": turns,
         "regions": {
             "schema_version": 2,
-            "default_procedure": "Lumbar decompression with possible fusion",
+            "default_procedure": procedure or PROCEDURES[0],
             "decisions": decisions,
         },
         "schema_version": 2,
@@ -555,6 +565,7 @@ def metrics_from_regions(regions_payload: Any) -> dict[str, Any]:
             "index_decision_id": None,
             "decision_label": "No consent-relevant decision",
             "status": ccq_decisions[0].get("status") or "Unresolved",
+            "procedure": None,
             "ccq_score": None,
             "decision_framing": None,
             "tradeoff_level": None,
@@ -622,6 +633,7 @@ def metrics_from_regions(regions_payload: Any) -> dict[str, Any]:
     return {
         "has_index_decision": True,
         "index_decision_id": decision.get("decision_id"),
+        "procedure": _selected_intervention_name(decision),
         "ccq_score": composite,
         "decision_framing": framing_label,
         "tradeoff_level": best_tradeoff_level,

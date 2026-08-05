@@ -59,43 +59,7 @@
         }
         h3 { font-size: 1.05rem; font-weight: 700; }
 
-        /* ---------- HERO ---------- */
-        .app-hero {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            min-height: calc(100vh - 66px);
-            margin: 0;
-            padding: 8vh var(--gutter) 9vh;
-            overflow: hidden;
-            background: linear-gradient(160deg, #06182b 0%, #0a2440 52%, #103459 100%);
-            color: #fff;
-            border: 0;
-            border-radius: 0;
-        }
-        body.hero-compact .app-hero { min-height: 0; padding: 46px var(--gutter) 52px; }
-        body.hero-compact .hero-description { display: none; }
-        body.hero-compact .app-hero h1 { font-size: clamp(2rem, 3.6vw, 3rem); max-width: none; }
-        body.hero-compact .hero-figure { opacity: 0.5; }
-        .hero-figure {
-            position: absolute;
-            right: 8vw;
-            top: 52%;
-            width: 110px;
-            height: 110px;
-            transform: translateY(-50%) rotate(45deg);
-            background: rgba(89, 207, 232, 0.15);
-            box-shadow:
-                0 0 0 38px rgba(89, 207, 232, 0.105),
-                0 0 0 76px rgba(89, 207, 232, 0.08),
-                0 0 0 114px rgba(89, 207, 232, 0.06),
-                0 0 0 152px rgba(89, 207, 232, 0.043),
-                0 0 0 190px rgba(89, 207, 232, 0.03),
-                0 0 0 228px rgba(89, 207, 232, 0.019),
-                0 0 0 266px rgba(89, 207, 232, 0.011);
-            pointer-events: none;
-        }
+        /* ---------- BRAND ---------- */
         .brand-row {
             display: flex;
             align-items: center;
@@ -113,71 +77,6 @@
             font-weight: 800;
             font-size: 0.72rem;
             letter-spacing: -0.02em;
-        }
-        .brand-copy { font-weight: 700; font-size: 0.95rem; letter-spacing: -0.01em; }
-        .brand-copy small {
-            display: block;
-            margin-top: 1px;
-            color: #7fa5cd;
-            font-size: 0.6rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.14em;
-        }
-        .system-pill {
-            margin-left: auto;
-            padding: 12px 22px;
-            border: 0;
-            border-radius: 0;
-            color: var(--navy);
-            background: #e6f6fc;
-            font-size: 0.66rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.14em;
-        }
-        .hero-grid {
-            position: relative;
-            z-index: 2;
-            margin-top: auto;
-            display: grid;
-            grid-template-columns: minmax(0, 1fr);
-            gap: 26px;
-            max-width: 640px;
-        }
-        .eyebrow {
-            margin: 0 0 22px;
-            color: #86bedb;
-            font-size: 0.66rem;
-            line-height: 1;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.24em;
-        }
-        .app-hero h1 {
-            max-width: 14ch;
-            margin: 0;
-            color: #fff;
-            font-family: inherit;
-            font-size: clamp(2.9rem, 6vw, 5.2rem);
-            line-height: 1.02;
-            letter-spacing: -0.025em;
-            font-weight: 800;
-        }
-        .app-hero h1 span { color: #8cdff1; }
-        .hero-description {
-            margin: 0;
-            max-width: 46ch;
-            color: #a9c6e0;
-            font-size: 0.92rem;
-            line-height: 1.75;
-        }
-        .hero-note {
-            display: block;
-            margin-top: 14px;
-            color: #6d8fb2;
-            font-size: 0.7rem;
-            line-height: 1.6;
         }
 
         /* ---------- NAVIGATION ---------- */
@@ -233,6 +132,34 @@
         .nav-btn.active { background: transparent; color: #fff; }
         .nav-btn.active::after { background: var(--cyan); }
         .nav-btn:hover:not(.active) { background: transparent; color: #fff; }
+
+        .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+        .icon-btn {
+            width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+            background: rgba(255, 255, 255, 0.09); color: #fff; border: 0; cursor: pointer;
+            font-size: 1.05rem; font-family: inherit; transition: background 0.15s;
+        }
+        .icon-btn:hover { background: rgba(255, 255, 255, 0.18); }
+
+        .settings-popover {
+            display: none; position: fixed; top: 62px; right: var(--gutter); width: 320px; max-width: calc(100vw - 2 * var(--gutter));
+            background: var(--surface); color: var(--text); z-index: 100; padding: 24px;
+            box-shadow: 0 18px 48px rgba(6, 24, 43, 0.28); border-radius: 0;
+        }
+        .settings-popover.open { display: block; }
+        .settings-profile { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+        .settings-avatar {
+            width: 42px; height: 42px; border-radius: 50%; background: var(--secondary-soft); color: var(--secondary-dark);
+            display: grid; place-items: center; font-weight: 800; font-size: 0.85rem; flex: 0 0 auto;
+        }
+        .settings-profile-name { font-weight: 800; font-size: 0.9rem; color: var(--navy); }
+        .settings-profile-role { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+        .settings-section { margin-bottom: 20px; }
+        .settings-section:last-child { margin-bottom: 0; }
+        .settings-section label { display: block; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 800; color: var(--muted); margin-bottom: 8px; }
+        .settings-section input[type="range"] { width: 100%; margin: 0; }
+        .settings-section input[type="text"] { margin: 0; }
+        .settings-hint { font-size: 0.72rem; color: var(--muted); margin-top: 6px; }
         .view-section > .nav-btn {
             margin: 0 12px 30px 0;
             padding: 12px 20px;
@@ -556,11 +483,26 @@
             opacity: 0; transition: opacity 0.1s; max-width: 270px;
         }
         .clinician-legend { display: flex; flex-wrap: wrap; gap: 14px; }
-        .clinician-legend span { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; border-radius: 0; background: transparent; font-size: 0.62rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+        .clinician-legend span { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 0; border-radius: 0; background: transparent; font-size: 0.62rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer; transition: opacity 0.15s, color 0.15s; }
+        .clinician-legend span:hover { color: var(--navy); }
+        .clinician-legend span.is-active { color: var(--navy); text-decoration: underline; text-underline-offset: 4px; }
+        .clinician-legend span.is-muted { opacity: 0.4; }
         .clinician-swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
         .episode-table-wrap { max-height: 420px; overflow: auto; border: 0; border-radius: 0; background: var(--surface); box-shadow: none; }
         .dept-controls { display:flex; align-items:center; gap:18px; flex-wrap:wrap; padding:18px 0 28px; }
         .dept-controls input[type="range"] { width:min(360px, 70vw); }
+        .dept-controls-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 0 0 28px; }
+        .control-select { padding: 10px 14px; margin: 0; width: auto; background: var(--surface); border: 1px solid var(--border-strong); font-size: 0.8rem; font-weight: 700; color: var(--text); font-family: inherit; }
+        .procedure-filter { position: relative; }
+        .procedure-filter-btn { padding: 10px 14px; background: var(--surface); border: 1px solid var(--border-strong); font-size: 0.8rem; font-weight: 700; color: var(--text); font-family: inherit; cursor: pointer; }
+        .procedure-filter-btn:after { content: " ▾"; color: var(--muted); }
+        .procedure-filter-panel {
+            display: none; position: absolute; top: calc(100% + 6px); left: 0; min-width: 260px; z-index: 50;
+            background: var(--surface); border: 1px solid var(--border); box-shadow: 0 16px 36px rgba(6, 24, 43, 0.16); padding: 14px 16px;
+        }
+        .procedure-filter.open .procedure-filter-panel { display: block; }
+        .procedure-filter-option { display: flex; align-items: center; gap: 9px; padding: 6px 0; font-size: 0.82rem; color: var(--text); cursor: pointer; }
+        .dept-stats-inline { color: var(--muted); font-size: 0.85rem; font-weight: 700; margin-left: auto; }
         .analytics-card { background:var(--surface); padding:36px 30px 24px; margin-bottom:48px; }
         .analytics-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:28px; margin-bottom:64px; }
         .rank-row { display:grid; grid-template-columns:minmax(130px,1fr) 2fr auto; gap:12px; align-items:center; margin:12px 0; font-size:.82rem; }
@@ -606,12 +548,9 @@
             :root { --gutter: 20px; }
             body { padding: 0; }
             .container { border-radius: 0; border: 0; padding: 0; }
-            .app-hero { min-height: 92vh; padding: 18px var(--gutter) 8vh; }
-            .hero-figure { right: -80px; top: 62%; opacity: 0.65; }
             .brand-row { gap: 14px; }
-            .system-pill { display: none; }
-            .app-hero h1 { font-size: clamp(2.5rem, 12vw, 4rem); }
             .nav-bar { gap: 22px; }
+            .topbar-actions { gap: 6px; }
             .view-section.active { padding: 36px var(--gutter) 64px; }
             .setup-box { padding: 24px 0; }
             .decision-card, .jitter-wrap, .global-transcript { padding: 24px 18px; }
@@ -635,9 +574,6 @@
     <header class="topbar">
         <div class="brand-row">
             <div class="brand-mark">CCQ</div>
-            <div class="brand-copy">Conversation Quality
-                <small>Clinical decision intelligence</small>
-            </div>
         </div>
 
         <nav class="nav-bar">
@@ -647,22 +583,31 @@
             <button class="nav-btn" id="btn-results" onclick="switchTab('results')" style="display:none;">Episode Detail</button>
         </nav>
 
-        <div class="system-pill">Department analytics</div>
+        <div class="topbar-actions">
+            <button class="icon-btn" type="button" title="Profile" aria-label="Profile" onclick="toggleSettingsPopover()">&#128100;</button>
+            <button class="icon-btn" type="button" title="Settings" aria-label="Settings" onclick="toggleSettingsPopover()">&#9881;</button>
+        </div>
     </header>
 
-    <section class="app-hero">
-        <div class="hero-figure" aria-hidden="true"></div>
-        <div class="hero-grid">
+    <div class="settings-popover" id="settingsPopover">
+        <div class="settings-profile">
+            <div class="settings-avatar">PK</div>
             <div>
-                <p class="eyebrow">Shared decision-making, made visible</p>
-                <h1>Better decisions.<br><span>Clearly measured.</span></h1>
+                <div class="settings-profile-name">Patrick Kasl</div>
+                <div class="settings-profile-role">Software Engineer</div>
             </div>
-            <p class="hero-description">
-                See how options, tradeoffs, patient priorities, and intervention risks are communicated across every episode.
-                <span class="hero-note">Observational analysis only. Results do not establish legal sufficiency of consent or patient understanding.</span>
-            </p>
         </div>
-    </section>
+        <div class="settings-section">
+            <label for="completenessSlider">Minimum transcript completeness: <span id="completenessSliderValue">0</span>%</label>
+            <input id="completenessSlider" type="range" min="0" max="100" step="5" value="0" oninput="setCompletenessThreshold(this.value)">
+            <div class="settings-hint" id="completenessSliderHint"></div>
+        </div>
+        <div class="settings-section">
+            <label for="apiKey">Google Gemini API Key</label>
+            <input type="text" id="apiKey" placeholder="AIzaSy...">
+            <div class="settings-hint">Used only in your browser when running a new analysis. Stored locally, never sent to our server.</div>
+        </div>
+    </div>
 
     <!-- VIEW: DEPARTMENT OVERVIEW -->
     <div id="view-department" class="view-section active">
@@ -673,21 +618,20 @@
     <div id="view-new" class="view-section">
         <div class="setup-box">
             
+            <small style="display:block; margin-bottom:20px; color:#7f8fa6;">Set your Google Gemini API key in <a href="#" onclick="toggleSettingsPopover(); return false;">Settings</a> before running an analysis.</small>
+
             <label><strong>0. Dynamic Taxonomy (Upload Excel File):</strong></label>
             <input type="file" id="excelInput" accept=".xlsx, .xls">
             <small style="display:block; margin-top:10px; color:#7f8fa6;">Upload "Risk-Intervention Mapping.xlsx". (Optional: Fallbacks to hardcoded library if skipped).</small>
             <span id="excelStatusMsg" class="success-text"></span>
 
-            <label><strong>1. Google Gemini API Key:</strong></label>
-            <input type="text" id="apiKey" placeholder="AIzaSy...">
-            
-            <label><strong>2. Select Procedure:</strong></label>
+            <label><strong>1. Select Procedure:</strong></label>
             <select id="procedureSelect"></select>
 
-            <label><strong>3. Patient Encounter Transcripts (Upload multiple .txt files):</strong></label>
+            <label><strong>2. Patient Encounter Transcripts (Upload multiple .txt files):</strong></label>
             <input type="file" id="fileInput" accept=".txt" multiple>
             
-            <label><strong>4. Total known encounters for this episode:</strong></label>
+            <label><strong>3. Total known encounters for this episode:</strong></label>
             <input type="number" id="totalEncounters" min="1" placeholder="Defaults to number of uploaded transcripts">
 
             <button class="run-btn" onclick="runAnalysis()">Run CCQ Analysis</button>
@@ -839,15 +783,33 @@ function switchTab(tab) {
     document.getElementById(`view-${tab}`).classList.add('active');
     const btn = document.getElementById(`btn-${tab}`);
     if (btn) btn.classList.add('active');
-    document.body.classList.toggle('hero-compact', tab !== 'department');
     if (tab === 'history') loadHistory();
     if (tab === 'department') loadDepartmentOverview();
 }
+
+function toggleSettingsPopover() {
+    document.getElementById('settingsPopover').classList.toggle('open');
+}
+
+document.addEventListener('click', (event) => {
+    const popover = document.getElementById('settingsPopover');
+    if (popover && popover.classList.contains('open') && !popover.contains(event.target) && !event.target.closest('.topbar-actions')) {
+        popover.classList.remove('open');
+    }
+    const procedureWrap = document.getElementById('procedureFilterWrap');
+    if (procedureWrap && procedureWrap.classList.contains('open') && !procedureWrap.contains(event.target)) {
+        procedureWrap.classList.remove('open');
+        PROCEDURE_DROPDOWN_OPEN = false;
+    }
+});
 
 let DEPARTMENT_EPISODES = [];
 let DEPARTMENT_CLINICIANS = [];
 let DEPARTMENT_DATA = {};
 let COMPLETENESS_THRESHOLD = 0;
+let SELECTED_CLINICIAN_ID = null;
+let SELECTED_PROCEDURES = new Set();
+let PROCEDURE_DROPDOWN_OPEN = false;
 
 async function loadDepartmentOverview() {
     const container = document.getElementById('department-content');
@@ -865,28 +827,71 @@ async function loadDepartmentOverview() {
     }
 }
 
+// Episodes without a consent-relevant decision are excluded entirely (not shown
+// as a separate category); completeness + procedure filters narrow this further.
+// Clinician selection is intentionally NOT applied here — the jitter plot needs
+// every clinician's episodes for its density backdrop and dimming behavior.
+function baseFilteredEpisodes() {
+    return DEPARTMENT_EPISODES
+        .filter(ep => ep.has_index_decision)
+        .filter(ep => (ep.completeness_pct ?? 100) >= COMPLETENESS_THRESHOLD)
+        .filter(ep => !SELECTED_PROCEDURES.size || SELECTED_PROCEDURES.has(ep.procedure));
+}
+
+// Adds the clinician filter on top of baseFilteredEpisodes(). Used by the table,
+// Sankey, and header stats, which fully narrow to the selected clinician.
 function filteredDepartmentEpisodes() {
-    return DEPARTMENT_EPISODES.filter(ep => (ep.completeness_pct ?? 100) >= COMPLETENESS_THRESHOLD);
+    const base = baseFilteredEpisodes();
+    return SELECTED_CLINICIAN_ID ? base.filter(ep => ep.clinician_id === SELECTED_CLINICIAN_ID) : base;
 }
 
 function setCompletenessThreshold(value) {
     COMPLETENESS_THRESHOLD = Number(value);
+    const label = document.getElementById('completenessSliderValue');
+    if (label) label.textContent = COMPLETENESS_THRESHOLD;
     refreshDepartmentDashboard();
 }
 
+function toggleClinicianFilter(id) {
+    SELECTED_CLINICIAN_ID = SELECTED_CLINICIAN_ID === id ? null : id;
+    refreshDepartmentDashboard();
+}
+
+function toggleProcedureFilter(name) {
+    if (SELECTED_PROCEDURES.has(name)) SELECTED_PROCEDURES.delete(name);
+    else SELECTED_PROCEDURES.add(name);
+    PROCEDURE_DROPDOWN_OPEN = true;
+    refreshDepartmentDashboard();
+}
+
+function toggleProcedureDropdown() {
+    PROCEDURE_DROPDOWN_OPEN = !PROCEDURE_DROPDOWN_OPEN;
+    const el = document.getElementById('procedureFilterWrap');
+    if (el) el.classList.toggle('open', PROCEDURE_DROPDOWN_OPEN);
+}
+
 function refreshDepartmentDashboard() {
-    const episodes = filteredDepartmentEpisodes();
+    const base = baseFilteredEpisodes();
+    const episodes = SELECTED_CLINICIAN_ID ? base.filter(ep => ep.clinician_id === SELECTED_CLINICIAN_ID) : base;
     const container = document.getElementById('department-content');
     if (!container) return;
     container.innerHTML = renderDepartmentShell(DEPARTMENT_DATA, episodes);
+    const consentTotal = DEPARTMENT_EPISODES.filter(ep => ep.has_index_decision).length;
+    const hint = document.getElementById('completenessSliderHint');
+    if (hint) hint.textContent = `${episodes.length} of ${consentTotal} consent-relevant episodes included`;
     renderSankey(episodes);
-    renderJitterPlot(episodes, DEPARTMENT_CLINICIANS);
+    renderJitterPlot(base, DEPARTMENT_CLINICIANS, SELECTED_CLINICIAN_ID);
 }
 
 function renderDepartmentShell(data, episodes) {
-    const legend = (data.clinicians || []).map(c =>
-        `<span><i class="clinician-swatch" style="background:${c.color}"></i>${escHtml(c.name)}</span>`
-    ).join('');
+    const legend = (data.clinicians || []).map(c => {
+        const cls = SELECTED_CLINICIAN_ID ? (SELECTED_CLINICIAN_ID === c.id ? 'is-active' : 'is-muted') : '';
+        return `<span class="${cls}" onclick="toggleClinicianFilter('${escAttr(c.id)}')" title="Click to isolate ${escAttr(c.name)}"><i class="clinician-swatch" style="background:${c.color}"></i>${escHtml(c.name)}</span>`;
+    }).join('');
+    const allProcedures = [...new Set(DEPARTMENT_EPISODES.map(e => e.procedure).filter(Boolean))].sort();
+    const procedureLabel = SELECTED_PROCEDURES.size === 0
+        ? 'All procedures'
+        : (SELECTED_PROCEDURES.size === 1 ? [...SELECTED_PROCEDURES][0] : `${SELECTED_PROCEDURES.size} procedures selected`);
     const rows = episodes.slice().sort((a, b) => (b.core_risk_pct ?? -1) - (a.core_risk_pct ?? -1)).map(ep => `
         <tr class="decision-row" onclick="openEpisode('${escAttr(ep.episode_id)}')">
             <td><strong>${escHtml(ep.patient_label)}</strong>${ep.source === 'demo' ? ' <span class="badge">demo</span>' : ' <span class="badge" style="background:#2980b9;color:#fff;">saved</span>'}</td>
@@ -901,7 +906,6 @@ function renderDepartmentShell(data, episodes) {
     return `
     <div class="dept-header">
         <div>
-            <p class="section-kicker">Department control tower</p>
             <h2 style="margin:0;">${escHtml(data.department || 'Department')}</h2>
             <div class="dept-meta">${data.demo_count || 0} demo episodes · ${data.db_count || 0} saved analyses · one quality view across every clinician</div>
         </div>
@@ -909,26 +913,27 @@ function renderDepartmentShell(data, episodes) {
     </div>
     <div class="summary-bar">
         <div class="summary-stat is-hero" style="border-top-color:#e74c3c;"><div class="summary-stat-value" style="color:#e74c3c;">${avgCoreRisk(episodes)}</div><div class="summary-stat-label">Mean Core Risks Discussed</div></div>
-        <div class="summary-stat is-secondary"><div class="summary-stat-value">${episodes.length}</div><div class="summary-stat-label">Patient Episodes Shown</div></div>
-        <div class="summary-stat is-secondary" style="border-top-color:var(--secondary);"><div class="summary-stat-value" style="color:var(--secondary);">${(data.clinicians || []).length}</div><div class="summary-stat-label">Clinicians</div></div>
         <div class="summary-stat is-secondary" style="border-top-color:var(--success);"><div class="summary-stat-value" style="color:var(--success);">${pctMeaningful(episodes)}</div><div class="summary-stat-label">Meaningful Comparisons</div></div>
         <div class="summary-stat is-secondary"><div class="summary-stat-value">${avgCompleteness(episodes)}</div><div class="summary-stat-label">Avg. Transcript Completeness</div></div>
         <div class="summary-stat is-secondary"><div class="summary-stat-value">${recommendationExplainedPct(episodes)}</div><div class="summary-stat-label">Recommendations Explained</div></div>
         <div class="summary-stat is-secondary"><div class="summary-stat-value">${questionsAnswered(episodes)}</div><div class="summary-stat-label">Questions Answered</div></div>
     </div>
-    <div class="dept-controls">
-        <label for="completenessSlider"><strong>Minimum transcript completeness: ${COMPLETENESS_THRESHOLD}%</strong></label>
-        <input id="completenessSlider" type="range" min="0" max="100" step="5" value="${COMPLETENESS_THRESHOLD}" oninput="setCompletenessThreshold(this.value)">
-        <span>${episodes.length} of ${DEPARTMENT_EPISODES.length} episodes included</span>
+    <div class="dept-controls-row">
+        <select class="control-select" title="More departments coming soon"><option>${escHtml(data.department || 'Department')}</option></select>
+        <div class="procedure-filter${PROCEDURE_DROPDOWN_OPEN ? ' open' : ''}" id="procedureFilterWrap">
+            <button type="button" class="procedure-filter-btn" onclick="toggleProcedureDropdown()">${escHtml(procedureLabel)}</button>
+            <div class="procedure-filter-panel">
+                ${allProcedures.length ? allProcedures.map(p => `<label class="procedure-filter-option"><input type="checkbox" ${SELECTED_PROCEDURES.has(p) ? 'checked' : ''} onchange="toggleProcedureFilter('${escAttr(p)}')"> ${escHtml(p)}</label>`).join('') : '<span style="color:var(--muted);font-size:0.8rem;">No procedures yet</span>'}
+            </div>
+        </div>
+        <div class="dept-stats-inline">${episodes.length} episode${episodes.length === 1 ? '' : 's'} shown · ${(data.clinicians || []).length} clinician${(data.clinicians || []).length === 1 ? '' : 's'}</div>
     </div>
     <div class="visual-story">
         <section class="story-step" aria-labelledby="flow-heading">
             <div class="analytics-card">
                 <div class="flow-stage">
                     <div class="flow-caption">
-                        <p class="section-kicker">Episode flow</p>
                         <h3 class="chart-heading" id="flow-heading">How Treatment Options Were Discussed</h3>
-                        <p class="jitter-hint">Every endpoint continues into the same communication-quality lane below.</p>
                     </div>
                     <div id="sankeyPlot"></div>
                 </div>
@@ -938,6 +943,7 @@ function renderDepartmentShell(data, episodes) {
             <div class="jitter-wrap">
                 <div class="plot-stage">
                     <div class="clinician-legend plot-legend" aria-label="Clinician colors">${legend}</div>
+                    ${SELECTED_CLINICIAN_ID ? `<p class="jitter-hint" style="margin:-10px 0 14px;">◆ marks the selected clinician's mean % core risks discussed per category. Background bars show episode density by clinician; click a name again to clear the filter.</p>` : ''}
                     <div id="jitterPlot"></div>
                 </div>
                 <div class="plot-caption">
@@ -989,7 +995,7 @@ function questionsAnswered(episodes) {
     return `${answered}/${total}`;
 }
 
-const DISCUSSION_CATEGORIES = ['Single option presented', 'Not compared', 'Limited comparison', 'Meaningful comparison', 'No consent-relevant decision'];
+const DISCUSSION_CATEGORIES = ['Single option presented', 'Not compared', 'Limited comparison', 'Meaningful comparison'];
 const CHART_LANE_MARGIN = { left: 68, right: 32, inset: 50 };
 
 function chartLaneScale(width) {
@@ -1000,7 +1006,6 @@ function chartLaneScale(width) {
 }
 
 function jitterCategory(ep) {
-    if (!ep.has_index_decision) return 'No consent-relevant decision';
     if (ep.decision_framing === 'Single option presented') return 'Single option presented';
     return ep.tradeoff_level || null;
 }
@@ -1043,11 +1048,10 @@ function renderQuestionRollup(rows, episodes) {
 function buildSankeyData(episodes) {
     const counts = new Map(DISCUSSION_CATEGORIES.map(category => [category, 0]));
     episodes.forEach(ep => {
-        const category = jitterCategory(ep) || 'No consent-relevant decision';
-        counts.set(category, (counts.get(category) || 0) + 1);
+        const category = jitterCategory(ep);
+        if (category) counts.set(category, (counts.get(category) || 0) + 1);
     });
     const links = [
-        {source:'all',target:'No consent-relevant decision',value:counts.get('No consent-relevant decision') || 0},
         {source:'all',target:'Single option presented',value:counts.get('Single option presented') || 0},
         {source:'all',target:'alternatives',value:(counts.get('Not compared') || 0)+(counts.get('Limited comparison') || 0)+(counts.get('Meaningful comparison') || 0)},
         {source:'alternatives',target:'Not compared',value:counts.get('Not compared') || 0},
@@ -1121,11 +1125,12 @@ function renderSankey(episodes) {
         .style('font-size','12px').style('font-weight',800).text(d=>`${d.name} (${d.value || 0})`);
 }
 
-function renderJitterPlot(episodes, clinicians) {
+function renderJitterPlot(episodes, clinicians, selectedClinicianId) {
     const el = document.getElementById('jitterPlot');
     if (!el || typeof d3 === 'undefined') return;
 
-    const clinicianColors = new Map((clinicians || []).map(c => [c.name, c.color]));
+    const clinicianList = clinicians || [];
+    const clinicianColors = new Map(clinicianList.map(c => [c.name, c.color]));
     const width = Math.max(el.clientWidth || 1000, 760);
     const height = 520;
     const margin = { top: 28, right: CHART_LANE_MARGIN.right, bottom: 78, left: CHART_LANE_MARGIN.left };
@@ -1194,6 +1199,47 @@ function renderJitterPlot(episodes, clinicians) {
         .style('letter-spacing', '0.18em')
         .text('% CORE RISKS DISCUSSED');
 
+    // Semi-transparent stacked bars (by clinician) showing how many episodes fall
+    // into each category — a density backdrop rendered behind the beeswarm dots.
+    // Selecting a clinician brightens their segment and recedes everyone else's.
+    const categoryClinicianCounts = new Map(DISCUSSION_CATEGORIES.map(cat => [cat, new Map()]));
+    (episodes || []).forEach(ep => {
+        const cat = jitterCategory(ep);
+        if (!cat || !categoryClinicianCounts.has(cat)) return;
+        const counts = categoryClinicianCounts.get(cat);
+        counts.set(ep.clinician_id, (counts.get(ep.clinician_id) || 0) + 1);
+    });
+    const maxCategoryTotal = Math.max(1, ...DISCUSSION_CATEGORIES.map(cat =>
+        [...categoryClinicianCounts.get(cat).values()].reduce((a, b) => a + b, 0)
+    ));
+    const backdropBaseline = height - margin.bottom;
+    const backdropMaxHeight = (backdropBaseline - margin.top) * 0.85;
+    const countScale = d3.scaleLinear().domain([0, maxCategoryTotal]).range([0, backdropMaxHeight]);
+    const backdropBarWidth = Math.min(96, (x.step ? x.step() : 120) * 0.62);
+
+    const backdropGroup = svg.append('g').attr('class', 'density-backdrop');
+    DISCUSSION_CATEGORIES.forEach(cat => {
+        const counts = categoryClinicianCounts.get(cat);
+        let stacked = 0;
+        clinicianList.forEach(c => {
+            const count = counts.get(c.id) || 0;
+            if (!count) return;
+            const segHeight = countScale(count);
+            const isSelected = selectedClinicianId === c.id;
+            const isDimmed = selectedClinicianId && !isSelected;
+            backdropGroup.append('rect')
+                .attr('x', x(cat) - backdropBarWidth / 2)
+                .attr('y', backdropBaseline - stacked - segHeight)
+                .attr('width', backdropBarWidth)
+                .attr('height', Math.max(segHeight, 1))
+                .attr('fill', c.color)
+                .attr('fill-opacity', isSelected ? 0.5 : (isDimmed ? 0.07 : 0.16))
+                .append('title')
+                .text(`${c.name}: ${count} episode${count === 1 ? '' : 's'} in "${cat}"`);
+            stacked += segHeight;
+        });
+    });
+
     const nodes = (episodes || []).map(ep => {
         const level = jitterCategory(ep);
         const targetX = x(level);
@@ -1216,7 +1262,7 @@ function renderJitterPlot(episodes, clinicians) {
             .html(
                 `<strong>${escHtml(d.patient_label)}</strong><br>` +
                 `Clinician: ${escHtml(d.clinician_name)}<br>` +
-                `Core risks discussed: ${d.core_risk_pct == null ? (d.has_index_decision ? 'N/A — no core-risk set' : 'N/A — no consent-relevant decision') : `${d.core_risk_pct}%`}<br>` +
+                `Core risks discussed: ${d.core_risk_pct == null ? 'N/A — no core-risk set' : `${d.core_risk_pct}%`}<br>` +
                 `Discussion category: ${escHtml(jitterCategory(d))}<br>` +
                 `Status: ${escHtml(d.status)}`
             )
@@ -1232,21 +1278,21 @@ function renderJitterPlot(episodes, clinicians) {
         .attr('cx', d => d.x)
         .attr('cy', d => d.y)
         .attr('r', radius)
-        .attr('fill', d => d.has_index_decision ? (clinicianColors.get(d.clinician_name) || '#7f8c8d') : '#fff')
-        .attr('fill-opacity', 0.88)
-        .attr('stroke', d => d.has_index_decision ? '#fff' : '#7f8c8d')
-        .attr('stroke-width', 1.2)
+        .attr('fill', d => clinicianColors.get(d.clinician_name) || '#7f8c8d')
+        .attr('fill-opacity', d => selectedClinicianId ? (d.clinician_id === selectedClinicianId ? 0.94 : 0.15) : 0.88)
+        .attr('stroke', '#fff')
+        .attr('stroke-width', d => selectedClinicianId && d.clinician_id === selectedClinicianId ? 1.8 : 1.2)
         .attr('tabindex', 0)
         .attr('role', 'button')
         .attr('aria-label', d => `${d.patient_label}, ${d.clinician_name}, ${d.core_risk_pct == null ? 'N/A' : `${d.core_risk_pct}% core risks`}, ${jitterCategory(d)}`)
         .style('cursor', 'pointer')
         .on('mouseenter', function(event, d) {
-            d3.select(this).attr('r', radius + 2).attr('stroke-width', 2);
+            d3.select(this).attr('r', radius + 2).attr('stroke-width', 2.4);
             showTooltip(event, d);
         })
         .on('mousemove', showTooltip)
-        .on('mouseleave', function() {
-            d3.select(this).attr('r', radius).attr('stroke-width', 1.2);
+        .on('mouseleave', function(event, d) {
+            d3.select(this).attr('r', radius).attr('stroke-width', selectedClinicianId && d.clinician_id === selectedClinicianId ? 1.8 : 1.2);
             tooltip.style('opacity', 0);
         })
         .on('click', (_, d) => openEpisode(d.episode_id))
@@ -1259,6 +1305,30 @@ function renderJitterPlot(episodes, clinicians) {
 
     dots.append('title')
         .text(d => `${d.patient_label} — ${d.clinician_name}`);
+
+    // When a clinician is selected, mark their mean % core risks discussed per
+    // category with a diamond so it reads clearly against the individual dots.
+    if (selectedClinicianId) {
+        const clinicianMeta = clinicianList.find(c => c.id === selectedClinicianId);
+        const meanGroup = svg.append('g').attr('class', 'clinician-mean-markers');
+        const diamond = d3.symbol().type(d3.symbolDiamond).size(300)();
+        DISCUSSION_CATEGORIES.forEach(cat => {
+            const clinicianEpisodes = (episodes || []).filter(ep =>
+                ep.clinician_id === selectedClinicianId && jitterCategory(ep) === cat && ep.core_risk_pct != null
+            );
+            if (!clinicianEpisodes.length) return;
+            const mean = clinicianEpisodes.reduce((sum, ep) => sum + ep.core_risk_pct, 0) / clinicianEpisodes.length;
+            meanGroup.append('path')
+                .attr('d', diamond)
+                .attr('transform', `translate(${x(cat)},${y(mean)})`)
+                .attr('fill', clinicianMeta ? clinicianMeta.color : '#0d2136')
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 2.5)
+                .style('filter', 'drop-shadow(0 2px 4px rgba(6,24,43,0.4))')
+                .append('title')
+                .text(`${clinicianMeta ? clinicianMeta.name : 'Selected clinician'} mean: ${Math.round(mean)}% core risks discussed (n=${clinicianEpisodes.length})`);
+        });
+    }
 }
 
 async function openEpisode(episodeId) {

@@ -142,6 +142,7 @@ def _db_episodes():
             "patient_label": filename or f"Run #{run_id}",
             "index_decision_id": metrics.get("index_decision_id"),
             "has_index_decision": metrics.get("has_index_decision", False),
+            "procedure": metrics.get("procedure"),
             "tradeoff_level": metrics.get("tradeoff_level"),
             "decision_label": metrics.get("decision_label") or "Clinical decision",
             "status": metrics["status"],
