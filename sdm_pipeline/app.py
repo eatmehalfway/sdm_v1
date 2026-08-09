@@ -14,6 +14,11 @@ from department_data import (
     get_demo_episodes,
     metrics_from_regions,
 )
+from procedure_analytics import (
+    framing_rank,
+    procedure_framing_scores,
+    risk_category_gap_stats,
+)
 
 app = Flask(__name__)
 DATABASE_URL = os.environ.get(
@@ -234,6 +239,30 @@ def department_overview():
         "question_rollup": _question_rollup(episodes),
         "demo_count": len(demo),
         "db_count": len(real),
+    })
+
+
+@app.route('/api/department/procedures', methods=['GET'])
+def department_procedures():
+    """Procedure-level analytics: risk-category gap/variation stats and
+    ordinal decision-framing win-rate scores with bootstrap 95% CIs.
+
+    Uses the same demo + saved-run episode set as /api/department/overview.
+    """
+    demo = get_demo_episodes()
+    real = _db_episodes()
+    episodes = demo + real
+    eligible = [ep for ep in episodes if ep.get("has_index_decision") and ep.get("procedure")]
+
+    procedure_ranks = defaultdict(list)
+    for episode in eligible:
+        rank = framing_rank(episode.get("decision_framing"), episode.get("tradeoff_level"))
+        if rank is not None:
+            procedure_ranks[episode["procedure"]].append(rank)
+
+    return jsonify({
+        "risk_categories": risk_category_gap_stats(eligible),
+        "framing_scores": procedure_framing_scores(dict(procedure_ranks)),
     })
 
 

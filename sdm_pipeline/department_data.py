@@ -25,11 +25,119 @@ FRAMING_LEVELS = [
 
 STATUSES = ["Resolved", "Deferred", "Unresolved"]
 
-PROCEDURES = [
-    "Lumbar decompression with possible fusion",
-    "Lumbar laminectomy",
-    "Posterior lumbar fusion",
+# --- Procedure-level analytics support -------------------------------------
+# Canonical core-risk categories (mirrors the risk-frequency/variation chart).
+CAT_NEURO = "Neurologic / sensory"
+CAT_INFECTION = "Infection"
+CAT_BLEEDING = "Bleeding / hemorrhage"
+CAT_STRUCTURAL = "Structural / anatomic injury"
+CAT_TREATMENT_FAILURE = "Treatment failure / inadequate effect"
+CAT_REINTERVENTION = "Additional treatment / reintervention"
+CAT_PAIN = "Pain / symptom worsening"
+CAT_DEVICE = "Device / implant / material"
+
+RISK_CATEGORIES = [
+    CAT_NEURO,
+    CAT_INFECTION,
+    CAT_BLEEDING,
+    CAT_STRUCTURAL,
+    CAT_TREATMENT_FAILURE,
+    CAT_REINTERVENTION,
+    CAT_PAIN,
+    CAT_DEVICE,
 ]
+
+# Per-category, per-clinician gap rate (probability a core risk in this
+# category is NOT discussed). Deliberately *not* derived from a single
+# per-clinician "quality" scalar: which clinician is the outlier — and how
+# wide the spread is — varies by category, so no clinician looks universally
+# bad and no category looks artificially uniform (see Jacob's note about
+# clinicians appearing to have a gap "for every category").
+RISK_CATEGORY_CLINICIAN_GAP = {
+    # High gap rate, low clinician-to-clinician variation ("broad recurring gap").
+    CAT_NEURO: {"clin_chen": 0.68, "clin_patel": 0.74, "clin_okonkwo": 0.71, "clin_rivera": 0.77, "clin_kim": 0.66},
+    CAT_INFECTION: {"clin_chen": 0.62, "clin_patel": 0.70, "clin_okonkwo": 0.65, "clin_rivera": 0.73, "clin_kim": 0.64},
+    # Moderate gap rate, moderate variation.
+    CAT_TREATMENT_FAILURE: {"clin_chen": 0.52, "clin_patel": 0.61, "clin_okonkwo": 0.58, "clin_rivera": 0.66, "clin_kim": 0.55},
+    CAT_BLEEDING: {"clin_chen": 0.34, "clin_patel": 0.46, "clin_okonkwo": 0.40, "clin_rivera": 0.50, "clin_kim": 0.38},
+    CAT_STRUCTURAL: {"clin_chen": 0.28, "clin_patel": 0.38, "clin_okonkwo": 0.33, "clin_rivera": 0.44, "clin_kim": 0.30},
+    # High variation ("concentrated recurring gap") — a different clinician
+    # drives each of these so the pattern is category-specific, not clinician-specific.
+    CAT_DEVICE: {"clin_chen": 0.30, "clin_patel": 0.86, "clin_okonkwo": 0.48, "clin_rivera": 0.55, "clin_kim": 0.36},
+    CAT_REINTERVENTION: {"clin_chen": 0.20, "clin_patel": 0.42, "clin_okonkwo": 0.79, "clin_rivera": 0.61, "clin_kim": 0.28},
+    # Consistently low gap rate, low variation.
+    CAT_PAIN: {"clin_chen": 0.16, "clin_patel": 0.22, "clin_okonkwo": 0.19, "clin_rivera": 0.25, "clin_kim": 0.17},
+}
+
+# Procedures within Spine & Orthopedics, each with a volume weight (n), the
+# risk categories applicable to it (e.g. non-implant procedures skip
+# CAT_DEVICE), which clinicians perform it, and a framing bias in [-1, 1]
+# that skews conversations toward single-option (-1) or comparative (+1)
+# framing so procedures visibly spread out on the framing win-rate chart.
+PROCEDURE_DEFS = [
+    {
+        "name": "Posterior lumbar fusion",
+        "n": 62,
+        "framing_bias": -0.35,
+        "categories": [CAT_NEURO, CAT_INFECTION, CAT_BLEEDING, CAT_STRUCTURAL, CAT_TREATMENT_FAILURE, CAT_REINTERVENTION, CAT_PAIN, CAT_DEVICE],
+        "clinicians": None,
+    },
+    {
+        "name": "Lumbar laminectomy",
+        "n": 48,
+        "framing_bias": 0.05,
+        "categories": [CAT_NEURO, CAT_INFECTION, CAT_BLEEDING, CAT_STRUCTURAL, CAT_TREATMENT_FAILURE, CAT_REINTERVENTION, CAT_PAIN],
+        "clinicians": None,
+    },
+    {
+        "name": "Lumbar microdiscectomy",
+        "n": 40,
+        "framing_bias": 0.25,
+        "categories": [CAT_NEURO, CAT_INFECTION, CAT_BLEEDING, CAT_STRUCTURAL, CAT_REINTERVENTION, CAT_PAIN],
+        "clinicians": None,
+    },
+    {
+        "name": "Cervical spinal fusion",
+        "n": 34,
+        "framing_bias": -0.15,
+        "categories": [CAT_NEURO, CAT_INFECTION, CAT_BLEEDING, CAT_STRUCTURAL, CAT_TREATMENT_FAILURE, CAT_REINTERVENTION, CAT_PAIN, CAT_DEVICE],
+        "clinicians": None,
+    },
+    {
+        "name": "Total knee arthroplasty",
+        "n": 45,
+        "framing_bias": 0.40,
+        "categories": [CAT_INFECTION, CAT_BLEEDING, CAT_DEVICE, CAT_TREATMENT_FAILURE, CAT_REINTERVENTION, CAT_PAIN],
+        "clinicians": None,
+    },
+    {
+        "name": "Total hip arthroplasty",
+        "n": 38,
+        "framing_bias": 0.50,
+        "categories": [CAT_INFECTION, CAT_BLEEDING, CAT_DEVICE, CAT_STRUCTURAL, CAT_TREATMENT_FAILURE, CAT_REINTERVENTION, CAT_PAIN],
+        "clinicians": None,
+    },
+    {
+        "name": "Vertebroplasty / kyphoplasty",
+        "n": 28,
+        "framing_bias": -0.50,
+        "categories": [CAT_BLEEDING, CAT_DEVICE, CAT_STRUCTURAL, CAT_TREATMENT_FAILURE, CAT_REINTERVENTION],
+        "clinicians": None,
+    },
+    {
+        "name": "Spinal cord stimulator implant",
+        "n": 22,
+        "framing_bias": 0.15,
+        # Only a subset of clinicians place stimulators — the others should
+        # simply have no data points for this procedure.
+        "categories": [CAT_NEURO, CAT_INFECTION, CAT_DEVICE, CAT_TREATMENT_FAILURE, CAT_REINTERVENTION],
+        "clinicians": ["clin_chen", "clin_patel", "clin_okonkwo"],
+    },
+]
+
+# Backwards-compatible flat procedure-name list (still used as a fallback
+# default procedure for `_mock_region`).
+PROCEDURES = [p["name"] for p in PROCEDURE_DEFS]
 
 _COLOR_THEMES = [
     {"bg": "#e6f2ff", "border": "#2e7de1", "tag": "#1769e0"},
@@ -50,12 +158,17 @@ TRADEOFF_LEVELS = [
 ]
 
 
-def _episode_score(rng: random.Random, clinician_bias: float) -> dict[str, Any]:
-    """Build plausible plot metrics: tradeoff quality + % core risks discussed."""
-    base = max(18.0, min(92.0, rng.gauss(58 + clinician_bias, 14)))
+def _episode_score(rng: random.Random, clinician_bias: float, procedure_bias: float = 0.0) -> dict[str, Any]:
+    """Build plausible plot metrics: tradeoff quality + % core risks discussed.
+
+    `procedure_bias` (-1..1) skews the discussion-framing distribution so
+    procedures visibly spread out along the single-option <-> comparative
+    spectrum, independent of any one clinician's tendencies.
+    """
+    base = max(18.0, min(92.0, rng.gauss(58 + clinician_bias + procedure_bias * 24, 14)))
     framing_idx = 0 if base > 70 else (1 if base > 45 else 2)
-    # Tradeoff quality biased by clinician, but sampled categorically for the X axis
-    tradeoff_roll = rng.gauss(0.55 + clinician_bias / 40.0, 0.28)
+    # Tradeoff quality biased by clinician + procedure, but sampled categorically for the X axis
+    tradeoff_roll = rng.gauss(0.55 + clinician_bias / 40.0 + procedure_bias * 0.28, 0.26)
     if tradeoff_roll >= 0.62:
         tradeoff_level = "Meaningful comparison"
         tradeoff_pct = max(65, min(100, int(70 + rng.uniform(0, 30))))
@@ -84,7 +197,11 @@ def _episode_score(rng: random.Random, clinician_bias: float) -> dict[str, Any]:
         "engagement_pct": engagement,
         "core_risk_pct": core_risk_pct,
         "teachback": teachback,
-        "status": STATUSES[0 if composite > 55 else (1 if rng.random() > 0.4 else 2)],
+        # A floor probability of resolving keeps low-composite procedures
+        # (e.g. strongly single-option-framed ones) from losing so many
+        # episodes to "no index decision" that they drop out of the
+        # procedure-level charts entirely.
+        "status": STATUSES[0 if (composite > 55 or rng.random() > 0.72) else (1 if rng.random() > 0.4 else 2)],
     }
 
 
@@ -136,7 +253,12 @@ def _grounded_text(text: str, qualifiers: list[str] | None = None, turn: int | N
     }
 
 
-def _mock_region(metrics: dict[str, Any], episode_id: str, procedure: str | None = None) -> dict[str, Any]:
+def _mock_region(
+    metrics: dict[str, Any],
+    episode_id: str,
+    procedure: str | None = None,
+    core_risk_items: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     framing = metrics["decision_framing"]
     status = metrics["status"]
     procedure = procedure or PROCEDURES[0]
@@ -249,60 +371,74 @@ def _mock_region(metrics: dict[str, Any], episode_id: str, procedure: str | None
             "interventions": [
                 {
                     "intervention_name": procedure,
-                    "core_risks": [
-                        {
-                            "risk_name": "Dural tear / CSF leak",
-                            "detection_status": "Discussed" if core_discussed else "Not detected",
-                            "details_communicated": {
-                                "likelihood": "Small risk" if core_discussed else "",
-                                "impact": "May prolong recovery" if core_discussed else "",
-                                "patient_specific_relevance": "",
-                                "management_or_response": "",
-                            },
-                            "quote": "Dural tear can happen" if core_discussed else "",
-                            "turn_indices": [2] if core_discussed else [],
-                        },
-                        {
-                            "risk_name": "Infection",
-                            "detection_status": "Discussed" if metrics["core_risk_pct"] > 60 else "Not detected",
-                            "details_communicated": {
-                                "likelihood": "Uncommon",
-                                "impact": "",
-                                "patient_specific_relevance": "",
-                                "management_or_response": "",
-                            },
-                            "quote": "Infection is uncommon" if metrics["core_risk_pct"] > 60 else "",
-                            "turn_indices": [2] if metrics["core_risk_pct"] > 60 else [],
-                        },
-                        {
-                            "risk_name": "Nerve injury",
-                            "detection_status": "Discussed" if metrics["core_risk_pct"] > 70 else "Not detected",
-                            "details_communicated": {
-                                "likelihood": "Rare",
-                                "impact": "Can be serious",
-                                "patient_specific_relevance": "",
-                                "management_or_response": "",
-                            },
-                            "quote": "Nerve injury is rare but can be serious" if metrics["core_risk_pct"] > 70 else "",
-                            "turn_indices": [2] if metrics["core_risk_pct"] > 70 else [],
-                        },
-                    ],
+                    "core_risks": _mock_core_risks(core_risk_items, core_discussed),
                     "relevant_risks": [],
                     "context_dependent_risks": [],
-                    "risk_communication_summary": {
-                        "core_discussed": (
-                            ["Dural tear / CSF leak"] if core_discussed else []
-                        ),
-                        "core_not_detected": (
-                            [] if core_discussed else ["Dural tear / CSF leak"]
-                        ),
-                        "relevant_discussed": [],
-                        "relevant_not_detected": [],
-                        "context_dependent_warrant_review": [],
-                    },
+                    "risk_communication_summary": _mock_risk_summary(core_risk_items, core_discussed),
                 }
             ]
         },
+    }
+
+
+def _mock_core_risks(core_risk_items: list[dict[str, Any]] | None, core_discussed: bool) -> list[dict[str, Any]]:
+    """Build informed-consent core-risk rows for a demo episode's detail view.
+
+    Prefers the episode's own procedure-appropriate risk-category rollup
+    (`core_risk_items`, tagged by `build_demo_episodes`) so a single episode's
+    detail view stays consistent with the department-level aggregate. Falls
+    back to a generic lumbar-surgery example when none is supplied.
+    """
+    if core_risk_items:
+        rows = []
+        for item in core_risk_items:
+            discussed = item.get("detection_status") == "Discussed"
+            rows.append({
+                "risk_name": item.get("risk_name") or "Unnamed risk",
+                "detection_status": "Discussed" if discussed else "Not detected",
+                "details_communicated": {
+                    "likelihood": "Discussed with the patient" if discussed else "",
+                    "impact": "",
+                    "patient_specific_relevance": "",
+                    "management_or_response": "",
+                },
+                "quote": f"{item.get('risk_name')} was discussed as part of informed consent." if discussed else "",
+                "turn_indices": [2] if discussed else [],
+            })
+        return rows
+    return [
+        {
+            "risk_name": "Dural tear / CSF leak",
+            "detection_status": "Discussed" if core_discussed else "Not detected",
+            "details_communicated": {
+                "likelihood": "Small risk" if core_discussed else "",
+                "impact": "May prolong recovery" if core_discussed else "",
+                "patient_specific_relevance": "",
+                "management_or_response": "",
+            },
+            "quote": "Dural tear can happen" if core_discussed else "",
+            "turn_indices": [2] if core_discussed else [],
+        },
+    ]
+
+
+def _mock_risk_summary(core_risk_items: list[dict[str, Any]] | None, core_discussed: bool) -> dict[str, Any]:
+    if core_risk_items:
+        discussed = [item.get("risk_name") for item in core_risk_items if item.get("detection_status") == "Discussed"]
+        not_detected = [item.get("risk_name") for item in core_risk_items if item.get("detection_status") != "Discussed"]
+        return {
+            "core_discussed": discussed,
+            "core_not_detected": not_detected,
+            "relevant_discussed": [],
+            "relevant_not_detected": [],
+            "context_dependent_warrant_review": [],
+        }
+    return {
+        "core_discussed": ["Dural tear / CSF leak"] if core_discussed else [],
+        "core_not_detected": [] if core_discussed else ["Dural tear / CSF leak"],
+        "relevant_discussed": [],
+        "relevant_not_detected": [],
+        "context_dependent_warrant_review": [],
     }
 
 
@@ -316,36 +452,50 @@ _CLINICIAN_BIAS = {
 }
 
 
-def build_demo_episodes(n_per_clinician: int = 10) -> list[dict[str, Any]]:
+def _risk_items_for_episode(rng: random.Random, procedure_def: dict[str, Any], clinician_id: str) -> list[dict[str, Any]]:
+    """Sample per-category discussion status for one episode.
+
+    Each applicable risk category uses this clinician's category-specific gap
+    rate (see RISK_CATEGORY_CLINICIAN_GAP) rather than a single overall
+    "quality" score, so gap patterns vary independently by category.
+    """
+    items = []
+    for category in procedure_def["categories"]:
+        clinician_rates = RISK_CATEGORY_CLINICIAN_GAP.get(category, {})
+        gap_rate = clinician_rates.get(
+            clinician_id,
+            (sum(clinician_rates.values()) / len(clinician_rates)) if clinician_rates else 0.4,
+        )
+        not_discussed = rng.random() < gap_rate
+        items.append({
+            "risk_name": category,
+            "risk_category": category,
+            "detection_status": "Not detected" if not_discussed else "Discussed",
+        })
+    return items
+
+
+def build_demo_episodes() -> list[dict[str, Any]]:
     episodes = []
     episode_num = 1
-    for clin in CLINICIANS:
-        bias = _CLINICIAN_BIAS.get(clin["id"], 0)
-        for i in range(n_per_clinician):
-            episode_id = f"demo_{clin['id']}_{i + 1:02d}"
+    for proc_idx, procedure_def in enumerate(PROCEDURE_DEFS):
+        eligible_clinicians = [
+            c for c in CLINICIANS
+            if procedure_def["clinicians"] is None or c["id"] in procedure_def["clinicians"]
+        ]
+        for i in range(procedure_def["n"]):
+            clin = eligible_clinicians[i % len(eligible_clinicians)]
+            bias = _CLINICIAN_BIAS.get(clin["id"], 0)
+            episode_id = f"demo_{clin['id']}_p{proc_idx}_{i + 1:03d}"
             rng = _rng(episode_id)
-            metrics = _episode_score(rng, bias)
-            # Guarantee every clinician contributes examples to the full category
-            # range so empty lanes do not obscure the intended comparison model.
-            if i == 0:
-                metrics.update({
-                    "status": "Resolved",
-                    "decision_framing": "Single option presented",
-                    "tradeoff_level": "Not compared",
-                    "tradeoff_pct": 0,
-                })
-            elif i == 1:
-                metrics.update({
-                    "status": "Resolved",
-                    "decision_framing": "Alternatives explicitly presented",
-                    "tradeoff_level": "Not compared",
-                    "tradeoff_pct": 20,
-                })
-            has_index_decision = i != n_per_clinician - 1 and metrics["status"] == "Resolved"
-            procedure = rng.choice(PROCEDURES)
+            metrics = _episode_score(rng, bias, procedure_def["framing_bias"])
+            has_index_decision = metrics["status"] == "Resolved" and rng.random() > 0.08
             transcribed_encounters = 1 + int(rng.random() > 0.82)
             total_encounters = transcribed_encounters + int(rng.random() > 0.72)
             patient_label = f"Patient {1000 + episode_num}"
+            core_risk_items = _risk_items_for_episode(rng, procedure_def, clin["id"]) if has_index_decision else []
+            core_discussed_count = sum(1 for item in core_risk_items if item["detection_status"] == "Discussed")
+            core_risk_pct = round(100 * core_discussed_count / len(core_risk_items)) if core_risk_items else None
             episodes.append(
                 {
                     "episode_id": episode_id,
@@ -356,28 +506,22 @@ def build_demo_episodes(n_per_clinician: int = 10) -> list[dict[str, Any]]:
                     "clinician_name": clin["name"],
                     "clinician_color": clin["color"],
                     "patient_label": patient_label,
-                    "decision_label": "Timing of surgical management" if has_index_decision else "No chosen surgery",
+                    "decision_label": "Choice of surgical approach" if has_index_decision else "No chosen surgery",
                     "index_decision_id": f"{episode_id}_d1" if has_index_decision else None,
                     "has_index_decision": has_index_decision,
-                    "procedure": procedure if has_index_decision else None,
+                    "procedure": procedure_def["name"] if has_index_decision else None,
                     "status": metrics["status"],
                     "ccq_score": metrics["ccq_score"],
                     "decision_framing": metrics["decision_framing"] if has_index_decision else None,
                     "tradeoff_level": metrics["tradeoff_level"] if has_index_decision else None,
                     "tradeoff_pct": metrics["tradeoff_pct"],
                     "engagement_pct": metrics["engagement_pct"],
-                    "core_risk_pct": metrics["core_risk_pct"] if has_index_decision else None,
+                    "core_risk_pct": core_risk_pct if has_index_decision else None,
                     "teachback": metrics["teachback"],
                     "transcribed_encounters": transcribed_encounters,
                     "total_encounters": total_encounters,
                     "completeness_pct": round(100 * transcribed_encounters / total_encounters),
-                    "core_risk_items": (
-                        [
-                            {"risk_name": "Dural tear / CSF leak", "detection_status": "Discussed" if metrics["core_risk_pct"] >= 50 else "Not detected"},
-                            {"risk_name": "Infection", "detection_status": "Discussed" if metrics["core_risk_pct"] > 60 else "Not detected"},
-                            {"risk_name": "Nerve injury", "detection_status": "Discussed" if metrics["core_risk_pct"] > 70 else "Not detected"},
-                        ] if has_index_decision else []
-                    ),
+                    "core_risk_items": core_risk_items,
                     "patient_questions": (
                         [{"question": "If I wait, could things get worse?", "response_status": "Answered"}]
                         if has_index_decision else []
@@ -399,7 +543,7 @@ _DETAIL_CACHE: dict[str, dict[str, Any]] = {}
 def get_demo_episodes() -> list[dict[str, Any]]:
     global _EPISODE_CACHE
     if _EPISODE_CACHE is None:
-        eps = build_demo_episodes(30)
+        eps = build_demo_episodes()
         _EPISODE_CACHE = {e["episode_id"]: e for e in eps}
     return list(_EPISODE_CACHE.values())
 
@@ -423,11 +567,12 @@ def get_demo_episode_detail(episode_id: str) -> dict[str, Any] | None:
         "status": meta["status"],
     }
     procedure = meta.get("procedure")
-    region = _mock_region(metrics, episode_id, procedure=procedure)
+    core_risk_items = meta.get("core_risk_items") or []
+    region = _mock_region(metrics, episode_id, procedure=procedure, core_risk_items=core_risk_items)
     treatment_parent = copy.deepcopy(region)
     treatment_parent["decision_id"] = f"{episode_id}_treatment"
     treatment_parent["parent_decision_id"] = None
-    treatment_parent["decision_label"] = "Management of lumbar stenosis"
+    treatment_parent["decision_label"] = "Management of the underlying condition"
     treatment_parent["status"] = "Resolved" if meta.get("has_index_decision") else meta["status"]
     treatment_parent["selected_option"] = "Surgical management" if meta.get("has_index_decision") else "Nonsurgical management"
     treatment_parent["selected_intervention"] = None
@@ -441,7 +586,7 @@ def get_demo_episode_detail(episode_id: str) -> dict[str, Any] | None:
         region["informed_consent_analysis"] = None
     decisions = [treatment_parent, region]
     # Exercise the multiple-qualifying-decision tie-break in demo data.
-    if episode_id.endswith("_09") and region.get("informed_consent_analysis"):
+    if episode_id.endswith("_001") and region.get("informed_consent_analysis"):
         secondary = copy.deepcopy(region)
         secondary["decision_id"] = f"{episode_id}_d2"
         secondary["decision_label"] = "Choice of anesthesia"
