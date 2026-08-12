@@ -514,6 +514,29 @@
         .story-step { min-height: min(78vh, 760px); display:flex; flex-direction:column; justify-content:center; scroll-margin-top:78px; }
         .story-step .analytics-card, .story-step .jitter-wrap { width:100%; margin:0; }
         .chart-heading { margin:0 0 10px; font-size:clamp(1.4rem,2.5vw,2rem); }
+        .chart-heading-row { display:flex; align-items:center; gap:10px; margin:0 0 24px; }
+        .chart-heading-row .chart-heading { margin:0; }
+        .info-icon {
+            position:relative; display:inline-flex; align-items:center; justify-content:center;
+            width:18px; height:18px; border-radius:50%; flex-shrink:0;
+            background:var(--surface-alt, #eef3f8); color:var(--muted);
+            font-size:0.68rem; font-weight:800; font-style:italic; font-family:Georgia,serif;
+            cursor:help; user-select:none; transition:background 0.15s, color 0.15s;
+        }
+        .info-icon:hover, .info-icon:focus-visible { background:var(--navy); color:#fff; outline:none; }
+        /* Custom CSS tooltip instead of the native title="" popup — shows
+           instantly and reliably instead of waiting on OS/browser hover delay. */
+        .info-icon::after {
+            content: attr(data-tip);
+            position:absolute; top:calc(100% + 10px); left:50%; transform:translateX(-50%);
+            width:320px; max-width:60vw; text-align:left; white-space:normal;
+            background:var(--navy); color:#fff; font-size:0.72rem; font-weight:400;
+            font-style:normal; font-family:inherit; line-height:1.6; letter-spacing:normal;
+            padding:12px 14px; border-radius:0; box-shadow:0 10px 24px rgba(13,33,54,0.22);
+            opacity:0; visibility:hidden; pointer-events:none; transition:opacity 0.12s;
+            z-index:30;
+        }
+        .info-icon:hover::after, .info-icon:focus-visible::after { opacity:1; visibility:visible; }
         .flow-stage { position:relative; }
         .flow-caption {
             position:absolute;
@@ -1024,9 +1047,11 @@ function renderProcedureSubview() {
         </section>
         <section class="story-step" aria-labelledby="framing-dot-heading">
             <div class="analytics-card">
-                <p class="section-kicker">Decision framing by procedure</p>
-                <h3 class="chart-heading" id="framing-dot-heading">Which Procedures Skew Toward Single-Option vs. Comparative Framing</h3>
-                <p class="jitter-hint">Ordinal win-rate vs. peer procedures (50% = typical), with a 95% bootstrap confidence interval. This is descriptive only — it does not imply that more comparative framing is always more clinically appropriate.</p>
+                <p class="section-kicker">Which Procedures Skew Toward Single-Option vs. Comparative Framing</p>
+                <div class="chart-heading-row">
+                    <h3 class="chart-heading" id="framing-dot-heading">How clinicians frame decisions differently across procedures</h3>
+                    <span class="info-icon" tabindex="0" data-tip="Ordinal win-rate vs. peer procedures (50% = typical), with a 95% bootstrap confidence interval. This is descriptive only — it does not imply that more comparative framing is always more clinically appropriate.">i</span>
+                </div>
                 <div id="framingDotPlot"></div>
             </div>
         </section>
@@ -1421,6 +1446,7 @@ function renderFramingDotPlot(rows) {
     const margin = { top: 56, right: 70, bottom: 40, left: 240 };
     const height = margin.top + margin.bottom + rowHeight * rows.length;
 
+    const tooltip = d3.select(el).append('div').attr('class', 'beeswarm-tooltip');
     const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${width} ${height}`).attr('role', 'img')
         .attr('aria-label', 'Decision framing win-rate by procedure, relative to peer procedures');
     const x = d3.scaleLinear().domain([0, 100]).range([margin.left, width - margin.right]);
@@ -1455,7 +1481,16 @@ function renderFramingDotPlot(rows) {
 
     row.append('circle').attr('cx', d => x(d.score)).attr('cy', 0).attr('r', 7)
         .attr('fill', d => d.score >= 50 ? '#0b8f7f' : '#d1531f').attr('stroke', '#fff').attr('stroke-width', 2)
-        .append('title').text(d => `${d.procedure}: ${d.score}% (95% CI ${d.ci_low}–${d.ci_high}%), n=${d.n}`);
+        .style('cursor', 'pointer')
+        .on('mousemove', function(event, d) {
+            const rect = el.getBoundingClientRect();
+            tooltip.html(
+                `<strong>${escHtml(d.procedure)}</strong><br>` +
+                `${d.score}% win-rate vs. peers (95% CI ${d.ci_low}–${d.ci_high}%)<br>` +
+                `n=${d.n} episodes`
+            ).style('left', `${event.clientX - rect.left + 12}px`).style('top', `${event.clientY - rect.top - 18}px`).style('opacity', 1);
+        })
+        .on('mouseleave', () => tooltip.style('opacity', 0));
 
     row.append('text').attr('x', width - margin.right + 14).attr('y', 5).attr('text-anchor', 'start')
         .style('font-size', '11px').style('font-weight', 700).attr('fill', '#5d7691')
@@ -1564,15 +1599,18 @@ function renderJitterPlot(episodes, clinicians, selectedClinicianId) {
         const level = jitterCategory(ep);
         const targetX = x(level);
         const targetY = ep.core_risk_pct == null ? y(50) : y(Math.max(0, Math.min(100, ep.core_risk_pct)));
-        return { ...ep, targetX, targetY, x: targetX, y: targetY };
+        // fy pins each point to its exact % core risks discussed so dots stay
+        // aligned with the gridlines/rug ticks — only x is left free for the
+        // collision force to resolve overlaps into a beeswarm.
+        return { ...ep, targetX, targetY, x: targetX, y: targetY, fy: targetY };
     });
 
-    // D3's collision force creates a beeswarm while strong position forces keep
-    // each point anchored to its category and risk percentage.
+    // D3's collision force spreads overlapping points horizontally (fy above
+    // keeps every point's true percentage exact) while a weak x-position
+    // force keeps the swarm anchored near its category's lane center.
     const simulation = d3.forceSimulation(nodes)
         .force('x', d3.forceX(d => d.targetX).strength(0.28))
-        .force('y', d3.forceY(d => d.targetY).strength(0.9))
-        .force('collide', d3.forceCollide(radius + 1.5).strength(1).iterations(4))
+        .force('collide', d3.forceCollide(radius + 1.5).strength(1).iterations(6))
         .stop();
     for (let i = 0; i < 280; i++) simulation.tick();
 
