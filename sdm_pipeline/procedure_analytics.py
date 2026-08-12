@@ -244,6 +244,33 @@ def risk_category_gap_stats(
             for group in by_procedure[category].values()
             if group["total"] >= min_episodes_per_group
         ]
+        # Full per-group breakdowns (not just the summary stdev above) so the
+        # frontend's semantic-zoom drill-down on the bubble chart can split a
+        # category bubble into per-clinician or per-procedure sub-bubbles.
+        by_clinician_rows = sorted(
+            (
+                {
+                    "clinician_id": clinician_id,
+                    "gap_rate": round(100 * group["gap"] / group["total"], 1),
+                    "n": group["total"],
+                }
+                for clinician_id, group in by_clinician[category].items()
+                if group["total"] >= min_episodes_per_group
+            ),
+            key=lambda row: -row["gap_rate"],
+        )
+        by_procedure_rows = sorted(
+            (
+                {
+                    "procedure": procedure,
+                    "gap_rate": round(100 * group["gap"] / group["total"], 1),
+                    "n": group["total"],
+                }
+                for procedure, group in by_procedure[category].items()
+                if group["total"] >= min_episodes_per_group
+            ),
+            key=lambda row: -row["gap_rate"],
+        )
         results.append({
             "risk_category": category,
             "gap_rate": round(100 * agg["gap"] / agg["total"], 1),
@@ -262,6 +289,8 @@ def risk_category_gap_stats(
                 [round(100 * min(clinician_rates)), round(100 * max(clinician_rates))]
                 if clinician_rates else None
             ),
+            "by_clinician": by_clinician_rows,
+            "by_procedure": by_procedure_rows,
         })
     results.sort(key=lambda row: -row["applicable_episodes"])
     return results

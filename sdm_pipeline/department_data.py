@@ -2,10 +2,15 @@
 from __future__ import annotations
 
 import copy
+import datetime
 import hashlib
 import random
 import re
 from typing import Any
+
+# Rolling window (in days, trailing from "today") that synthetic episode_date
+# values are spread across, so the date-range filter has something to bite on.
+EPISODE_DATE_WINDOW_DAYS = 120
 
 DEPARTMENT_NAME = "Spine & Orthopedics"
 
@@ -496,6 +501,9 @@ def build_demo_episodes() -> list[dict[str, Any]]:
             core_risk_items = _risk_items_for_episode(rng, procedure_def, clin["id"]) if has_index_decision else []
             core_discussed_count = sum(1 for item in core_risk_items if item["detection_status"] == "Discussed")
             core_risk_pct = round(100 * core_discussed_count / len(core_risk_items)) if core_risk_items else None
+            episode_date = (
+                datetime.date.today() - datetime.timedelta(days=rng.randint(0, EPISODE_DATE_WINDOW_DAYS))
+            ).isoformat()
             episodes.append(
                 {
                     "episode_id": episode_id,
@@ -530,6 +538,7 @@ def build_demo_episodes() -> list[dict[str, Any]]:
                     "questions_answered_count": 1 if has_index_decision else 0,
                     "questions_total_count": 1 if has_index_decision else 0,
                     "run_date": f"2026-0{(i % 6) + 1}-{10 + (i % 18):02d}",
+                    "episode_date": episode_date,
                 }
             )
             episode_num += 1

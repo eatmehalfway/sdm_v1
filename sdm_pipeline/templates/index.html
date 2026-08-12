@@ -473,8 +473,8 @@
         .dept-meta { color: var(--muted); font-size: 0.85rem; margin-top: 0; }
         .jitter-wrap { background: var(--surface); border: 0; border-radius: 0; padding: 36px 30px 18px; margin-bottom: 64px; box-shadow: none; }
         .jitter-hint { max-width: 860px; font-size: 0.82rem; line-height: 1.75; color: var(--muted); margin: 0 0 24px; }
-        #jitterPlot { width: 100%; min-height: 420px; position: relative; }
-        #jitterPlot svg { display: block; width: 100%; height: auto; }
+        #boxPlot { width: 100%; min-height: 420px; position: relative; }
+        #boxPlot svg { display: block; width: 100%; height: auto; }
         .beeswarm-tooltip {
             position: absolute; pointer-events: none; z-index: 10;
             background: var(--navy); color: #fff;
@@ -522,6 +522,11 @@
             background:var(--surface-alt, #eef3f8); color:var(--muted);
             font-size:0.68rem; font-weight:800; font-style:italic; font-family:Georgia,serif;
             cursor:help; user-select:none; transition:background 0.15s, color 0.15s;
+            /* Some info icons (e.g. Episode Flow's) sit inside a caption
+               block that's pointer-events:none so it doesn't block the chart
+               behind it — without this override, hover/focus never reaches
+               the icon at all. */
+            pointer-events:auto;
         }
         .info-icon:hover, .info-icon:focus-visible { background:var(--navy); color:#fff; outline:none; }
         /* Custom CSS tooltip instead of the native title="" popup — shows
@@ -549,23 +554,103 @@
         }
         .flow-caption .jitter-hint { margin-bottom:0; }
         .plot-stage { position:relative; }
-        .plot-legend {
-            position:absolute;
-            z-index:3;
-            top:20px;
-            right:28px;
-            display:grid;
-            grid-template-columns:repeat(2,max-content);
-            row-gap:8px;
-            column-gap:18px;
-            max-width:min(620px,72%);
-            justify-content:flex-end;
-            padding:10px 12px;
-            background:rgba(255,255,255,.9);
+        /* Static flow-layout legend bar — replaces the old absolutely
+           positioned .plot-legend, which overlapped the plot's own dots. */
+        .legend-bar {
+            display:flex;
+            flex-wrap:wrap;
+            align-items:center;
+            gap:8px 20px;
+            padding:0 0 18px;
+            margin-bottom:6px;
+            border-bottom:1px solid var(--border);
         }
         .plot-caption { max-width:820px; margin:22px 0 0 68px; }
         .plot-caption .jitter-hint { margin-bottom:0; }
         @media (max-width: 800px) { .analytics-grid { grid-template-columns:1fr; } }
+
+        /* ---------- BUBBLE-SIZE LEGEND ---------- */
+        .bubble-legend { display:flex; align-items:center; gap:22px; flex-wrap:wrap; margin:0 0 18px; padding:10px 14px; background:#f5f9fd; }
+        .bubble-legend-title { font-size:0.62rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.12em; }
+        .bubble-legend-item { display:flex; align-items:center; gap:8px; }
+        .bubble-legend-swatch { border-radius:50%; background:#9bb0c4; opacity:0.55; flex-shrink:0; }
+        .bubble-legend-label { font-size:0.72rem; font-weight:700; color:var(--muted); }
+
+        /* ---------- BREADCRUMB TRAIL ---------- */
+        .breadcrumb-trail { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:0 0 18px; font-size:0.76rem; font-weight:700; }
+        .breadcrumb-trail .crumb { background:transparent; border:0; padding:4px 2px; font:inherit; font-weight:700; color:var(--secondary); cursor:pointer; font-size:0.76rem; }
+        .breadcrumb-trail .crumb:hover { text-decoration:underline; }
+        .breadcrumb-trail .crumb.is-current { color:var(--navy); cursor:default; }
+        .breadcrumb-trail .crumb.is-current:hover { text-decoration:none; }
+        .breadcrumb-trail .crumb-sep { color:#a9bdd2; }
+
+        /* ---------- SEMANTIC ZOOM DRILL LIST ---------- */
+        .zoom-episode-panel { margin-top:20px; padding-top:20px; border-top:1px solid var(--border); }
+        .zoom-episode-panel h4 { margin:0; font-size:0.92rem; color:var(--navy); }
+        .zoom-panel-header { display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:10px; }
+        .zoom-panel-stats { display:flex; gap:18px; flex-wrap:wrap; }
+        .zoom-stat { font-size:0.72rem; color:var(--muted); font-weight:600; white-space:nowrap; }
+        .zoom-stat strong { color:var(--navy); font-size:0.86rem; margin-right:4px; }
+        .zoom-episode-table-wrap { max-height:360px; overflow:auto; border:1px solid var(--border); }
+        .zoom-episode-table { width:100%; border-collapse:collapse; font-size:0.76rem; }
+        .zoom-episode-table thead th {
+            position:sticky; top:0; background:#f5f9fd; text-align:left; padding:8px 12px;
+            font-size:0.62rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em;
+            color:var(--muted); border-bottom:1px solid var(--border); z-index:1;
+        }
+        .zoom-episode-table td { padding:7px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+        .zoom-episode-table tr.zoom-episode-row { cursor:pointer; transition:background 0.15s; }
+        .zoom-episode-table tr.zoom-episode-row:hover { background:#eff6fd; }
+        .zoom-episode-swatch { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; flex-shrink:0; }
+        .risk-item-chip { display:inline-block; padding:2px 7px; border-radius:10px; font-size:0.65rem; font-weight:700; margin:1px 3px 1px 0; white-space:nowrap; }
+        .risk-item-chip.is-gap { background:#fbe4e1; color:#c0392b; }
+        .risk-item-chip.is-discussed { background:#e3f6ef; color:#0b8f7f; }
+
+        /* ---------- BOX PLOT (Clinician Comparison) ---------- */
+        .box-plot-empty { font-size:0.8rem; color:var(--muted); font-style:italic; }
+
+        /* ---------- EPISODE DETAIL OVERLAY ("command center") ---------- */
+        .episode-overlay-backdrop {
+            display:none; position:fixed; inset:0; z-index:200; background:rgba(6,24,43,0.5);
+        }
+        .episode-overlay-backdrop.open { display:block; }
+        .episode-overlay-panel {
+            position:fixed; top:0; right:0; bottom:0; z-index:201;
+            width:min(1080px, 94vw); max-width:100%; background:var(--paper);
+            box-shadow:-24px 0 48px rgba(6,24,43,0.28);
+            transform:translateX(100%); transition:transform 0.24s ease;
+            display:flex; flex-direction:column;
+        }
+        .episode-overlay-backdrop.open .episode-overlay-panel { transform:translateX(0); }
+        .episode-overlay-header {
+            flex:0 0 auto; display:flex; align-items:flex-start; justify-content:space-between; gap:18px;
+            padding:22px 30px; background:var(--navy); color:#fff;
+        }
+        .episode-overlay-header .breadcrumb-trail { margin:0 0 8px; }
+        .episode-overlay-header .breadcrumb-trail .crumb { color:#9fc4ef; }
+        .episode-overlay-header .breadcrumb-trail .crumb.is-current { color:#fff; }
+        .episode-overlay-header .breadcrumb-trail .crumb-sep { color:#4a6885; }
+        .episode-overlay-title { font-size:1.15rem; font-weight:800; margin:0; }
+        .episode-overlay-close {
+            flex:0 0 auto; width:36px; height:36px; border-radius:50%; border:0; background:rgba(255,255,255,0.12);
+            color:#fff; font-size:1.1rem; cursor:pointer; display:grid; place-items:center; transition:background 0.15s;
+        }
+        .episode-overlay-close:hover { background:rgba(255,255,255,0.24); }
+        .episode-overlay-body { flex:1 1 auto; overflow-y:auto; padding:30px var(--gutter) 80px; }
+        @media (max-width: 800px) {
+            .episode-overlay-panel { width:100vw; }
+            .episode-overlay-body { padding:24px 20px 60px; }
+        }
+
+        /* ---------- DECISION TIMELINE: VISUAL VOCABULARY ---------- */
+        /* grid-template-columns is set inline per render so the legend splits
+           into evenly-sized rows (e.g. 3+3) instead of wrapping lopsidedly. */
+        .timeline-vocab-legend { display:grid; gap:10px 20px; margin:0 0 16px; padding:12px 14px; background:#f5f9fd; }
+        .timeline-vocab-item { display:flex; align-items:center; gap:7px; font-size:0.7rem; font-weight:700; color:var(--muted); }
+        .timeline-vocab-glyph { width:12px; height:12px; flex-shrink:0; display:inline-block; }
+        .timeline-event-track { position:relative; }
+        .timeline-event-glyph { cursor:pointer; transition:transform 0.1s; }
+        .timeline-event-glyph:hover { transform:scale(1.25); }
 
         /* ---------- PROCEDURE-LEVEL ANALYTICS ---------- */
         .subview-tabs { display:flex; gap:8px; margin:0 0 32px; border-bottom:1px solid var(--border); }
@@ -609,7 +694,6 @@
             .turn-meta { width: auto; text-align: left; border-right: 0; border-bottom: 1px solid var(--border); }
             .story-step { min-height:auto; margin-bottom:64px; }
             .flow-caption { position:static; width:auto; padding:0 0 20px; }
-            .plot-legend { position:static; max-width:none; justify-content:flex-start; padding:0 0 14px; background:transparent; }
             .plot-caption { margin:18px 0 0; }
         }
     </style>
@@ -699,6 +783,20 @@
         <button class="nav-btn" style="margin-bottom: 20px; margin-left: 8px;" onclick="switchTab('history')">History</button>
 
         <div id="resultsContent"></div>
+    </div>
+</div>
+
+<!-- EPISODE DETAIL OVERLAY ("command center") -->
+<div class="episode-overlay-backdrop" id="episodeOverlayBackdrop" onclick="if (event.target === this) closeEpisodeOverlay();">
+    <div class="episode-overlay-panel" role="dialog" aria-modal="true" aria-label="Episode detail">
+        <div class="episode-overlay-header">
+            <div style="min-width:0;">
+                <div class="breadcrumb-trail" id="episodeOverlayBreadcrumb"></div>
+                <h3 class="episode-overlay-title" id="episodeOverlayTitle">Episode detail</h3>
+            </div>
+            <button type="button" class="episode-overlay-close" aria-label="Close episode detail" onclick="closeEpisodeOverlay()">&times;</button>
+        </div>
+        <div class="episode-overlay-body" id="episodeOverlayBody"></div>
     </div>
 </div>
 
@@ -824,6 +922,7 @@ function handleExcelUpload(e) {
 }
 
 function switchTab(tab) {
+    closeEpisodeOverlay();
     document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-bar > .nav-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(`view-${tab}`).classList.add('active');
@@ -862,8 +961,27 @@ let PROCEDURE_DROPDOWN_OPEN = false;
 // clinician pushback being a barrier to leading with clinician comparisons).
 let DEPARTMENT_SUBVIEW = 'procedure';
 let SANKEY_FOCUS_PROCEDURE = null;
+// True until the user explicitly picks a "View" procedure — while true, the
+// focus is recomputed from whatever episodes are currently eligible (so it
+// tracks the top procedure/date filters instead of getting stuck on
+// whichever procedure happened to be auto-picked before those filters changed).
+let SANKEY_FOCUS_IS_AUTO = true;
 let SANKEY_COMPARE_SCOPE = 'all';
 let RISK_BUBBLE_Y_METRIC = 'clinician_variation';
+// null = all time; otherwise number of trailing days from today.
+let DATE_RANGE_DAYS = null;
+// Semantic-zoom state for the risk-gap bubble chart (Milestone D): drilling
+// from "all categories" -> a selected category's bubble -> a clinician/procedure
+// sub-bubble within it -> (via openEpisodeOverlay) an individual episode.
+let BUBBLE_ZOOM_STATE = { category: null, splitBy: 'clinician', subGroup: null };
+// Records how the currently open episode overlay was reached, so its
+// breadcrumb can route the user back to the exact prior "map" state.
+let EPISODE_OVERLAY_TRAIL = [];
+// Which clinician+category box-and-whisker glyph is selected in the Clinician
+// Comparison box plot, if any (drives the inline episode list panel there).
+let BOX_PLOT_SELECTION = null;
+let BOX_PLOT_EPISODES = [];
+let BOX_PLOT_CLINICIANS = [];
 
 async function loadDepartmentOverview() {
     const container = document.getElementById('department-content');
@@ -890,15 +1008,27 @@ function setDepartmentSubview(view) {
     refreshDepartmentDashboard();
 }
 
+function withinDateRange(ep) {
+    if (!DATE_RANGE_DAYS || !ep.episode_date) return true;
+    const days = (Date.now() - new Date(ep.episode_date).getTime()) / 86400000;
+    return days <= DATE_RANGE_DAYS;
+}
+
 // Episodes without a consent-relevant decision are excluded entirely (not shown
-// as a separate category); completeness + procedure filters narrow this further.
-// Clinician selection is intentionally NOT applied here — the jitter plot needs
-// every clinician's episodes for its density backdrop and dimming behavior.
+// as a separate category); completeness + procedure + date filters narrow this
+// further. Clinician selection is intentionally NOT applied here — the box
+// plot needs every clinician's episodes side by side in each category lane.
 function baseFilteredEpisodes() {
     return DEPARTMENT_EPISODES
         .filter(ep => ep.has_index_decision)
         .filter(ep => (ep.completeness_pct ?? 100) >= COMPLETENESS_THRESHOLD)
-        .filter(ep => !SELECTED_PROCEDURES.size || SELECTED_PROCEDURES.has(ep.procedure));
+        .filter(ep => !SELECTED_PROCEDURES.size || SELECTED_PROCEDURES.has(ep.procedure))
+        .filter(withinDateRange);
+}
+
+function setDateRange(value) {
+    DATE_RANGE_DAYS = value === 'all' ? null : Number(value);
+    refreshDepartmentDashboard();
 }
 
 // Adds the clinician filter on top of baseFilteredEpisodes(). Used by the table,
@@ -943,7 +1073,7 @@ function refreshDepartmentDashboard() {
     const hint = document.getElementById('completenessSliderHint');
     if (hint) hint.textContent = `${episodes.length} of ${consentTotal} consent-relevant episodes included`;
     if (DEPARTMENT_SUBVIEW === 'clinician') {
-        renderJitterPlot(base, DEPARTMENT_CLINICIANS, SELECTED_CLINICIAN_ID);
+        renderBoxPlot(base, DEPARTMENT_CLINICIANS, SELECTED_CLINICIAN_ID);
     } else {
         renderSankeyDelta(sankeyEligibleEpisodes());
         renderRiskGapBubbleChart(DEPARTMENT_PROCEDURE_DATA.risk_categories || []);
@@ -951,10 +1081,12 @@ function refreshDepartmentDashboard() {
     }
 }
 
-// Sankey delta ignores the procedure multi-select (it has its own View/Compare
-// controls) but still respects the completeness threshold.
+// Sankey delta now respects the top procedure checkbox filter (previously it
+// ignored SELECTED_PROCEDURES entirely) as well as the completeness threshold
+// and date range; its own View/Compare selects still choose the focus vs.
+// benchmark procedure from within that filtered set.
 function sankeyEligibleEpisodes() {
-    return DEPARTMENT_EPISODES.filter(ep => ep.has_index_decision && (ep.completeness_pct ?? 100) >= COMPLETENESS_THRESHOLD);
+    return baseFilteredEpisodes();
 }
 
 function renderDepartmentShell(data, episodes) {
@@ -967,7 +1099,7 @@ function renderDepartmentShell(data, episodes) {
         ? 'All procedures'
         : (SELECTED_PROCEDURES.size === 1 ? [...SELECTED_PROCEDURES][0] : `${SELECTED_PROCEDURES.size} procedures selected`);
     const rows = episodes.slice().sort((a, b) => (b.core_risk_pct ?? -1) - (a.core_risk_pct ?? -1)).map(ep => `
-        <tr class="decision-row" onclick="openEpisode('${escAttr(ep.episode_id)}')">
+        <tr class="decision-row" onclick="openEpisodeOverlay('${escAttr(ep.episode_id)}')">
             <td><strong>${escHtml(ep.patient_label)}</strong>${ep.source === 'demo' ? ' <span class="badge">demo</span>' : ' <span class="badge" style="background:#2980b9;color:#fff;">saved</span>'}</td>
             <td><span style="color:${ep.clinician_color};font-weight:600;">${escHtml(ep.clinician_name)}</span></td>
             <td>${ep.core_risk_pct == null ? 'N/A' : `${ep.core_risk_pct}%`}</td>
@@ -1000,16 +1132,30 @@ function renderDepartmentShell(data, episodes) {
                 ${allProcedures.length ? allProcedures.map(p => `<label class="procedure-filter-option"><input type="checkbox" ${SELECTED_PROCEDURES.has(p) ? 'checked' : ''} onchange="toggleProcedureFilter('${escAttr(p)}')"> ${escHtml(p)}</label>`).join('') : '<span style="color:var(--muted);font-size:0.8rem;">No procedures yet</span>'}
             </div>
         </div>
+        <select class="control-select" onchange="setDateRange(this.value)" title="Filter episodes by when they occurred">
+            <option value="all" ${DATE_RANGE_DAYS === null ? 'selected' : ''}>All time</option>
+            <option value="30" ${DATE_RANGE_DAYS === 30 ? 'selected' : ''}>Last 30 days</option>
+            <option value="60" ${DATE_RANGE_DAYS === 60 ? 'selected' : ''}>Last 60 days</option>
+            <option value="90" ${DATE_RANGE_DAYS === 90 ? 'selected' : ''}>Last 90 days</option>
+        </select>
         <div class="dept-stats-inline">${episodes.length} episode${episodes.length === 1 ? '' : 's'} shown · ${(data.clinicians || []).length} clinician${(data.clinicians || []).length === 1 ? '' : 's'}</div>
     </div>
     <div class="subview-tabs" role="tablist" aria-label="Department analysis level">
         <button type="button" class="subview-tab${DEPARTMENT_SUBVIEW === 'procedure' ? ' active' : ''}" onclick="setDepartmentSubview('procedure')">Procedure View</button>
-        <button type="button" class="subview-tab${DEPARTMENT_SUBVIEW === 'clinician' ? ' active' : ''}" onclick="setDepartmentSubview('clinician')">Clinician Drill-down</button>
+        <button type="button" class="subview-tab${DEPARTMENT_SUBVIEW === 'clinician' ? ' active' : ''}" onclick="setDepartmentSubview('clinician')">Clinician Comparison</button>
     </div>
     ${DEPARTMENT_SUBVIEW === 'clinician' ? renderClinicianSubview(legend) : renderProcedureSubview()}
     <div class="analytics-grid">
-        <div class="analytics-card"><p class="section-kicker">Risk follow-up</p><h3>Most Frequent Core Risks Not Discussed</h3>${renderRiskFrequencyChart(data.risk_frequency || [], episodes)}</div>
-        <div class="analytics-card"><p class="section-kicker">Patient voice</p><h3>Common Patient Questions & Concerns</h3>${renderQuestionRollup(data.question_rollup || [], episodes)}</div>
+        <div class="analytics-card">
+            <p class="section-kicker">Risk follow-up</p>
+            <div class="chart-heading-row"><h3 class="chart-heading" style="font-size:1.05rem;">Most Frequent Core Risks Not Discussed</h3><span class="info-icon" tabindex="0" data-tip="Core risks — the risks every patient should hear about for their chosen procedure — ranked by how often they were skipped across the episodes currently shown.">i</span></div>
+            ${renderRiskFrequencyChart(data.risk_frequency || [], episodes)}
+        </div>
+        <div class="analytics-card">
+            <p class="section-kicker">Patient voice</p>
+            <div class="chart-heading-row"><h3 class="chart-heading" style="font-size:1.05rem;">Common Patient Questions & Concerns</h3><span class="info-icon" tabindex="0" data-tip="Patient questions from the transcript, grouped into topics by keyword. Longer bars mean that topic came up more often across the episodes currently shown.">i</span></div>
+            ${renderQuestionRollup(data.question_rollup || [], episodes)}
+        </div>
     </div>
     <h3>Episodes</h3>
     <div class="episode-table-wrap">
@@ -1028,8 +1174,11 @@ function renderProcedureSubview() {
                 <div class="flow-stage">
                     <div class="flow-caption">
                         <p class="section-kicker">Episode flow comparison</p>
-                        <h3 class="chart-heading" id="flow-heading">How Treatment Options Were Discussed</h3>
-                        <p class="jitter-hint">Deltas compare the selected procedure to the chosen benchmark.</p>
+                        <div class="chart-heading-row">
+                            <h3 class="chart-heading" id="flow-heading">Episode Flow</h3>
+                            <span class="info-icon" tabindex="0" data-tip="Follows one procedure's episodes from left to right: whether a single option was presented, and if alternatives came up, how thoroughly they were compared. The % next to each step is that step's share of episodes; (Δ) shows how many points higher or lower that is than your chosen benchmark.">i</span>
+                        </div>
+                        <p class="jitter-hint">Pick a procedure to trace and a benchmark to compare it against below — the numbers on each step show the gap between them.</p>
                         <div class="chart-controls-row" id="sankeyControls"></div>
                     </div>
                     <div id="sankeyPlot"></div>
@@ -1039,10 +1188,16 @@ function renderProcedureSubview() {
         <section class="story-step" aria-labelledby="risk-bubble-heading">
             <div class="analytics-card">
                 <p class="section-kicker">Core risk disclosure gaps</p>
-                <h3 class="chart-heading" id="risk-bubble-heading">Frequency vs. Variation</h3>
-                <p class="jitter-hint">Each bubble is a core-risk category. X = how often it's missed across applicable episodes. Y = how much clinicians (or procedures) vary in how often they miss it. Bubble size = applicable episodes.</p>
+                <div class="chart-heading-row">
+                    <h3 class="chart-heading" id="risk-bubble-heading">Which core risks get missed, and how consistently</h3>
+                    <span class="info-icon" tabindex="0" data-tip="Each bubble is a core-risk category. Horizontal position = how often it's missed across applicable episodes. Vertical position = how much clinicians (or procedures, via the toggle) vary in how often they miss it. Bubble size = number of applicable episodes — see the size key below. Click a bubble to split it by clinician or procedure and drill into individual episodes.">i</span>
+                </div>
+                <p class="jitter-hint">Bubbles toward the upper-right are missed often <em>and</em> inconsistently — the best target for a shared checklist or reminder. Click any bubble to break it down further.</p>
                 <div class="chart-controls-row" id="riskBubbleControls"></div>
+                <div id="riskBubbleLegend"></div>
+                <div class="breadcrumb-trail" id="riskBubbleBreadcrumb"></div>
                 <div id="riskBubblePlot"></div>
+                <div id="riskBubbleZoomPanel"></div>
             </div>
         </section>
         <section class="story-step" aria-labelledby="framing-dot-heading">
@@ -1064,13 +1219,17 @@ function renderClinicianSubview(legend) {
         <section class="story-step" aria-labelledby="quality-map-heading">
             <div class="jitter-wrap">
                 <p class="section-kicker">Secondary analysis</p>
-                <h3 class="chart-heading" id="quality-map-heading">Communication Quality by Clinician</h3>
-                <p class="jitter-hint">Clinician-level detail is a drill-down from the procedure view above — use it to check whether a systemic pattern is department-wide or concentrated in one clinician's episodes.</p>
-                <div class="plot-stage">
-                    <div class="clinician-legend plot-legend" aria-label="Clinician colors">${legend}</div>
-                    ${SELECTED_CLINICIAN_ID ? `<p class="jitter-hint" style="margin:-10px 0 14px;">◆ marks the selected clinician's mean % core risks discussed per category. Tick marks along the left of each lane show individual episode density; click a name again to clear the filter.</p>` : ''}
-                    <div id="jitterPlot"></div>
+                <div class="chart-heading-row">
+                    <h3 class="chart-heading" id="quality-map-heading">Communication Quality by Clinician</h3>
+                    <span class="info-icon" tabindex="0" data-tip="Each box summarizes one clinician's episodes in one discussion category: the line is the median % of core risks discussed, the box spans the middle 50% of episodes (IQR), and the whiskers extend to the most typical range. Dots beyond the whiskers are outlier episodes. n= is the number of episodes behind that box.">i</span>
                 </div>
+                <p class="jitter-hint">Every clinician's distribution is shown side by side in each category lane, so you can see both the department-wide pattern and how much any one clinician differs from it. Click a box to see its episodes.</p>
+                <div class="legend-bar clinician-legend" aria-label="Clinician colors">${legend}</div>
+                ${SELECTED_CLINICIAN_ID ? `<p class="jitter-hint" style="margin:-6px 0 14px;">This clinician's boxes are highlighted; click their name again to clear the filter.</p>` : ''}
+                <div class="plot-stage">
+                    <div id="boxPlot"></div>
+                </div>
+                <div id="boxPlotZoomPanel"></div>
             </div>
         </section>
     </div>`;
@@ -1184,6 +1343,7 @@ function categoryPercents(episodes) {
 
 function setSankeyFocus(name) {
     SANKEY_FOCUS_PROCEDURE = name;
+    SANKEY_FOCUS_IS_AUTO = false;
     if (SANKEY_COMPARE_SCOPE === name) SANKEY_COMPARE_SCOPE = 'all';
     renderSankeyDelta(sankeyEligibleEpisodes());
 }
@@ -1222,12 +1382,18 @@ function renderSankeyDelta(episodes) {
         el.innerHTML = '<p class="jitter-hint">No procedure-level episodes yet.</p>';
         return;
     }
-    if (!SANKEY_FOCUS_PROCEDURE || !allProcedures.includes(SANKEY_FOCUS_PROCEDURE)) {
+    // Re-derive the default focus from the *current* eligible episodes any
+    // time it hasn't been explicitly chosen by the user — otherwise, once the
+    // top procedure/date filters change (e.g. narrowed to one procedure, then
+    // widened back to "All"), the auto-picked focus stayed valid (still
+    // technically in the list) and the chart never updated to match.
+    if (!SANKEY_FOCUS_PROCEDURE || SANKEY_FOCUS_IS_AUTO || !allProcedures.includes(SANKEY_FOCUS_PROCEDURE)) {
         const volumeByProc = new Map();
         episodes.forEach(ep => ep.procedure && volumeByProc.set(ep.procedure, (volumeByProc.get(ep.procedure) || 0) + 1));
         SANKEY_FOCUS_PROCEDURE = [...volumeByProc.entries()].sort((a, b) => b[1] - a[1])[0][0];
+        SANKEY_FOCUS_IS_AUTO = true;
     }
-    if (SANKEY_COMPARE_SCOPE !== 'all' && SANKEY_COMPARE_SCOPE === SANKEY_FOCUS_PROCEDURE) SANKEY_COMPARE_SCOPE = 'all';
+    if (SANKEY_COMPARE_SCOPE !== 'all' && (SANKEY_COMPARE_SCOPE === SANKEY_FOCUS_PROCEDURE || !allProcedures.includes(SANKEY_COMPARE_SCOPE))) SANKEY_COMPARE_SCOPE = 'all';
 
     renderSankeyControls(allProcedures);
 
@@ -1339,11 +1505,296 @@ function setRiskBubbleYMetric(metric) {
     renderRiskGapBubbleChart(DEPARTMENT_PROCEDURE_DATA.risk_categories || []);
 }
 
+// --- Client-side mirror of procedure_analytics.py's category inference, so
+// the semantic-zoom episode drill-down (below) can match episodes to a risk
+// category even for saved runs whose core_risk_items lack an explicit
+// risk_category tag. ---
+const RISK_CATEGORY_INFERENCE_RULES = [
+    ['Device / implant / material', ['implant', 'device', 'hardware', 'material', 'cement', 'stimulator']],
+    ['Infection', ['infect']],
+    ['Bleeding / hemorrhage', ['bleed', 'hemorrhage', 'haemorrhage', 'blood loss']],
+    ['Neurologic / sensory', ['nerve', 'neuro', 'sensory', 'numb', 'paraly', 'spinal cord']],
+    ['Structural / anatomic injury', ['dural', 'tear', 'fracture', 'structural', 'anatomic', 'perforat']],
+    ['Additional treatment / reintervention', ['revision', 'reintervention', 're-intervention', 'additional treatment', 'repeat', 'further surgery']],
+    ['Treatment failure / inadequate effect', ['failure', 'inadequate', 'did not relieve', 'recurrence', 'non-union', 'nonunion']],
+    ['Pain / symptom worsening', ['pain', 'symptom']],
+];
+
+function inferRiskCategory(riskName) {
+    const text = (riskName || '').toLowerCase();
+    if (!text) return null;
+    const rule = RISK_CATEGORY_INFERENCE_RULES.find(([, keywords]) => keywords.some(k => text.includes(k)));
+    return rule ? rule[0] : null;
+}
+
+function resolveRiskCategory(item) {
+    return item.risk_category || inferRiskCategory(item.risk_name);
+}
+
+// An episode is "applicable" to a risk category if at least one of its
+// core-risk items resolves to it; it counts as a "gap" for that category if
+// any matching item wasn't discussed.
+function episodeRiskCategoryStatus(ep, category) {
+    const items = (ep.core_risk_items || []).filter(item => resolveRiskCategory(item) === category);
+    if (!items.length) return null;
+    return items.some(item => item.detection_status !== 'Discussed') ? 'Gap' : 'Discussed';
+}
+
+function bubbleSubGroupLabel(category, subGroup) {
+    if (BUBBLE_ZOOM_STATE.splitBy === 'clinician') {
+        const clin = DEPARTMENT_CLINICIANS.find(c => c.id === subGroup);
+        return clin ? clin.name : subGroup;
+    }
+    return subGroup;
+}
+
+// Breaks a sub-bubble label (clinician or procedure name) into up to two
+// lines so long procedure names ("Vertebroplasty / kyphoplasty") take less
+// horizontal room and don't crash into their neighbors' labels.
+function wrapBubbleLabel(text) {
+    if (!text || text.length <= 14) return [text || ''];
+    const slashIdx = text.indexOf(' / ');
+    if (slashIdx !== -1) return [text.slice(0, slashIdx), text.slice(slashIdx + 3)];
+    const mid = text.length / 2;
+    let bestSpace = -1, bestDist = Infinity;
+    for (let i = 0; i < text.length; i++) {
+        if (text[i] === ' ') {
+            const dist = Math.abs(i - mid);
+            if (dist < bestDist) { bestDist = dist; bestSpace = i; }
+        }
+    }
+    return bestSpace === -1 ? [text] : [text.slice(0, bestSpace), text.slice(bestSpace + 1)];
+}
+
+// Single dispatcher for every breadcrumb crumb (top bubble-chart bar, box-plot
+// zoom selections, and the episode overlay's own trail) — keeps navigation
+// state changes in one place so "click a crumb" always lands on a real,
+// consistent map state instead of a dead end.
+function breadcrumbGoTo(kind, param) {
+    closeEpisodeOverlay();
+    if (kind === 'procedure-root') {
+        DEPARTMENT_SUBVIEW = 'procedure';
+        BUBBLE_ZOOM_STATE = { category: null, splitBy: 'clinician', subGroup: null };
+    } else if (kind === 'procedure-category') {
+        DEPARTMENT_SUBVIEW = 'procedure';
+        BUBBLE_ZOOM_STATE.category = param;
+        BUBBLE_ZOOM_STATE.subGroup = null;
+    } else if (kind === 'procedure-subgroup') {
+        const [category, subGroup] = param.split('|||');
+        DEPARTMENT_SUBVIEW = 'procedure';
+        BUBBLE_ZOOM_STATE.category = category;
+        BUBBLE_ZOOM_STATE.subGroup = subGroup;
+    } else if (kind === 'clinician-root') {
+        DEPARTMENT_SUBVIEW = 'clinician';
+        BOX_PLOT_SELECTION = null;
+    } else if (kind === 'clinician-box') {
+        const [category, clinicianId] = param.split('|||');
+        DEPARTMENT_SUBVIEW = 'clinician';
+        BOX_PLOT_SELECTION = { category, clinicianId };
+    }
+    refreshDepartmentDashboard();
+}
+
+function renderBreadcrumbTrail(crumbs) {
+    return crumbs.map((c, i) => {
+        const isLast = i === crumbs.length - 1;
+        const sep = i > 0 ? '<span class="crumb-sep">&rsaquo;</span>' : '';
+        if (isLast) return `${sep}<span class="crumb is-current">${escHtml(c.label)}</span>`;
+        return `${sep}<button type="button" class="crumb" onclick="breadcrumbGoTo('${escAttr(c.kind)}','${escAttr(c.param)}')">${escHtml(c.label)}</button>`;
+    }).join('');
+}
+
+function bubbleBreadcrumbCrumbs() {
+    const crumbs = [{ label: 'All categories', kind: 'procedure-root', param: '' }];
+    if (BUBBLE_ZOOM_STATE.category) {
+        crumbs.push({ label: BUBBLE_ZOOM_STATE.category, kind: 'procedure-category', param: BUBBLE_ZOOM_STATE.category });
+        if (BUBBLE_ZOOM_STATE.subGroup) {
+            crumbs.push({
+                label: bubbleSubGroupLabel(BUBBLE_ZOOM_STATE.category, BUBBLE_ZOOM_STATE.subGroup),
+                kind: 'procedure-subgroup',
+                param: `${BUBBLE_ZOOM_STATE.category}|||${BUBBLE_ZOOM_STATE.subGroup}`,
+            });
+        }
+    }
+    return crumbs;
+}
+
+// Breadcrumb trail wherever an episode overlay was opened from, so closing it
+// (or clicking a crumb) returns the user to the exact prior "map" state.
+function episodeBreadcrumbCrumbs(ep) {
+    const crumbs = DEPARTMENT_SUBVIEW === 'clinician'
+        ? (() => {
+            const list = [{ label: 'Clinician Comparison', kind: 'clinician-root', param: '' }];
+            if (BOX_PLOT_SELECTION) {
+                const clin = DEPARTMENT_CLINICIANS.find(c => c.id === BOX_PLOT_SELECTION.clinicianId);
+                list.push({
+                    label: `${clin ? clin.name : 'Clinician'} — ${BOX_PLOT_SELECTION.category}`,
+                    kind: 'clinician-box',
+                    param: `${BOX_PLOT_SELECTION.category}|||${BOX_PLOT_SELECTION.clinicianId}`,
+                });
+            }
+            return list;
+        })()
+        : bubbleBreadcrumbCrumbs();
+    crumbs.push({ label: ep.patient_label, kind: 'episode', param: ep.episode_id });
+    return crumbs;
+}
+
+function formatEpisodeDate(ep) {
+    if (!ep.episode_date) return 'N/A';
+    const d = new Date(ep.episode_date);
+    if (isNaN(d.getTime())) return 'N/A';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// Compact chips showing exactly which core-risk items in this category were
+// discussed vs. missed for one episode — the specific evidence behind its
+// Gap/Discussed status, visible without opening the episode.
+function renderRiskItemChips(ep, category) {
+    const items = (ep.core_risk_items || []).filter(item => resolveRiskCategory(item) === category);
+    if (!items.length) return '<span style="color:var(--muted);">—</span>';
+    return items.map(item =>
+        `<span class="risk-item-chip ${item.detection_status === 'Discussed' ? 'is-discussed' : 'is-gap'}">${escHtml(item.risk_name)}</span>`
+    ).join('');
+}
+
+// Shared drill-down episode list for both semantic-zoom entry points (risk
+// bubble sub-groups and box-plot glyphs): a dense, sortable-by-relevance
+// table instead of a single-line list, plus quick summary stats so the
+// department-wide pattern for this slice is visible before opening any
+// individual episode. `opts.riskCategory` adds a per-episode risk-item chip
+// column; `opts.statusColumn` adds a context-specific status column + sort.
+function renderEpisodeListPanel(title, episodes, opts = {}) {
+    const { riskCategory, statusColumn } = opts;
+    if (!episodes.length) {
+        return `<div class="zoom-episode-panel"><h4>${escHtml(title)}</h4><p class="jitter-hint" style="margin:0;">No episodes match this selection yet.</p></div>`;
+    }
+    const sorted = episodes.slice().sort((a, b) => {
+        if (statusColumn?.sortKey) {
+            const diff = statusColumn.sortKey(a) - statusColumn.sortKey(b);
+            if (diff) return diff;
+        }
+        return (a.core_risk_pct ?? 999) - (b.core_risk_pct ?? 999);
+    });
+    const shown = sorted.slice(0, 60);
+    const clinicianCount = new Set(episodes.map(ep => ep.clinician_id)).size;
+    const withCoreRisk = episodes.filter(ep => ep.core_risk_pct != null);
+    const avgCoreRisk = withCoreRisk.length ? Math.round(withCoreRisk.reduce((sum, ep) => sum + ep.core_risk_pct, 0) / withCoreRisk.length) : null;
+    const statusSummary = statusColumn?.summary ? statusColumn.summary(episodes) : null;
+
+    const rows = shown.map(ep => `
+        <tr class="zoom-episode-row" onclick="openEpisodeOverlay('${escAttr(ep.episode_id)}')">
+            <td><span class="zoom-episode-swatch" style="background:${ep.clinician_color || '#7f8c8d'}"></span><strong>${escHtml(ep.patient_label)}</strong>${ep.source === 'demo' ? ' <span class="badge">demo</span>' : ''}</td>
+            <td style="color:${ep.clinician_color || 'inherit'};font-weight:600;">${escHtml(ep.clinician_name || 'N/A')}</td>
+            <td>${escHtml(ep.procedure || 'N/A')}</td>
+            <td style="white-space:nowrap;">${ep.core_risk_pct == null ? 'N/A' : `${ep.core_risk_pct}%`}</td>
+            <td style="white-space:nowrap;">${ep.completeness_pct ?? 100}%</td>
+            <td>${escHtml(jitterCategory(ep) || 'N/A')}</td>
+            <td style="white-space:nowrap;">${formatEpisodeDate(ep)}</td>
+            ${riskCategory ? `<td>${renderRiskItemChips(ep, riskCategory)}</td>` : ''}
+            ${statusColumn ? `<td style="white-space:nowrap;">${statusColumn.render(ep)}</td>` : ''}
+            <td class="view-link" style="white-space:nowrap;">Open &rarr;</td>
+        </tr>`).join('');
+    const moreNote = episodes.length > shown.length
+        ? `<p class="jitter-hint" style="margin:8px 0 0;">Showing the first ${shown.length} of ${episodes.length} episodes.</p>` : '';
+
+    return `<div class="zoom-episode-panel">
+        <div class="zoom-panel-header">
+            <h4>${escHtml(title)} <span style="color:var(--muted);font-weight:600;">(${episodes.length} episode${episodes.length === 1 ? '' : 's'})</span></h4>
+            <div class="zoom-panel-stats">
+                ${avgCoreRisk != null ? `<span class="zoom-stat"><strong>${avgCoreRisk}%</strong>avg core risks discussed</span>` : ''}
+                <span class="zoom-stat"><strong>${clinicianCount}</strong>clinician${clinicianCount === 1 ? '' : 's'}</span>
+                ${statusSummary ? `<span class="zoom-stat"><strong>${statusSummary.value}</strong>${statusSummary.label}</span>` : ''}
+            </div>
+        </div>
+        <div class="zoom-episode-table-wrap">
+            <table class="zoom-episode-table">
+                <thead><tr>
+                    <th>Patient</th><th>Clinician</th><th>Procedure</th><th>Core risks %</th><th>Completeness</th><th>Discussion category</th><th>Date</th>
+                    ${riskCategory ? `<th>${escHtml(riskCategory)} items</th>` : ''}
+                    ${statusColumn ? `<th>${escHtml(statusColumn.label)}</th>` : ''}
+                    <th></th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>
+        ${moreNote}
+    </div>`;
+}
+
+function selectBubbleCategory(category, defaultSplitBy) {
+    if (BUBBLE_ZOOM_STATE.category === category) {
+        BUBBLE_ZOOM_STATE = { category: null, splitBy: 'clinician', subGroup: null };
+    } else {
+        BUBBLE_ZOOM_STATE = { category, splitBy: defaultSplitBy || 'clinician', subGroup: null };
+    }
+    renderRiskGapBubbleChart(DEPARTMENT_PROCEDURE_DATA.risk_categories || []);
+}
+
+function selectBubbleSubGroup(subGroup) {
+    BUBBLE_ZOOM_STATE.subGroup = BUBBLE_ZOOM_STATE.subGroup === subGroup ? null : subGroup;
+    renderRiskGapBubbleChart(DEPARTMENT_PROCEDURE_DATA.risk_categories || []);
+}
+
+function setBubbleSplitBy(mode) {
+    BUBBLE_ZOOM_STATE.splitBy = mode;
+    BUBBLE_ZOOM_STATE.subGroup = null;
+    renderRiskGapBubbleChart(DEPARTMENT_PROCEDURE_DATA.risk_categories || []);
+}
+
+function renderBubbleSizeLegend(usable, r) {
+    const el = document.getElementById('riskBubbleLegend');
+    if (!el) return;
+    const maxN = Math.max(1, ...usable.map(row => row.applicable_episodes));
+    const refs = [...new Set([Math.max(5, Math.round(maxN * 0.15)), Math.round(maxN * 0.5), maxN])];
+    el.innerHTML = `<div class="bubble-legend"><span class="bubble-legend-title">Bubble size = applicable episodes</span>${refs.map(n => `
+        <div class="bubble-legend-item">
+            <span class="bubble-legend-swatch" style="width:${Math.round(r(n) * 2)}px;height:${Math.round(r(n) * 2)}px;"></span>
+            <span class="bubble-legend-label">n=${n}</span>
+        </div>`).join('')}</div>`;
+}
+
+function renderRiskBubbleZoomPanel() {
+    const panel = document.getElementById('riskBubbleZoomPanel');
+    if (!panel) return;
+    const { category, subGroup, splitBy } = BUBBLE_ZOOM_STATE;
+    if (!category || !subGroup) {
+        panel.innerHTML = '';
+        return;
+    }
+    const episodes = baseFilteredEpisodes().filter(ep => {
+        const status = episodeRiskCategoryStatus(ep, category);
+        if (!status) return false;
+        return splitBy === 'clinician' ? ep.clinician_id === subGroup : ep.procedure === subGroup;
+    });
+    const title = `${category} — ${bubbleSubGroupLabel(category, subGroup)}`;
+    panel.innerHTML = renderEpisodeListPanel(title, episodes, {
+        riskCategory: category,
+        statusColumn: {
+            label: 'Status',
+            render: ep => {
+                const status = episodeRiskCategoryStatus(ep, category);
+                return `<span class="${status === 'Gap' ? 'status-Not-detected' : 'status-Discussed'}">${status}</span>`;
+            },
+            sortKey: ep => episodeRiskCategoryStatus(ep, category) === 'Gap' ? 0 : 1,
+            summary: eps => {
+                const gaps = eps.filter(ep => episodeRiskCategoryStatus(ep, category) === 'Gap').length;
+                return { value: `${Math.round(100 * gaps / eps.length)}%`, label: 'gap rate' };
+            }
+        }
+    });
+}
+
 // "Danger zone" bubble chart: x = how often a core-risk category is missed,
 // y (toggle) = how much clinicians or procedures vary in missing it,
 // bubble size = applicable episodes. Y is stdev of gap rates (Jacob's
 // revision), not "% of clinicians with >=1 gap", so a clinician who is
 // simply thorough/lax across every category doesn't dominate every bubble.
+//
+// Semantic zoom (Milestone D): click a bubble to fade its siblings and split
+// it into per-clinician/per-procedure sub-bubbles; click a sub-bubble to
+// drill into the matching episode list. Mirrors the "overview -> zoom+filter
+// -> details-on-demand" flow used everywhere else in this redesign.
 function renderRiskGapBubbleChart(rows) {
     const el = document.getElementById('riskBubblePlot');
     const controlsEl = document.getElementById('riskBubbleControls');
@@ -1351,6 +1802,7 @@ function renderRiskGapBubbleChart(rows) {
 
     const yField = RISK_BUBBLE_Y_METRIC;
     const yLabel = yField === 'procedure_variation' ? 'Variation across procedures' : 'Variation across clinicians';
+    const zoomed = BUBBLE_ZOOM_STATE.category;
 
     if (controlsEl) {
         controlsEl.innerHTML = `
@@ -1361,10 +1813,14 @@ function renderRiskGapBubbleChart(rows) {
             </div>`;
     }
 
+    const breadcrumbEl = document.getElementById('riskBubbleBreadcrumb');
+    if (breadcrumbEl) breadcrumbEl.innerHTML = renderBreadcrumbTrail(bubbleBreadcrumbCrumbs());
+
     el.innerHTML = '';
     const usable = (rows || []).filter(row => row[yField] != null);
     if (!usable.length) {
         el.innerHTML = '<p class="jitter-hint">Not enough clinicians/procedures with comparable data yet for this view.</p>';
+        renderRiskBubbleZoomPanel();
         return;
     }
 
@@ -1379,6 +1835,8 @@ function renderRiskGapBubbleChart(rows) {
     const y = d3.scaleLinear().domain([0, maxY * 1.2]).range([height - margin.bottom, margin.top]);
     const r = d3.scaleSqrt().domain([0, Math.max(1, ...usable.map(row => row.applicable_episodes))]).range([8, 36]);
     const medianY = d3.median(usable, row => row[yField]) || 0;
+
+    renderBubbleSizeLegend(usable, r);
 
     svg.append('g').attr('transform', `translate(0,${height - margin.bottom})`)
         .call(d3.axisBottom(x).ticks(5).tickFormat(d => `${d}%`))
@@ -1408,25 +1866,139 @@ function renderRiskGapBubbleChart(rows) {
         .style('font-size', '10px').style('font-weight', 800).style('letter-spacing', '0.14em').attr('fill', '#5d7691')
         .text(yLabel.toUpperCase());
 
+    const selectedRow = zoomed ? usable.find(row => row.risk_category === zoomed) : null;
+
     svg.append('g').selectAll('circle').data(usable).join('circle')
         .attr('cx', row => x(row.gap_rate)).attr('cy', row => y(row[yField])).attr('r', row => r(row.applicable_episodes))
-        .attr('fill', row => RISK_CATEGORY_COLORS(row.risk_category)).attr('fill-opacity', 0.75)
-        .attr('stroke', '#fff').attr('stroke-width', 1.5).style('cursor', 'pointer')
+        .attr('fill', row => RISK_CATEGORY_COLORS(row.risk_category))
+        .attr('fill-opacity', row => !zoomed ? 0.75 : (row.risk_category === zoomed ? 0.88 : 0.1))
+        .attr('stroke', row => row.risk_category === zoomed ? 'var(--navy)' : '#fff')
+        .attr('stroke-width', row => row.risk_category === zoomed ? 3 : 1.5)
+        .style('cursor', 'pointer')
         .on('mousemove', function(event, row) {
             const rect = el.getBoundingClientRect();
             const rangeText = row.clinician_rate_range ? `${row.clinician_rate_range[0]}–${row.clinician_rate_range[1]}%` : 'n/a';
             tooltip.html(
                 `<strong>${escHtml(row.risk_category)}</strong><br>` +
                 `${row.gap_rate}% gap · ${row.applicable_episodes} episodes<br>` +
-                `Clinician rates: ${rangeText}`
+                `Clinician rates: ${rangeText}<br>` +
+                `<em>Click to split by clinician/procedure</em>`
             ).style('left', `${event.clientX - rect.left + 12}px`).style('top', `${event.clientY - rect.top - 18}px`).style('opacity', 1);
         })
-        .on('mouseleave', () => tooltip.style('opacity', 0));
+        .on('mouseleave', () => tooltip.style('opacity', 0))
+        .on('click', (_, row) => {
+            const bySplit = row.by_procedure && row.by_procedure.length > (row.by_clinician || []).length ? 'procedure' : 'clinician';
+            selectBubbleCategory(row.risk_category, bySplit);
+        });
 
-    svg.append('g').selectAll('text').data(usable).join('text')
-        .attr('x', row => x(row.gap_rate)).attr('y', row => y(row[yField]) - r(row.applicable_episodes) - 8)
-        .attr('text-anchor', 'middle').style('font-size', '11px').style('font-weight', 700).attr('fill', '#0d2136')
-        .text(row => row.risk_category);
+    // Once a category is zoomed, its siblings' labels would otherwise sit
+    // right on top of the new sub-bubble cluster — drop them entirely rather
+    // than just graying them out, so only the focused category is labeled.
+    // For the remaining labels, resolve horizontal overlaps (bubbles close
+    // together at similar heights) by nudging the later one further up,
+    // rather than letting them run into each other — each label always
+    // stays centered above its own bubble, just at varying heights.
+    const CHAR_WIDTH_ESTIMATE = 6.4;
+    const labelCandidates = usable.filter(row => !zoomed || row.risk_category === zoomed).map(row => ({
+        row,
+        cx: x(row.gap_rate),
+        halfWidth: (row.risk_category.length * CHAR_WIDTH_ESTIMATE) / 2 + 5
+    })).sort((a, b) => a.cx - b.cx);
+    const placedLabels = [];
+    labelCandidates.forEach(c => {
+        let ty = y(c.row[yField]) - r(c.row.applicable_episodes) - 8;
+        for (let guard = 0; guard < 8; guard++) {
+            const conflict = placedLabels.find(p => Math.abs(c.cx - p.cx) < (c.halfWidth + p.halfWidth) && Math.abs(ty - p.ty) < 18);
+            if (!conflict) break;
+            ty = Math.min(ty, conflict.ty) - 18;
+        }
+        c.ty = Math.max(margin.top + 8, ty);
+        placedLabels.push(c);
+    });
+
+    svg.append('g').selectAll('text').data(labelCandidates).join('text')
+        .attr('x', c => c.cx).attr('y', c => c.ty)
+        .attr('text-anchor', 'middle').style('font-size', '11px').style('font-weight', 700)
+        .attr('fill', '#0d2136')
+        .text(c => c.row.risk_category);
+
+    if (selectedRow) {
+        const splitBy = BUBBLE_ZOOM_STATE.splitBy;
+        const subRows = (splitBy === 'clinician' ? selectedRow.by_clinician : selectedRow.by_procedure) || [];
+        const parentX = x(selectedRow.gap_rate), parentY = y(selectedRow[yField]);
+        const subGroupKey = s => splitBy === 'clinician' ? s.clinician_id : s.procedure;
+        const subGroupColor = s => splitBy === 'clinician'
+            ? (DEPARTMENT_CLINICIANS.find(c => c.id === s.clinician_id)?.color || RISK_CATEGORY_COLORS(selectedRow.risk_category))
+            : RISK_CATEGORY_COLORS(selectedRow.risk_category);
+        const subR = d3.scaleSqrt().domain([0, Math.max(1, ...subRows.map(s => s.n))]).range([6, 20]);
+        const maxSubR = subRows.length ? Math.max(...subRows.map(s => subR(s.n))) : 10;
+        const subLabelLines = subRows.map(d => wrapBubbleLabel(bubbleSubGroupLabel(selectedRow.risk_category, subGroupKey(d))));
+        // Space bubbles apart by whichever is wider: the circles themselves,
+        // or their (possibly two-line) text labels — long procedure names
+        // otherwise overlap their neighbors' labels.
+        const CHAR_WIDTH_ESTIMATE = 5.6;
+        const maxLabelWidth = subLabelLines.length
+            ? Math.max(...subLabelLines.map(lines => Math.max(...lines.map(l => l.length)) * CHAR_WIDTH_ESTIMATE))
+            : 0;
+        const maxLabelLines = subLabelLines.length ? Math.max(1, ...subLabelLines.map(lines => lines.length)) : 1;
+        const spacing = Math.max(maxSubR * 2 + 14, maxLabelWidth + 18);
+        const totalWidth = Math.max(0, (subRows.length - 1) * spacing);
+        let startX = parentX - totalWidth / 2;
+        startX = Math.max(margin.left + maxSubR + 4, Math.min(startX, width - margin.right - maxSubR - 4 - totalWidth));
+        const clusterY = Math.min(height - margin.bottom - maxSubR - 30 - (maxLabelLines - 1) * 11, parentY + 96);
+
+        svg.append('line').attr('x1', parentX).attr('y1', parentY).attr('x2', parentX).attr('y2', clusterY - maxSubR - 4)
+            .attr('stroke', 'var(--navy)').attr('stroke-width', 1.5).attr('stroke-dasharray', '3,3');
+
+        const controlsY = clusterY - maxSubR - 26;
+        if (selectedRow.by_clinician?.length && selectedRow.by_procedure?.length) {
+            const toggle = svg.append('g').attr('transform', `translate(${parentX},${controlsY})`);
+            const labelClin = 'By clinician', labelProc = 'By procedure';
+            toggle.append('text').attr('text-anchor', 'middle').style('font-size', '10px').style('font-weight', 800)
+                .style('letter-spacing', '0.08em').attr('fill', splitBy === 'clinician' ? 'var(--secondary)' : '#9bb0c4')
+                .attr('x', -60).style('cursor', 'pointer').text(labelClin.toUpperCase())
+                .on('click', () => setBubbleSplitBy('clinician'));
+            toggle.append('text').attr('text-anchor', 'middle').style('font-size', '10px').style('font-weight', 800)
+                .style('letter-spacing', '0.08em').attr('fill', splitBy === 'procedure' ? 'var(--secondary)' : '#9bb0c4')
+                .attr('x', 60).style('cursor', 'pointer').text(labelProc.toUpperCase())
+                .on('click', () => setBubbleSplitBy('procedure'));
+        }
+
+        const subGroup = svg.append('g').selectAll('g').data(subRows).join('g')
+            .attr('transform', (d, i) => `translate(${startX + i * spacing},${clusterY})`);
+
+        subGroup.append('circle')
+            .attr('r', d => subR(d.n))
+            .attr('fill', d => subGroupColor(d))
+            .attr('fill-opacity', d => !BUBBLE_ZOOM_STATE.subGroup ? 0.85 : (subGroupKey(d) === BUBBLE_ZOOM_STATE.subGroup ? 0.95 : 0.15))
+            .attr('stroke', d => subGroupKey(d) === BUBBLE_ZOOM_STATE.subGroup ? 'var(--navy)' : '#fff')
+            .attr('stroke-width', d => subGroupKey(d) === BUBBLE_ZOOM_STATE.subGroup ? 2.5 : 1.3)
+            .style('cursor', 'pointer')
+            .on('mousemove', function(event, d) {
+                const rect = el.getBoundingClientRect();
+                const label = bubbleSubGroupLabel(selectedRow.risk_category, subGroupKey(d));
+                tooltip.html(`<strong>${escHtml(label)}</strong><br>${d.gap_rate}% gap · n=${d.n}<br><em>Click to see episodes</em>`)
+                    .style('left', `${event.clientX - rect.left + 12}px`).style('top', `${event.clientY - rect.top - 18}px`).style('opacity', 1);
+            })
+            .on('mouseleave', () => tooltip.style('opacity', 0))
+            .on('click', (_, d) => selectBubbleSubGroup(subGroupKey(d)));
+
+        subGroup.append('text').attr('y', d => subR(d.n) + 14).attr('text-anchor', 'middle')
+            .style('font-size', '9.5px').style('font-weight', 700).attr('fill', '#5d7691')
+            .each(function(d) {
+                const lines = wrapBubbleLabel(bubbleSubGroupLabel(selectedRow.risk_category, subGroupKey(d)));
+                d3.select(this).selectAll('tspan').data(lines).join('tspan')
+                    .attr('x', 0).attr('dy', (line, i) => i === 0 ? 0 : 11).text(line => line);
+            });
+
+        if (!subRows.length) {
+            svg.append('text').attr('x', parentX).attr('y', clusterY).attr('text-anchor', 'middle')
+                .style('font-size', '11px').style('font-style', 'italic').attr('fill', '#9bb0c4')
+                .text('Not enough episodes per group to split this category yet.');
+        }
+    }
+
+    renderRiskBubbleZoomPanel();
 }
 
 // Ordinal win-rate dot + 95% bootstrap CI plot: one row per procedure,
@@ -1497,202 +2069,167 @@ function renderFramingDotPlot(rows) {
         .text(d => `n=${d.n}`);
 }
 
-function renderJitterPlot(episodes, clinicians, selectedClinicianId) {
-    const el = document.getElementById('jitterPlot');
+// Five-number summary (min/Q1/median/Q3/max) plus 1.5xIQR whiskers and
+// outliers beyond them — the standard box-and-whisker definition.
+function boxPlotStats(values) {
+    const sorted = values.slice().sort((a, b) => a - b);
+    const q1 = d3.quantile(sorted, 0.25);
+    const median = d3.quantile(sorted, 0.5);
+    const q3 = d3.quantile(sorted, 0.75);
+    const iqr = q3 - q1;
+    const lowerFence = q1 - 1.5 * iqr, upperFence = q3 + 1.5 * iqr;
+    const inFence = sorted.filter(v => v >= lowerFence && v <= upperFence);
+    const whiskerLow = inFence.length ? inFence[0] : sorted[0];
+    const whiskerHigh = inFence.length ? inFence[inFence.length - 1] : sorted[sorted.length - 1];
+    const outliers = sorted.filter(v => v < whiskerLow || v > whiskerHigh);
+    return { q1, median, q3, whiskerLow, whiskerHigh, outliers, n: sorted.length };
+}
+
+function selectBoxPlotGroup(category, clinicianId) {
+    BOX_PLOT_SELECTION = (BOX_PLOT_SELECTION && BOX_PLOT_SELECTION.category === category && BOX_PLOT_SELECTION.clinicianId === clinicianId)
+        ? null : { category, clinicianId };
+    renderBoxPlotZoomPanel();
+}
+
+function renderBoxPlotZoomPanel() {
+    const panel = document.getElementById('boxPlotZoomPanel');
+    if (!panel) return;
+    if (!BOX_PLOT_SELECTION) {
+        panel.innerHTML = '';
+        return;
+    }
+    const { category, clinicianId } = BOX_PLOT_SELECTION;
+    const clin = BOX_PLOT_CLINICIANS.find(c => c.id === clinicianId);
+    const episodes = BOX_PLOT_EPISODES.filter(ep => ep.clinician_id === clinicianId && jitterCategory(ep) === category);
+    panel.innerHTML = renderEpisodeListPanel(`${clin ? clin.name : 'Clinician'} — ${category}`, episodes);
+}
+
+// Small-multiples box plot: same x-axis (4 discussion categories) and y-axis
+// (% core risks discussed) as the old jitter plot, but every clinician gets
+// a box-and-whisker glyph side by side in each category lane, so the
+// department-wide pattern and per-clinician spread are both visible without
+// a drill-down step. Click a box to see the episodes behind it.
+function renderBoxPlot(episodes, clinicians, selectedClinicianId) {
+    const el = document.getElementById('boxPlot');
     if (!el || typeof d3 === 'undefined') return;
 
     const clinicianList = clinicians || [];
-    const clinicianColors = new Map(clinicianList.map(c => [c.name, c.color]));
+    BOX_PLOT_EPISODES = episodes || [];
+    BOX_PLOT_CLINICIANS = clinicianList;
     const width = Math.max(el.clientWidth || 1000, 760);
     const height = 520;
     const margin = { top: 28, right: CHART_LANE_MARGIN.right, bottom: 78, left: CHART_LANE_MARGIN.left };
-    const radius = 7;
 
     el.innerHTML = '';
-    const tooltip = d3.select(el)
-        .append('div')
-        .attr('class', 'beeswarm-tooltip');
+    const tooltip = d3.select(el).append('div').attr('class', 'beeswarm-tooltip');
 
     const svg = d3.select(el)
         .append('svg')
         .attr('viewBox', `0 0 ${width} ${height}`)
         .attr('role', 'img')
         .style('font-family', 'inherit')
-        .attr('aria-label', 'Patient episodes by tradeoff comparison quality and percentage of core risks discussed');
+        .attr('aria-label', 'Box plots of percentage of core risks discussed, by clinician and discussion category');
 
     const x = chartLaneScale(width);
-    const y = d3.scaleLinear()
-        .domain([0, 100])
-        .range([height - margin.bottom, margin.top]);
+    const y = d3.scaleLinear().domain([0, 100]).range([height - margin.bottom, margin.top]);
 
-    const yAxis = d3.axisLeft(y)
-        .ticks(5)
-        .tickFormat(d => `${d}%`)
-        .tickSize(-(width - margin.left - margin.right));
-    const yGroup = svg.append('g')
-        .attr('transform', `translate(${margin.left},0)`)
-        .call(yAxis);
+    const yAxis = d3.axisLeft(y).ticks(5).tickFormat(d => `${d}%`).tickSize(-(width - margin.left - margin.right));
+    const yGroup = svg.append('g').attr('transform', `translate(${margin.left},0)`).call(yAxis);
     yGroup.select('.domain').remove();
     yGroup.selectAll('.tick line').attr('stroke', '#e2ecf6');
-    yGroup.selectAll('.tick text')
-        .attr('fill', '#5d7691')
-        .style('font-size', '11px')
-        .style('font-weight', 700);
+    yGroup.selectAll('.tick text').attr('fill', '#5d7691').style('font-size', '11px').style('font-weight', 700);
 
     const xAxis = d3.axisBottom(x).tickSize(0).tickPadding(16);
-    const xGroup = svg.append('g')
-        .attr('transform', `translate(0,${height - margin.bottom})`)
-        .call(xAxis);
+    const xGroup = svg.append('g').attr('transform', `translate(0,${height - margin.bottom})`).call(xAxis);
     xGroup.select('.domain').attr('stroke', '#d4e2f0');
-    xGroup.selectAll('.tick text')
-        .attr('fill', '#0d2136')
-        .style('font-size', '11px')
-        .style('font-weight', 800)
-        .style('text-transform', 'uppercase')
-        .style('letter-spacing', '0.12em');
+    xGroup.selectAll('.tick text').attr('fill', '#0d2136').style('font-size', '11px').style('font-weight', 800)
+        .style('text-transform', 'uppercase').style('letter-spacing', '0.12em');
 
-    svg.append('text')
-        .attr('x', (margin.left + width - margin.right) / 2)
-        .attr('y', height - 12)
-        .attr('text-anchor', 'middle')
-        .attr('fill', '#5d7691')
-        .style('font-size', '10px')
-        .style('font-weight', 800)
-        .style('letter-spacing', '0.18em')
+    svg.append('text').attr('x', (margin.left + width - margin.right) / 2).attr('y', height - 12).attr('text-anchor', 'middle')
+        .attr('fill', '#5d7691').style('font-size', '10px').style('font-weight', 800).style('letter-spacing', '0.18em')
         .text('TREATMENT OPTION DISCUSSION CATEGORY');
-    svg.append('text')
-        .attr('transform', 'rotate(-90)')
-        .attr('x', -(margin.top + height - margin.bottom) / 2)
-        .attr('y', 14)
-        .attr('text-anchor', 'middle')
-        .attr('fill', '#5d7691')
-        .style('font-size', '10px')
-        .style('font-weight', 800)
-        .style('letter-spacing', '0.18em')
-        .text('% CORE RISKS DISCUSSED');
+    svg.append('text').attr('transform', 'rotate(-90)').attr('x', -(margin.top + height - margin.bottom) / 2).attr('y', 14)
+        .attr('text-anchor', 'middle').attr('fill', '#5d7691').style('font-size', '10px').style('font-weight', 800)
+        .style('letter-spacing', '0.18em').text('% CORE RISKS DISCUSSED');
 
-    // Rug plot: a short tick per episode at its actual % core risks discussed,
-    // offset to the left of each category's beeswarm cluster. Replaces the
-    // stacked-bar density backdrop — same "where's the mass of the data"
-    // cue, without a second redundant chart type layered behind the dots.
-    const rugGroup = svg.append('g').attr('class', 'rug-plot');
-    const rugInset = Math.min(52, (x.step ? x.step() : 120) * 0.42);
-    const rugHalfWidth = 7;
-    (episodes || []).forEach(ep => {
-        const cat = jitterCategory(ep);
-        if (!cat) return;
-        const rugX = x(cat) - rugInset;
-        const rugY = ep.core_risk_pct == null ? y(50) : y(Math.max(0, Math.min(100, ep.core_risk_pct)));
-        const isSelected = selectedClinicianId === ep.clinician_id;
-        const isDimmed = selectedClinicianId && !isSelected;
-        rugGroup.append('line')
-            .attr('x1', rugX - rugHalfWidth).attr('x2', rugX + rugHalfWidth)
-            .attr('y1', rugY).attr('y2', rugY)
-            .attr('stroke', ep.clinician_color || '#7f8c8d')
-            .attr('stroke-width', 1.6)
-            .attr('stroke-opacity', isSelected ? 0.85 : (isDimmed ? 0.12 : 0.38))
-            .append('title')
-            .text(`${ep.clinician_name}: ${ep.core_risk_pct == null ? 'N/A' : ep.core_risk_pct + '%'} core risks discussed`);
-    });
+    const laneHalfWidth = Math.min(70, (x.step ? x.step() : 160) * 0.42);
+    const slotWidth = (2 * laneHalfWidth) / Math.max(1, clinicianList.length);
+    const boxWidth = Math.min(26, slotWidth * 0.72);
 
-    const nodes = (episodes || []).map(ep => {
-        const level = jitterCategory(ep);
-        const targetX = x(level);
-        const targetY = ep.core_risk_pct == null ? y(50) : y(Math.max(0, Math.min(100, ep.core_risk_pct)));
-        // fy pins each point to its exact % core risks discussed so dots stay
-        // aligned with the gridlines/rug ticks — only x is left free for the
-        // collision force to resolve overlaps into a beeswarm.
-        return { ...ep, targetX, targetY, x: targetX, y: targetY, fy: targetY };
-    });
+    DISCUSSION_CATEGORIES.forEach(category => {
+        const laneX = x(category);
+        clinicianList.forEach((clin, i) => {
+            const values = (episodes || [])
+                .filter(ep => ep.clinician_id === clin.id && jitterCategory(ep) === category && ep.core_risk_pct != null)
+                .map(ep => ep.core_risk_pct);
+            if (!values.length) return;
+            const stats = boxPlotStats(values);
+            const cx = laneX - laneHalfWidth + slotWidth * (i + 0.5);
+            const isSelected = selectedClinicianId === clin.id;
+            const isDimmed = selectedClinicianId && !isSelected;
+            const opacity = isDimmed ? 0.16 : 0.85;
+            const strokeWidth = isSelected ? 2.2 : 1.2;
 
-    // D3's collision force spreads overlapping points horizontally (fy above
-    // keeps every point's true percentage exact) while a weak x-position
-    // force keeps the swarm anchored near its category's lane center.
-    const simulation = d3.forceSimulation(nodes)
-        .force('x', d3.forceX(d => d.targetX).strength(0.28))
-        .force('collide', d3.forceCollide(radius + 1.5).strength(1).iterations(6))
-        .stop();
-    for (let i = 0; i < 280; i++) simulation.tick();
+            const g = svg.append('g').style('cursor', 'pointer')
+                .attr('tabindex', 0).attr('role', 'button')
+                .attr('aria-label', `${clin.name}, ${category}: median ${Math.round(stats.median)}%, n=${stats.n}`)
+                .on('click', () => selectBoxPlotGroup(category, clin.id))
+                .on('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectBoxPlotGroup(category, clin.id); }
+                })
+                .on('mousemove', (event) => {
+                    const rect = el.getBoundingClientRect();
+                    tooltip.html(
+                        `<strong>${escHtml(clin.name)}</strong> — ${escHtml(category)}<br>` +
+                        `Median ${Math.round(stats.median)}% · IQR ${Math.round(stats.q1)}–${Math.round(stats.q3)}%<br>` +
+                        `n=${stats.n} episode${stats.n === 1 ? '' : 's'}<br><em>Click to see episodes</em>`
+                    ).style('left', `${event.clientX - rect.left + 12}px`).style('top', `${event.clientY - rect.top - 18}px`).style('opacity', 1);
+                })
+                .on('mouseleave', () => tooltip.style('opacity', 0));
 
-    function showTooltip(event, d) {
-        const rect = el.getBoundingClientRect();
-        tooltip
-            .html(
-                `<strong>${escHtml(d.patient_label)}</strong><br>` +
-                `Clinician: ${escHtml(d.clinician_name)}<br>` +
-                `Core risks discussed: ${d.core_risk_pct == null ? 'N/A — no core-risk set' : `${d.core_risk_pct}%`}<br>` +
-                `Discussion category: ${escHtml(jitterCategory(d))}<br>` +
-                `Status: ${escHtml(d.status)}`
-            )
-            .style('left', `${event.clientX - rect.left + 12}px`)
-            .style('top', `${event.clientY - rect.top - 18}px`)
-            .style('opacity', 1);
-    }
+            // Full-column invisible hit target so clicks/hovers register anywhere
+            // in the glyph's visual footprint, not just on the thin strokes.
+            g.append('rect').attr('x', cx - slotWidth / 2).attr('y', margin.top)
+                .attr('width', slotWidth).attr('height', height - margin.bottom - margin.top)
+                .attr('fill', 'transparent');
 
-    const dots = svg.append('g')
-        .selectAll('circle')
-        .data(nodes)
-        .join('circle')
-        .attr('cx', d => d.x)
-        .attr('cy', d => d.y)
-        .attr('r', radius)
-        .attr('fill', d => clinicianColors.get(d.clinician_name) || '#7f8c8d')
-        .attr('fill-opacity', d => selectedClinicianId ? (d.clinician_id === selectedClinicianId ? 0.94 : 0.15) : 0.88)
-        .attr('stroke', '#fff')
-        .attr('stroke-width', d => selectedClinicianId && d.clinician_id === selectedClinicianId ? 1.8 : 1.2)
-        .attr('tabindex', 0)
-        .attr('role', 'button')
-        .attr('aria-label', d => `${d.patient_label}, ${d.clinician_name}, ${d.core_risk_pct == null ? 'N/A' : `${d.core_risk_pct}% core risks`}, ${jitterCategory(d)}`)
-        .style('cursor', 'pointer')
-        .on('mouseenter', function(event, d) {
-            d3.select(this).attr('r', radius + 2).attr('stroke-width', 2.4);
-            showTooltip(event, d);
-        })
-        .on('mousemove', showTooltip)
-        .on('mouseleave', function(event, d) {
-            d3.select(this).attr('r', radius).attr('stroke-width', selectedClinicianId && d.clinician_id === selectedClinicianId ? 1.8 : 1.2);
-            tooltip.style('opacity', 0);
-        })
-        .on('click', (_, d) => openEpisode(d.episode_id))
-        .on('keydown', (event, d) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                openEpisode(d.episode_id);
-            }
+            g.append('line').attr('x1', cx).attr('x2', cx).attr('y1', y(stats.whiskerLow)).attr('y2', y(stats.whiskerHigh))
+                .attr('stroke', clin.color).attr('stroke-width', 1.4).attr('stroke-opacity', opacity);
+            [stats.whiskerLow, stats.whiskerHigh].forEach(v => {
+                g.append('line').attr('x1', cx - boxWidth * 0.28).attr('x2', cx + boxWidth * 0.28).attr('y1', y(v)).attr('y2', y(v))
+                    .attr('stroke', clin.color).attr('stroke-width', 1.4).attr('stroke-opacity', opacity);
+            });
+            g.append('rect').attr('x', cx - boxWidth / 2).attr('y', y(stats.q3)).attr('width', boxWidth)
+                .attr('height', Math.max(1, y(stats.q1) - y(stats.q3)))
+                .attr('fill', clin.color).attr('fill-opacity', isDimmed ? 0.08 : 0.32)
+                .attr('stroke', clin.color).attr('stroke-width', strokeWidth).attr('stroke-opacity', opacity);
+            g.append('line').attr('x1', cx - boxWidth / 2).attr('x2', cx + boxWidth / 2).attr('y1', y(stats.median)).attr('y2', y(stats.median))
+                .attr('stroke', clin.color).attr('stroke-width', isSelected ? 2.6 : 2).attr('stroke-opacity', isDimmed ? 0.3 : 1);
+            g.selectAll('.outlier').data(stats.outliers).join('circle')
+                .attr('cx', cx).attr('cy', v => y(v)).attr('r', 2.6)
+                .attr('fill', clin.color).attr('fill-opacity', opacity);
+            g.append('text').attr('x', cx).attr('y', Math.max(margin.top + 10, y(stats.whiskerHigh) - 8)).attr('text-anchor', 'middle')
+                .style('font-size', '9px').style('font-weight', 700).attr('fill', isDimmed ? '#c3cfdb' : '#5d7691')
+                .text(`n=${stats.n}`);
         });
-
-    dots.append('title')
-        .text(d => `${d.patient_label} — ${d.clinician_name}`);
-
-    // When a clinician is selected, mark their mean % core risks discussed per
-    // category with a diamond so it reads clearly against the individual dots.
-    if (selectedClinicianId) {
-        const clinicianMeta = clinicianList.find(c => c.id === selectedClinicianId);
-        const meanGroup = svg.append('g').attr('class', 'clinician-mean-markers');
-        const diamond = d3.symbol().type(d3.symbolDiamond).size(300)();
-        DISCUSSION_CATEGORIES.forEach(cat => {
-            const clinicianEpisodes = (episodes || []).filter(ep =>
-                ep.clinician_id === selectedClinicianId && jitterCategory(ep) === cat && ep.core_risk_pct != null
-            );
-            if (!clinicianEpisodes.length) return;
-            const mean = clinicianEpisodes.reduce((sum, ep) => sum + ep.core_risk_pct, 0) / clinicianEpisodes.length;
-            meanGroup.append('path')
-                .attr('d', diamond)
-                .attr('transform', `translate(${x(cat)},${y(mean)})`)
-                .attr('fill', clinicianMeta ? clinicianMeta.color : '#0d2136')
-                .attr('stroke', '#fff')
-                .attr('stroke-width', 2.5)
-                .style('filter', 'drop-shadow(0 2px 4px rgba(6,24,43,0.4))')
-                .append('title')
-                .text(`${clinicianMeta ? clinicianMeta.name : 'Selected clinician'} mean: ${Math.round(mean)}% core risks discussed (n=${clinicianEpisodes.length})`);
-        });
-    }
+    });
 }
 
-async function openEpisode(episodeId) {
-    document.getElementById('resultsContent').innerHTML = '<p>Loading episode...</p>';
-    document.getElementById('btn-results').style.display = 'inline-block';
-    switchTab('results');
+// Episode detail "command center": a slide-in overlay (not a tab switch) that
+// mounts the same renderUI()-driven detail view. Every drill-down entry point
+// (episode table, box plot, bubble-chart semantic zoom, History's saved runs)
+// opens episodes this way now, so users never lose their place on the "map" —
+// closing the overlay (Escape, backdrop click, or the × button) returns them
+// to exactly where they were.
+async function openEpisodeOverlay(episodeId) {
+    const backdrop = document.getElementById('episodeOverlayBackdrop');
+    const body = document.getElementById('episodeOverlayBody');
+    const titleEl = document.getElementById('episodeOverlayTitle');
+    if (!backdrop || !body) return;
+    body.innerHTML = '<p>Loading episode...</p>';
+    backdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    CURRENT_RENDER_TARGET = 'episodeOverlayBody';
     try {
         const res = await fetch(`/api/department/episode/${encodeURIComponent(episodeId)}`);
         if (!res.ok) throw new Error(await res.text());
@@ -1706,22 +2243,38 @@ async function openEpisode(episodeId) {
             regions = raw || [];
             schemaVersion = data.schema_version;
         }
+        const ep = data.episode || { episode_id: data.episode_id || episodeId, patient_label: data.episode_id || episodeId };
+        if (titleEl) titleEl.textContent = ep.clinician_name ? `${ep.patient_label} — ${ep.clinician_name}` : ep.patient_label;
+        const breadcrumbEl = document.getElementById('episodeOverlayBreadcrumb');
+        if (breadcrumbEl) breadcrumbEl.innerHTML = renderBreadcrumbTrail(episodeBreadcrumbCrumbs(ep));
+
         CURRENT_SELECTED_DECISION_ID = null;
         renderUI(regions, data.turns || [], schemaVersion);
-        const ep = data.episode;
-        if (ep) {
+        if (data.episode) {
             const banner = document.createElement('div');
             banner.className = 'map-options';
             banner.style.cssText = 'background:#eaf2fa;border:0;border-left:3px solid #1769e0;margin-bottom:16px;';
             banner.innerHTML = `<strong>${escHtml(ep.patient_label)}</strong> · ${escHtml(ep.clinician_name)} · Core risks ${ep.core_risk_pct == null ? 'N/A' : `${ep.core_risk_pct}%`} · ${escHtml(jitterCategory(ep))}` +
                 (ep.source === 'demo' ? ' · <em>demo episode</em>' : ' · <em>saved analysis</em>');
-            const results = document.getElementById('resultsContent');
-            results.insertBefore(banner, results.firstChild);
+            body.insertBefore(banner, body.firstChild);
         }
     } catch (e) {
-        document.getElementById('resultsContent').innerHTML = `<span class="error">Failed to open episode: ${e.message}</span>`;
+        body.innerHTML = `<span class="error">Failed to open episode: ${e.message}</span>`;
     }
 }
+
+function closeEpisodeOverlay() {
+    const backdrop = document.getElementById('episodeOverlayBackdrop');
+    if (backdrop) backdrop.classList.remove('open');
+    document.body.style.overflow = '';
+    if (CURRENT_RENDER_TARGET === 'episodeOverlayBody') CURRENT_RENDER_TARGET = 'resultsContent';
+}
+
+document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    const backdrop = document.getElementById('episodeOverlayBackdrop');
+    if (backdrop && backdrop.classList.contains('open')) closeEpisodeOverlay();
+});
 
 async function loadHistory() {
     const container = document.getElementById('history-content');
@@ -1742,26 +2295,11 @@ async function loadHistory() {
     }
 }
 
-async function loadRun(id) {
-    document.getElementById('resultsContent').innerHTML = "<p>Loading layout...</p>";
-    document.getElementById('btn-results').style.display = 'inline-block';
-    switchTab('results');
-    try {
-        const res = await fetch(`/api/run/${id}`);
-        const data = await res.json();
-        const raw = data.regions;
-        let regions, schemaVersion;
-        if (raw && !Array.isArray(raw) && raw.decisions) {
-            regions = raw.decisions;
-            schemaVersion = raw.schema_version;
-        } else {
-            regions = raw || [];
-            schemaVersion = data.schema_version;
-        }
-        renderUI(regions, data.turns, schemaVersion);
-    } catch (e) {
-        document.getElementById('resultsContent').innerHTML = `<span class="error">Failed to load run data: ${e.message}</span>`;
-    }
+// Saved runs from Database History now open in the same command-center
+// overlay as department episodes, via the department episode endpoint's
+// existing "run_<id>" handling — one detail experience everywhere.
+function loadRun(id) {
+    openEpisodeOverlay(`run_${id}`);
 }
 
 // --- CCQ CONSTANTS & STATE ---
@@ -1779,6 +2317,9 @@ let CURRENT_TURNS = null;
 let CURRENT_SELECTED_DECISION_ID = null;
 let CURRENT_SCHEMA_VERSION = null;
 let CURRENT_RUN_META = {};
+// renderUI()/selectDecision() render into whichever container is "live":
+// the Run Analysis results tab by default, or the episode overlay while it's open.
+let CURRENT_RENDER_TARGET = 'resultsContent';
 
 // --- PROMPTS & SCHEMAS ---
 const AUTO_DETECT_SCHEMA = {
@@ -2539,6 +3080,122 @@ function renderDecisionTimeline(regions, turns) {
     </div>`;
 }
 
+// --- Decision Timeline (event track) -----------------------------------
+// A second, complementary timeline (alongside the decision-span Gantt above):
+// instead of "when was each decision active", this shows "what kind of
+// shared decision-making moment happened, and when" — using a small fixed
+// visual vocabulary of glyph shapes so the pattern (e.g. options introduced
+// early, tradeoffs compared only late, or never) is scannable at a glance.
+const TIMELINE_VOCAB = [
+    { key: 'option', label: 'Option considered', symbol: () => d3.symbolCircle, color: '#1769e0' },
+    { key: 'recommendation', label: 'Clinician recommendation', symbol: () => d3.symbolDiamond, color: '#06182b' },
+    { key: 'tradeoff', label: 'Tradeoff compared', symbol: () => d3.symbolTriangle, color: '#0f9e93' },
+    { key: 'preference', label: 'Patient preference / goal elicited', symbol: () => d3.symbolStar, color: '#9c5f10' },
+    { key: 'risk', label: 'Risk discussed', symbol: () => d3.symbolSquare, color: '#c6475a' },
+    { key: 'question', label: 'Patient question asked', symbol: () => d3.symbolCross, color: '#5968cf' },
+];
+
+function firstTurnIndex(...fields) {
+    for (const field of fields) {
+        if (field && (field.turn_indices || []).length) return field.turn_indices[0];
+    }
+    return null;
+}
+
+function collectTimelineEvents(regions) {
+    const events = [];
+    (regions || []).forEach(r => {
+        (r.decision_overview?.options_considered || []).forEach(opt => {
+            const turn = firstTurnIndex(opt.what_it_involves, opt.benefits, opt.risks, opt.burdens);
+            if (turn != null) events.push({ key: 'option', turn, label: `Option considered: ${opt.option_name}`, decisionId: r.decision_id });
+        });
+        const rec = r.decision_overview?.clinician_recommendation;
+        if (rec && (rec.turn_indices || []).length) {
+            events.push({ key: 'recommendation', turn: rec.turn_indices[0], label: `Recommended: ${rec.recommended_option || '\u2014'}`, decisionId: r.decision_id });
+        }
+        (r.communication_analysis?.tradeoff_comparisons || []).forEach(tc => {
+            (tc.turn_indices || []).forEach(turn => events.push({ key: 'tradeoff', turn, label: `${tc.option_a} vs ${tc.option_b} \u2014 ${tc.level}`, decisionId: r.decision_id }));
+        });
+        const pc = r.decision_overview?.patient_considerations || {};
+        [...(pc.goals_priorities || []), ...(pc.preferences || [])].forEach(item => {
+            (item.turn_indices || []).forEach(turn => events.push({ key: 'preference', turn, label: item.text, decisionId: r.decision_id }));
+        });
+        (pc.questions || []).forEach(q => {
+            (q.turn_indices || []).forEach(turn => events.push({ key: 'question', turn, label: q.question, decisionId: r.decision_id }));
+        });
+        chosenConsentInterventions(r).forEach(intv => {
+            ['core_risks', 'relevant_risks', 'context_dependent_risks'].forEach(tier => {
+                (intv[tier] || []).forEach(risk => {
+                    if (risk.detection_status !== 'Discussed') return;
+                    (risk.turn_indices || []).forEach(turn => events.push({ key: 'risk', turn, label: risk.risk_name, decisionId: r.decision_id }));
+                });
+            });
+        });
+    });
+    return events;
+}
+
+function renderDecisionEventTimeline(regions, turns) {
+    if (!regions.length || !turns.length) return '';
+    const events = collectTimelineEvents(regions);
+    if (!events.length) return '';
+    const maxTurn = Math.max(1, ...turns.map(t => t.index));
+
+    // Balance the legend into evenly-sized rows (e.g. 6 items -> 3+3, not a
+    // lopsided 5+1) instead of letting it wrap wherever labels happen to fit.
+    const legendRows = TIMELINE_VOCAB.length > 3 ? 2 : 1;
+    const legendCols = Math.ceil(TIMELINE_VOCAB.length / legendRows);
+    const legend = TIMELINE_VOCAB.map(v => `
+        <div class="timeline-vocab-item">
+            <svg class="timeline-vocab-glyph" viewBox="-8 -8 16 16"><path d="${d3.symbol().type(v.symbol()).size(110)()}" fill="${v.color}"></path></svg>
+            ${escHtml(v.label)}
+        </div>`).join('');
+
+    // Same-type events landing on the exact same turn (e.g. several risks
+    // named in one statement) merge into a single glyph with a count badge
+    // instead of literally overlapping into one indistinguishable mark.
+    const grouped = new Map();
+    events.forEach(e => {
+        const gkey = `${e.key}|${e.turn}`;
+        if (!grouped.has(gkey)) grouped.set(gkey, { turn: e.turn, key: e.key, decisionId: e.decisionId, labels: [] });
+        grouped.get(gkey).labels.push(e.label);
+    });
+    const groupedEvents = Array.from(grouped.values());
+
+    const rows = TIMELINE_VOCAB.map(v => {
+        const rowEvents = groupedEvents.filter(g => g.key === v.key);
+        if (!rowEvents.length) return '';
+        const glyphs = rowEvents.map(g => {
+            const leftPct = Math.min(99, Math.max(1, (g.turn / maxTurn) * 100));
+            const count = g.labels.length;
+            const tooltipText = count > 1 ? `${v.label} (${count}): ${g.labels.join('; ')} (turn ${g.turn})` : `${v.label}: ${g.labels[0]} (turn ${g.turn})`;
+            const badge = count > 1
+                ? `<circle cx="7" cy="-7" r="5.5" fill="#fff" stroke="${v.color}" stroke-width="1.2"></circle><text x="7" y="-6.6" text-anchor="middle" dominant-baseline="central" font-size="7" font-weight="800" fill="${v.color}">${count}</text>`
+                : '';
+            return `<svg class="timeline-event-glyph" style="position:absolute;left:${leftPct}%;top:50%;transform:translate(-50%,-50%);" width="20" height="20" viewBox="-10 -10 20 20"
+                    onclick="jumpToDecisionTurn('${escAttr(g.decisionId)}', ${g.turn})">
+                <title>${escAttr(tooltipText)}</title>
+                <path d="${d3.symbol().type(v.symbol()).size(90)()}" fill="${v.color}"></path>
+                ${badge}
+            </svg>`;
+        }).join('');
+        return `<div class="decision-timeline-row">
+            <div class="decision-timeline-label">${escHtml(v.label)}</div>
+            <div class="decision-timeline-track timeline-event-track">${glyphs}</div>
+        </div>`;
+    }).join('');
+
+    return `<div class="decision-timeline">
+        <div class="chart-heading-row" style="margin-bottom:16px;">
+            <h3 class="decision-list-title" style="margin:0; border:0; min-height:0; padding:0;">Decision Timeline</h3>
+            <span class="info-icon" tabindex="0" data-tip="Every marker is a moment grounded in the transcript: an option raised, a tradeoff compared, a risk discussed, a preference or question from the patient, or the clinician's recommendation. Click any marker to jump to that point in the transcript below.">i</span>
+        </div>
+        <div class="timeline-vocab-legend" style="grid-template-columns:repeat(${legendCols}, max-content);">${legend}</div>
+        <div class="decision-timeline-rows">${rows}</div>
+        <div class="decision-timeline-axis"><span>Turn 0</span><span>Turn ${maxTurn}</span></div>
+    </div>`;
+}
+
 function renderRiskRows(risks, showContext) {
     if (!risks || !risks.length) return "<p style='color:#95a5a6;'>None in reference framework.</p>";
     return `<table class="risk-table"><thead><tr><th>Risk</th><th>Status</th><th>Details communicated</th><th>Evidence</th></tr></thead><tbody>
@@ -2750,7 +3407,8 @@ function renderUI(regions, turns, schemaVersion) {
     CURRENT_TURNS = turns;
     CURRENT_SCHEMA_VERSION = schemaVersion;
 
-    const results = document.getElementById("resultsContent");
+    const results = document.getElementById(CURRENT_RENDER_TARGET);
+    if (!results) return;
     const legacy = schemaVersion !== CCQ_SCHEMA_VERSION || (regions[0] && isLegacyRegion(regions[0]));
 
     if (legacy) {
@@ -2761,7 +3419,11 @@ function renderUI(regions, turns, schemaVersion) {
     if (!CURRENT_SELECTED_DECISION_ID && regions.length) CURRENT_SELECTED_DECISION_ID = regions[0].decision_id;
     const selected = regions.find(r => r.decision_id === CURRENT_SELECTED_DECISION_ID) || regions[0];
 
-    let html = `<h2>CCQ Analysis Results</h2>${renderSummaryBar(regions)}`;
+    // Decision Timeline leads the episode view — an overview of what kind of
+    // shared decision-making happened and when, before drilling into any one
+    // decision's details below (overview-first, per Shneiderman's mantra).
+    let html = renderDecisionEventTimeline(regions, turns);
+    html += `<h2>CCQ Analysis Results</h2>${renderSummaryBar(regions)}`;
     html += `<div class="ccq-layout"><div class="ccq-sidebar">${renderDecisionsList(regions, selected.decision_id)}</div>`;
     html += `<div class="ccq-detail">${renderDecisionDetail(selected)}</div></div>`;
     html += renderDecisionTimeline(regions, turns);

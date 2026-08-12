@@ -166,6 +166,9 @@ def _db_episodes():
             "total_encounters": total_encounters,
             "completeness_pct": round(100 * transcribed_encounters / total_encounters),
             "run_date": run_date.isoformat() if hasattr(run_date, "isoformat") else run_date,
+            "episode_date": (
+                run_date.date().isoformat() if hasattr(run_date, "date") else str(run_date)[:10]
+            ),
         })
     return episodes
 
