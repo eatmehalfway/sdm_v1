@@ -95,7 +95,8 @@
         }
         .nav-bar {
             display: flex;
-            gap: 30px;
+            align-items: center;
+            gap: 6px;
             margin: 0 0 0 26px;
             padding: 0;
             overflow-x: auto;
@@ -103,35 +104,29 @@
             border-radius: 0;
             background: transparent;
             box-shadow: none;
+            flex: 1 1 auto;
+            min-width: 0;
         }
-        .nav-btn {
+        .nav-bar.breadcrumb-trail { margin-bottom: 0; font-size: 0.78rem; }
+        .topbar .breadcrumb-trail .crumb { color: #9fc4ef; font-size: 0.78rem; }
+        .topbar .breadcrumb-trail .crumb:hover { color: #fff; }
+        .topbar .breadcrumb-trail .crumb.is-current { color: #fff; }
+        .topbar .breadcrumb-trail .crumb-sep { color: #4a6885; }
+        .topbar-new {
             flex: 0 0 auto;
-            position: relative;
             background: transparent;
-            color: #92b4d5;
-            border: 0;
-            border-radius: 0;
-            padding: 6px 0;
-            cursor: pointer;
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.28);
+            padding: 8px 14px;
             font: inherit;
-            font-size: 0.7rem;
-            font-weight: 700;
+            font-size: 0.68rem;
+            font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 0.16em;
+            letter-spacing: 0.12em;
+            cursor: pointer;
             white-space: nowrap;
         }
-        .nav-btn::after {
-            content: "";
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: -2px;
-            height: 2px;
-            background: transparent;
-        }
-        .nav-btn.active { background: transparent; color: #fff; }
-        .nav-btn.active::after { background: var(--cyan); }
-        .nav-btn:hover:not(.active) { background: transparent; color: #fff; }
+        .topbar-new:hover { background: rgba(255,255,255,0.12); }
 
         .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
         .icon-btn {
@@ -292,6 +287,9 @@
         .summary-stat.is-secondary { min-height: 110px; padding: 20px 22px; }
         .summary-stat.is-secondary .summary-stat-value { font-size: 1.7rem; }
         .summary-stat.is-secondary .summary-stat-label { margin-top: 10px; font-size: 0.58rem; }
+        .summary-stat.is-clickable { cursor: pointer; transition: background 0.15s; }
+        .summary-stat.is-clickable:hover { background: #eef6fd; }
+        .summary-stat.is-hero.is-clickable:hover { background: #f8e4e4; }
 
         /* ---------- CARDS ---------- */
         .tree-container { margin-bottom: 40px; }
@@ -609,20 +607,23 @@
         /* ---------- BOX PLOT (Clinician Comparison) ---------- */
         .box-plot-empty { font-size:0.8rem; color:var(--muted); font-style:italic; }
 
-        /* ---------- EPISODE DETAIL OVERLAY ("command center") ---------- */
-        .episode-overlay-backdrop {
+        /* ---------- EPISODE DETAIL + RUN PANEL ---------- */
+        .episode-overlay-backdrop, .run-panel-backdrop {
             display:none; position:fixed; inset:0; z-index:200; background:rgba(6,24,43,0.5);
         }
-        .episode-overlay-backdrop.open { display:block; }
-        .episode-overlay-panel {
+        .run-panel-backdrop { z-index:220; }
+        .episode-overlay-backdrop.open, .run-panel-backdrop.open { display:block; }
+        .episode-overlay-panel, .run-panel {
             position:fixed; top:0; right:0; bottom:0; z-index:201;
             width:min(1080px, 94vw); max-width:100%; background:var(--paper);
             box-shadow:-24px 0 48px rgba(6,24,43,0.28);
             transform:translateX(100%); transition:transform 0.24s ease;
             display:flex; flex-direction:column;
         }
-        .episode-overlay-backdrop.open .episode-overlay-panel { transform:translateX(0); }
-        .episode-overlay-header {
+        .run-panel { width:min(720px, 94vw); z-index:221; }
+        .episode-overlay-backdrop.open .episode-overlay-panel,
+        .run-panel-backdrop.open .run-panel { transform:translateX(0); }
+        .episode-overlay-header, .run-panel-header {
             flex:0 0 auto; display:flex; align-items:flex-start; justify-content:space-between; gap:18px;
             padding:22px 30px; background:var(--navy); color:#fff;
         }
@@ -630,27 +631,216 @@
         .episode-overlay-header .breadcrumb-trail .crumb { color:#9fc4ef; }
         .episode-overlay-header .breadcrumb-trail .crumb.is-current { color:#fff; }
         .episode-overlay-header .breadcrumb-trail .crumb-sep { color:#4a6885; }
-        .episode-overlay-title { font-size:1.15rem; font-weight:800; margin:0; }
+        .episode-overlay-title, .run-panel-title { font-size:1.15rem; font-weight:800; margin:0; color:#fff; }
         .episode-overlay-close {
             flex:0 0 auto; width:36px; height:36px; border-radius:50%; border:0; background:rgba(255,255,255,0.12);
             color:#fff; font-size:1.1rem; cursor:pointer; display:grid; place-items:center; transition:background 0.15s;
         }
         .episode-overlay-close:hover { background:rgba(255,255,255,0.24); }
-        .episode-overlay-body { flex:1 1 auto; overflow-y:auto; padding:30px var(--gutter) 80px; }
+        .episode-overlay-body, .run-panel-body { flex:1 1 auto; overflow-y:auto; padding:30px var(--gutter) 80px; }
+        .run-panel-body { padding:30px 32px 80px; }
+        .run-panel-body .setup-box { max-width:none; padding:0; }
+        #peekTooltip {
+            position:fixed; z-index:300; pointer-events:none; opacity:0;
+            background:var(--navy); color:#fff; padding:8px 12px; font-size:0.75rem; font-weight:600;
+            line-height:1.45; max-width:280px; transition:opacity 0.08s;
+        }
+
+        /* Inline episode detail sits under the list that opened it. */
+        #episodeInlineDetail {
+            margin:28px 0 48px; border:1px solid var(--border); background:#fff;
+        }
+        #episodeInlineDetail[hidden] { display:none !important; }
+        .episode-inline-header {
+            display:flex; align-items:center; justify-content:space-between; gap:16px;
+            padding:14px 20px; border-bottom:1px solid var(--border); background:#f4f8fc;
+        }
+        .episode-inline-title { margin:0; font-size:1.05rem; font-weight:800; color:var(--navy); }
+        .episode-inline-close {
+            flex:0 0 auto; width:32px; height:32px; border-radius:50%; border:0;
+            background:#dce8f3; color:var(--navy); font-size:1.2rem; cursor:pointer;
+            display:grid; place-items:center;
+        }
+        .episode-inline-close:hover { background:#c9dcec; }
+        #episodeInlineBody { padding:20px 24px 40px; }
+
+        #spinePeek {
+            position:fixed; z-index:310; pointer-events:none;
+            width:min(920px, 94vw); max-height:min(78vh, 740px); overflow:auto;
+            background:#fff; border:1px solid var(--border);
+            box-shadow:0 18px 48px rgba(6,24,43,0.22); padding:0;
+            opacity:0; visibility:hidden; transition:opacity 0.12s;
+        }
+        #spinePeek.is-visible { opacity:1; visibility:visible; }
+        #spinePeek .episode-cockpit { margin:0; }
+        #spinePeek .glyph-map { padding:12px 14px 8px; }
+        #spinePeek .episode-dock { padding:12px 14px 16px; }
+        #spinePeek .cockpit-stat { padding:12px 14px; }
+        #spinePeek .info-icon { display:none; }
+        #spinePeek .transcript-strip, #spinePeek .episode-transcript { display:none; }
+
+        /* Wide viewports: overlay is a focus+context pane, not a modal over a dimmed map. */
+        .container.is-detail {
+            display:grid;
+            grid-template-columns: minmax(280px, 32vw) minmax(0, 1fr);
+            grid-template-rows: auto minmax(0, 1fr);
+            min-height:100vh;
+        }
+        .container.is-detail .topbar { grid-column:1 / -1; }
+        .container.is-detail .settings-popover { grid-column:1 / -1; }
+        .container.is-detail #view-department {
+            grid-column:1;
+            padding:20px 16px 48px;
+            overflow:auto;
+            max-height:calc(100vh - 68px);
+        }
+        .container.is-detail .episode-overlay-backdrop {
+            display:block;
+            position:relative;
+            inset:auto;
+            grid-column:2;
+            background:transparent;
+            z-index:1;
+            min-height:calc(100vh - 68px);
+        }
+        .container.is-detail .episode-overlay-panel {
+            position:relative; top:auto; right:auto; bottom:auto;
+            width:100%; max-width:none; height:calc(100vh - 68px);
+            transform:none; box-shadow:none; border-left:1px solid var(--border);
+        }
+        .container.is-detail .story-step { min-height:auto; margin-bottom:28px; }
+        .container.is-detail h2 { font-size:1.2rem; }
+        .container.is-detail .summary-bar { margin-bottom:20px; }
+        .container.is-detail .summary-stat { min-height:72px; padding:12px 14px; }
+        .container.is-detail .summary-stat.is-hero { grid-column:span 1; min-height:72px; }
+        .container.is-detail .summary-stat-value { font-size:1.25rem !important; }
+        .container.is-detail .summary-stat.is-hero .summary-stat-value { font-size:1.45rem !important; }
+        .container.is-detail .episode-table-wrap { max-height:220px; overflow:auto; }
+        .container.is-detail .dept-header .run-btn { display:none; }
+        .container.is-detail .flow-caption { position:static; width:auto; padding:0 0 12px; }
+
+        .map-charts[data-mode="clinician"] .is-procedure-only { display:none; }
+        .map-charts[data-mode="procedure"] .is-clinician-only { display:none; }
+        .map-mode-bar {
+            display:flex; flex-wrap:wrap; align-items:center; gap:14px 22px;
+            margin:0 0 20px; padding:4px 0 18px; border-bottom:1px solid var(--border);
+        }
+        .map-mode-copy { font-size:0.78rem; color:var(--muted); max-width:560px; line-height:1.5; }
+        .legend-block { margin:0 0 28px; }
+        .legend-kicker { font-size:0.62rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.12em; margin:0; }
+        .legend-kicker-row { display:flex; align-items:center; gap:8px; margin:0 0 12px; }
+        #riskBubblePlot svg .label-layer { pointer-events:none; }
+        #riskBubblePlot svg .static-layer { pointer-events:none; }
+        #riskBubblePlot svg .static-layer .plot-bg { pointer-events:all; }
+
+        /* ---------- DECISION MAP (readable tree) ---------- */
+        .decision-spine { margin:0 0 36px; background:var(--surface); padding:22px 24px 18px; }
+        .decision-spine h3 { margin:0 0 6px; }
+        .spine-hint { font-size:0.78rem; color:var(--muted); margin:0 0 16px; }
+        .spine-legend { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; margin:0 0 16px; }
+        .spine-legend-group { font-size:0.65rem; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-right:4px; }
+        .spine-legend-item { display:flex; align-items:center; gap:6px; font-size:0.7rem; font-weight:700; color:var(--muted); }
+        .decision-tree-list { list-style:none; margin:0; padding:0; }
+        .decision-tree-item { margin:0 0 8px; }
+        .decision-tree-row {
+            padding:12px 14px; border:1px solid var(--border); background:#fff; cursor:pointer;
+        }
+        .decision-tree-row:hover { background:#f5f9fd; }
+        .decision-tree-row.is-selected { background:#eaf2fa; border-color:#b7d2ea; }
+        .decision-tree.is-readonly .decision-tree-row { cursor:default; }
+        .decision-tree-kicker {
+            font-size:0.65rem; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;
+            color:var(--muted); margin:0 0 6px;
+        }
+        .decision-tree-main { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 12px; }
+        .decision-tree-label { font-size:0.95rem; color:var(--navy); }
+        .decision-tree-chosen { font-size:0.82rem; color:var(--muted); }
+        .decision-tree-options { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 0; }
+        .decision-tree-option {
+            display:inline-flex; align-items:center; gap:8px; padding:6px 10px;
+            border:1px solid var(--border); background:#fff; font-size:0.8rem; font-weight:600;
+            color:var(--navy); cursor:pointer;
+        }
+        .decision-tree-option.is-chosen { border-color:var(--navy); }
+        .decision-tree-option.is-focus { background:#eaf2fa; }
+        .decision-tree.is-readonly .decision-tree-option { cursor:default; }
+        .decision-tree.is-readonly .decision-tree-option:disabled { opacity:1; color:var(--navy); }
+        .option-card.is-dimmed { opacity:0.38; }
+        #spinePeek .decision-spine { margin:0; padding:0; background:transparent; }
+        .decision-spine.is-compact h3 { font-size:0.95rem; margin:0 0 8px; }
+        .decision-spine.is-compact .spine-legend { margin:0 0 8px; }
+
         @media (max-width: 800px) {
-            .episode-overlay-panel { width:100vw; }
+            .episode-overlay-panel, .run-panel { width:100vw; }
             .episode-overlay-body { padding:24px 20px 60px; }
+            .container.is-detail {
+                display:block;
+            }
+            .container.is-detail #view-department {
+                max-height:none; padding:36px var(--gutter) 64px;
+            }
+            .container.is-detail .episode-overlay-backdrop {
+                display:none; position:fixed; inset:0; background:rgba(6,24,43,0.5); z-index:200;
+            }
+            .container.is-detail .episode-overlay-backdrop.open { display:block; }
+            .container.is-detail .episode-overlay-panel {
+                position:fixed; top:0; right:0; bottom:0; width:100vw; height:auto;
+                transform:translateX(100%); box-shadow:-24px 0 48px rgba(6,24,43,0.28);
+            }
+            .container.is-detail .episode-overlay-backdrop.open .episode-overlay-panel { transform:translateX(0); }
         }
 
         /* ---------- DECISION TIMELINE: VISUAL VOCABULARY ---------- */
         /* grid-template-columns is set inline per render so the legend splits
            into evenly-sized rows (e.g. 3+3) instead of wrapping lopsidedly. */
-        .timeline-vocab-legend { display:grid; gap:10px 20px; margin:0 0 16px; padding:12px 14px; background:#f5f9fd; }
-        .timeline-vocab-item { display:flex; align-items:center; gap:7px; font-size:0.7rem; font-weight:700; color:var(--muted); }
-        .timeline-vocab-glyph { width:12px; height:12px; flex-shrink:0; display:inline-block; }
-        .timeline-event-track { position:relative; }
-        .timeline-event-glyph { cursor:pointer; transition:transform 0.1s; }
-        .timeline-event-glyph:hover { transform:scale(1.25); }
+        .timeline-vocab-legend { display:flex; flex-wrap:wrap; gap:8px 16px; margin:0 0 10px; padding:8px 0; background:transparent; }
+        .timeline-vocab-item { display:flex; align-items:center; gap:6px; font-size:0.7rem; font-weight:700; color:var(--muted); }
+        .timeline-vocab-glyph { width:16px; height:16px; flex-shrink:0; display:block; overflow:visible; }
+        .decision-timeline-track.timeline-event-track { height:auto; background:transparent; }
+        .timeline-event-mark { cursor:pointer; }
+        .timeline-event-mark:hover { filter:brightness(0.92); }
+        .timeline-event-mark.is-inert { cursor:default; pointer-events:none; }
+        .cluster-x { cursor:pointer; }
+
+        .episode-cockpit { background:var(--border); }
+        .cockpit-stats { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:1px; margin:0 0 1px; background:var(--border); }
+        .cockpit-stat { background:var(--surface); padding:16px 18px; }
+        .cockpit-stat-value { font-size:1.15rem; font-weight:800; color:var(--navy); letter-spacing:-0.02em; line-height:1.2; }
+        .cockpit-stat-label { margin-top:8px; font-size:0.62rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.12em; }
+        .episode-patient-banner { margin:0 0 1px; }
+        .glyph-map { background:var(--surface); padding:16px 20px 12px; margin:0; }
+        .glyph-map h3 { margin:0 0 6px; }
+        .glyph-map-row {
+            display:grid; grid-template-columns:180px minmax(0, 1fr); gap:10px;
+            padding:6px 0; border-bottom:1px solid var(--border); align-items:center;
+        }
+        .glyph-map-label { cursor:pointer; min-width:0; }
+        .glyph-map-label strong { display:block; font-size:0.88rem; color:var(--navy); }
+        .glyph-map-label span { display:block; margin-top:2px; font-size:0.72rem; color:var(--muted); }
+        .glyph-map-track svg { display:block; width:100%; height:auto; }
+        .glyph-map-axis { display:flex; justify-content:space-between; margin:6px 0 0 190px; font-size:0.6rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--muted); font-weight:800; }
+        .episode-dock { background:var(--surface); padding:20px 24px 28px; margin:0 0 1px; }
+        .episode-dock-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px; align-items:start; }
+        .episode-dock h3 { margin:0 0 8px; font-size:1rem; }
+        .episode-dock-kicker { font-size:0.75rem; color:var(--muted); margin:0 0 12px; }
+        .risk-table tr.is-glyph-hit td { background:#e7f1fd; }
+        .risk-table tr.is-chosen-path td { background:#eef8f4; }
+        .risk-table tr.is-gap td { color:#c0392b; }
+        .option-prose { display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; margin-top:12px; }
+        .transcript-strip { background:var(--surface); padding:18px 24px 8px; }
+        .transcript-strip-row { padding:8px 10px; border-left:2px solid var(--border); margin:0 0 6px; }
+        .transcript-strip-row.is-playhead { background:#eaf2fa; border-left-color:var(--secondary); }
+        .transcript-strip-meta { font-size:0.72rem; color:var(--muted); margin:0 0 4px; }
+        .episode-transcript { background:var(--surface); padding:0 24px 28px; margin:0; border-top:0; }
+        .episode-transcript > summary { padding:12px 0; }
+        .episode-transcript-body { max-height:480px; overflow:auto; border:1px solid var(--border); }
+        .turn-container.is-playhead { background:#eaf2fa !important; border-left-color:var(--secondary) !important; }
+        @media (max-width: 800px) {
+            .cockpit-stats { grid-template-columns:1fr 1fr; }
+            .glyph-map-row { grid-template-columns:1fr; }
+            .glyph-map-axis { margin-left:0; }
+            .option-prose { grid-template-columns:1fr; }
+        }
 
         /* ---------- PROCEDURE-LEVEL ANALYTICS ---------- */
         .subview-tabs { display:flex; gap:8px; margin:0 0 32px; border-bottom:1px solid var(--border); }
@@ -700,20 +890,16 @@
 </head>
 <body>
 
-<div class="container">
+<div class="container" id="appContainer">
     <header class="topbar">
         <div class="brand-row">
             <div class="brand-mark">CCQ</div>
         </div>
 
-        <nav class="nav-bar">
-            <button class="nav-btn active" id="btn-department" onclick="switchTab('department')">Department Overview</button>
-            <button class="nav-btn" id="btn-new" onclick="switchTab('new')">Run Analysis</button>
-            <button class="nav-btn" id="btn-history" onclick="switchTab('history')">Database History</button>
-            <button class="nav-btn" id="btn-results" onclick="switchTab('results')" style="display:none;">Episode Detail</button>
-        </nav>
+        <nav class="nav-bar breadcrumb-trail" id="globalBreadcrumb" aria-label="Location"></nav>
 
         <div class="topbar-actions">
+            <button class="topbar-new" type="button" onclick="openRunPanel()">+ New analysis</button>
             <button class="icon-btn" type="button" title="Profile" aria-label="Profile" onclick="toggleSettingsPopover()">&#128100;</button>
             <button class="icon-btn" type="button" title="Settings" aria-label="Settings" onclick="toggleSettingsPopover()">&#9881;</button>
         </div>
@@ -739,66 +925,67 @@
         </div>
     </div>
 
-    <!-- VIEW: DEPARTMENT OVERVIEW -->
     <div id="view-department" class="view-section active">
         <div id="department-content">Loading department overview...</div>
-    </div>
-
-    <!-- VIEW: NEW ANALYSIS -->
-    <div id="view-new" class="view-section">
-        <div class="setup-box">
-            
-            <small style="display:block; margin-bottom:20px; color:#7f8fa6;">Set your Google Gemini API key in <a href="#" onclick="toggleSettingsPopover(); return false;">Settings</a> before running an analysis.</small>
-
-            <label><strong>0. Dynamic Taxonomy (Upload Excel File):</strong></label>
-            <input type="file" id="excelInput" accept=".xlsx, .xls">
-            <small style="display:block; margin-top:10px; color:#7f8fa6;">Upload "Risk-Intervention Mapping.xlsx". (Optional: Fallbacks to hardcoded library if skipped).</small>
-            <span id="excelStatusMsg" class="success-text"></span>
-
-            <label><strong>1. Select Procedure:</strong></label>
-            <select id="procedureSelect"></select>
-
-            <label><strong>2. Patient Encounter Transcripts (Upload multiple .txt files):</strong></label>
-            <input type="file" id="fileInput" accept=".txt" multiple>
-            
-            <label><strong>3. Total known encounters for this episode:</strong></label>
-            <input type="number" id="totalEncounters" min="1" placeholder="Defaults to number of uploaded transcripts">
-
-            <button class="run-btn" onclick="runAnalysis()">Run CCQ Analysis</button>
-            <div class="error" id="errorMsg"></div>
-        </div>
-        <div class="loading" id="loader">
-            <div id="statusLog"></div>
-        </div>
-    </div>
-
-    <!-- VIEW: HISTORY -->
-    <div id="view-history" class="view-section">
-        <div id="history-content">Loading history...</div>
-    </div>
-
-    <!-- VIEW: RESULTS -->
-    <div id="view-results" class="view-section">
-        <button class="nav-btn" style="margin-bottom: 20px;" onclick="switchTab('department')">← Back to Department</button>
-        <button class="nav-btn" style="margin-bottom: 20px; margin-left: 8px;" onclick="switchTab('history')">History</button>
-
-        <div id="resultsContent"></div>
-    </div>
-</div>
-
-<!-- EPISODE DETAIL OVERLAY ("command center") -->
-<div class="episode-overlay-backdrop" id="episodeOverlayBackdrop" onclick="if (event.target === this) closeEpisodeOverlay();">
-    <div class="episode-overlay-panel" role="dialog" aria-modal="true" aria-label="Episode detail">
-        <div class="episode-overlay-header">
-            <div style="min-width:0;">
-                <div class="breadcrumb-trail" id="episodeOverlayBreadcrumb"></div>
-                <h3 class="episode-overlay-title" id="episodeOverlayTitle">Episode detail</h3>
+        <div id="episodeInlineDetail" hidden>
+            <div class="episode-inline-header">
+                <h3 class="episode-inline-title" id="episodeInlineTitle">Episode detail</h3>
+                <button type="button" class="episode-inline-close" aria-label="Close episode detail" onclick="closeEpisodeOverlay()">&times;</button>
             </div>
-            <button type="button" class="episode-overlay-close" aria-label="Close episode detail" onclick="closeEpisodeOverlay()">&times;</button>
+            <div id="episodeInlineBody"></div>
         </div>
-        <div class="episode-overlay-body" id="episodeOverlayBody"></div>
+    </div>
+
+    <!-- EPISODE DETAIL (focus+context pane on wide viewports; overlay on small) -->
+    <div class="episode-overlay-backdrop" id="episodeOverlayBackdrop" onclick="if (event.target === this) closeEpisodeOverlay();">
+        <div class="episode-overlay-panel" role="dialog" aria-modal="true" aria-label="Episode detail">
+            <div class="episode-overlay-header">
+                <div style="min-width:0;">
+                    <h3 class="episode-overlay-title" id="episodeOverlayTitle">Episode detail</h3>
+                </div>
+                <button type="button" class="episode-overlay-close" aria-label="Close episode detail" onclick="closeEpisodeOverlay()">&times;</button>
+            </div>
+            <div class="episode-overlay-body" id="episodeOverlayBody"></div>
+        </div>
     </div>
 </div>
+
+<!-- RUN ANALYSIS PANEL -->
+<div class="run-panel-backdrop" id="runPanelBackdrop" onclick="if (event.target === this) closeRunPanel();">
+    <div class="run-panel" role="dialog" aria-modal="true" aria-label="New analysis">
+        <div class="run-panel-header">
+            <h3 class="run-panel-title">New analysis</h3>
+            <button type="button" class="episode-overlay-close" aria-label="Close new analysis" onclick="closeRunPanel()">&times;</button>
+        </div>
+        <div class="run-panel-body">
+            <div class="setup-box">
+                <small style="display:block; margin-bottom:20px; color:#7f8fa6;">Set your Google Gemini API key in <a href="#" onclick="toggleSettingsPopover(); return false;">Settings</a> before running an analysis.</small>
+
+                <label><strong>0. Dynamic Taxonomy (Upload Excel File):</strong></label>
+                <input type="file" id="excelInput" accept=".xlsx, .xls">
+                <small style="display:block; margin-top:10px; color:#7f8fa6;">Upload "Risk-Intervention Mapping.xlsx". (Optional: Fallbacks to hardcoded library if skipped).</small>
+                <span id="excelStatusMsg" class="success-text"></span>
+
+                <label><strong>1. Select Procedure:</strong></label>
+                <select id="procedureSelect"></select>
+
+                <label><strong>2. Patient Encounter Transcripts (Upload multiple .txt files):</strong></label>
+                <input type="file" id="fileInput" accept=".txt" multiple>
+
+                <label><strong>3. Total known encounters for this episode:</strong></label>
+                <input type="number" id="totalEncounters" min="1" placeholder="Defaults to number of uploaded transcripts">
+
+                <button class="run-btn" onclick="runAnalysis()">Run CCQ Analysis</button>
+                <div class="error" id="errorMsg"></div>
+            </div>
+            <div class="loading" id="loader">
+                <div id="statusLog"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="peekTooltip" class="beeswarm-tooltip"></div>
+<div id="spinePeek" aria-hidden="true"><div id="spinePeekBody"></div></div>
 
 <script>
 // --- DYNAMIC TAXONOMY & DB STATE ---
@@ -832,6 +1019,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedKey = localStorage.getItem('gemini_api_key');
     if(savedKey) document.getElementById('apiKey').value = savedKey;
     initFallbackDB();
+    renderGlobalBreadcrumb();
     loadDepartmentOverview();
 });
 
@@ -921,15 +1109,16 @@ function handleExcelUpload(e) {
     reader.readAsArrayBuffer(file);
 }
 
-function switchTab(tab) {
-    closeEpisodeOverlay();
-    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.nav-bar > .nav-btn').forEach(el => el.classList.remove('active'));
-    document.getElementById(`view-${tab}`).classList.add('active');
-    const btn = document.getElementById(`btn-${tab}`);
-    if (btn) btn.classList.add('active');
-    if (tab === 'history') loadHistory();
-    if (tab === 'department') loadDepartmentOverview();
+function openRunPanel() {
+    NAV.runPanelOpen = true;
+    const backdrop = document.getElementById('runPanelBackdrop');
+    if (backdrop) backdrop.classList.add('open');
+}
+
+function closeRunPanel() {
+    NAV.runPanelOpen = false;
+    const backdrop = document.getElementById('runPanelBackdrop');
+    if (backdrop) backdrop.classList.remove('open');
 }
 
 function toggleSettingsPopover() {
@@ -953,13 +1142,8 @@ let DEPARTMENT_CLINICIANS = [];
 let DEPARTMENT_DATA = {};
 let DEPARTMENT_PROCEDURE_DATA = { risk_categories: [], framing_scores: [] };
 let COMPLETENESS_THRESHOLD = 0;
-let SELECTED_CLINICIAN_ID = null;
 let SELECTED_PROCEDURES = new Set();
 let PROCEDURE_DROPDOWN_OPEN = false;
-// Procedure-level variation and organizational trends lead; clinician-level
-// stratification is available as a secondary drill-down (see Jacob's note on
-// clinician pushback being a barrier to leading with clinician comparisons).
-let DEPARTMENT_SUBVIEW = 'procedure';
 let SANKEY_FOCUS_PROCEDURE = null;
 // True until the user explicitly picks a "View" procedure — while true, the
 // focus is recomputed from whatever episodes are currently eligible (so it
@@ -967,23 +1151,221 @@ let SANKEY_FOCUS_PROCEDURE = null;
 // whichever procedure happened to be auto-picked before those filters changed).
 let SANKEY_FOCUS_IS_AUTO = true;
 let SANKEY_COMPARE_SCOPE = 'all';
-let RISK_BUBBLE_Y_METRIC = 'clinician_variation';
-// null = all time; otherwise number of trailing days from today.
+let RISK_BUBBLE_Y_METRIC = 'procedure_variation';
 let DATE_RANGE_DAYS = null;
-// Semantic-zoom state for the risk-gap bubble chart (Milestone D): drilling
-// from "all categories" -> a selected category's bubble -> a clinician/procedure
-// sub-bubble within it -> (via openEpisodeOverlay) an individual episode.
-let BUBBLE_ZOOM_STATE = { category: null, splitBy: 'clinician', subGroup: null };
-// Records how the currently open episode overlay was reached, so its
-// breadcrumb can route the user back to the exact prior "map" state.
-let EPISODE_OVERLAY_TRAIL = [];
-// Which clinician+category box-and-whisker glyph is selected in the Clinician
-// Comparison box plot, if any (drives the inline episode list panel there).
-let BOX_PLOT_SELECTION = null;
 let BOX_PLOT_EPISODES = [];
 let BOX_PLOT_CLINICIANS = [];
+let EPISODE_TABLE_SORT = 'core_risk';
+let CURRENT_EPISODE_META = null;
+let IGNORE_BUBBLE_BG_CLICK = false;
+
+// Single navigation state for the persistent map. Every click writes here;
+// navGoTo() is the only dispatcher.
+let NAV = {
+    grouping: 'all',
+    clinicianId: null,
+    procedure: null,
+    bubbleCategory: null,
+    bubbleSubGroup: null,
+    isolateSource: null,
+    boxCategory: null,
+    boxClinicianId: null,
+    episodeId: null,
+    decisionId: null,
+    optionName: null,
+    dataSource: 'all',
+    overlayOpen: false,
+    runPanelOpen: false,
+    episodeAnchor: null
+};
+
+function mapMode() {
+    return RISK_BUBBLE_Y_METRIC === 'clinician_variation' ? 'clinician' : 'procedure';
+}
+
+function bubbleSplitBy() {
+    return mapMode();
+}
+
+// Top unique-selector isolate. Independent from bubble-category zoom and
+// from box-plot drill. When this is set the map is already terminal — a
+// bubble click should open episodes, not expand another split.
+function mapIsolate() {
+    if (mapMode() === 'clinician' && NAV.clinicianId) {
+        return { kind: 'clinician', id: NAV.clinicianId, label: clinicianName(NAV.clinicianId) };
+    }
+    if (mapMode() === 'procedure' && NAV.procedure) {
+        return { kind: 'procedure', id: NAV.procedure, label: NAV.procedure };
+    }
+    return null;
+}
+
+function syncMapGrouping() {
+    if (NAV.clinicianId) NAV.grouping = 'clinician';
+    else if (NAV.procedure) NAV.grouping = 'procedure';
+    else NAV.grouping = 'all';
+}
+
+function setMapIsolate(kind, id, source) {
+    if (kind === 'clinician') {
+        NAV.clinicianId = id || null;
+        if (id) NAV.procedure = null;
+    } else {
+        NAV.procedure = id || null;
+        if (id) {
+            NAV.clinicianId = null;
+            SANKEY_FOCUS_PROCEDURE = id;
+            SANKEY_FOCUS_IS_AUTO = false;
+        } else {
+            SANKEY_FOCUS_IS_AUTO = true;
+        }
+    }
+    NAV.bubbleSubGroup = null;
+    NAV.isolateSource = id ? (source || 'chip') : null;
+    syncMapGrouping();
+}
+
+function clinicianName(id) {
+    return DEPARTMENT_CLINICIANS.find(c => c.id === id)?.name || id;
+}
+
+function navCrumbs() {
+    const crumbs = [{ label: 'Department', kind: 'department', param: '' }];
+    if (NAV.grouping === 'clinician' && NAV.clinicianId) {
+        crumbs.push({ label: clinicianName(NAV.clinicianId), kind: 'clinician', param: NAV.clinicianId });
+    } else if (NAV.grouping === 'procedure' && NAV.procedure) {
+        crumbs.push({ label: NAV.procedure, kind: 'procedure', param: NAV.procedure });
+    }
+    if (NAV.bubbleCategory) {
+        crumbs.push({ label: NAV.bubbleCategory, kind: 'bubble-category', param: NAV.bubbleCategory });
+        if (NAV.bubbleSubGroup) {
+            crumbs.push({
+                label: bubbleSubGroupLabel(NAV.bubbleCategory, NAV.bubbleSubGroup),
+                kind: 'bubble-subgroup',
+                param: NAV.bubbleSubGroup
+            });
+        }
+    }
+    if (NAV.boxCategory && NAV.boxClinicianId) {
+        crumbs.push({
+            label: `${clinicianName(NAV.boxClinicianId)} — ${NAV.boxCategory}`,
+            kind: 'box',
+            param: `${NAV.boxCategory}|||${NAV.boxClinicianId}`
+        });
+    }
+    if (NAV.episodeId && (CURRENT_EPISODE_META || NAV.episodeId)) {
+        crumbs.push({
+            label: CURRENT_EPISODE_META?.patient_label || NAV.episodeId,
+            kind: 'episode',
+            param: NAV.episodeId
+        });
+    }
+    if (NAV.episodeId && NAV.decisionId && CURRENT_REGIONS) {
+        const dec = CURRENT_REGIONS.find(r => r.decision_id === NAV.decisionId);
+        if (dec) crumbs.push({ label: dec.decision_label, kind: 'decision', param: NAV.decisionId });
+    }
+    if (NAV.episodeId && NAV.optionName) {
+        crumbs.push({ label: NAV.optionName, kind: 'option', param: NAV.optionName });
+    }
+    return crumbs;
+}
+
+function renderGlobalBreadcrumb() {
+    const el = document.getElementById('globalBreadcrumb');
+    if (el) el.innerHTML = renderBreadcrumbTrail(navCrumbs());
+}
+
+function applyDetailLayout() {
+    const container = document.getElementById('appContainer');
+    if (container) container.classList.toggle('is-detail', !!NAV.overlayOpen);
+}
+
+function navGoTo(kind, param) {
+    if (kind === 'department') {
+        NAV.grouping = 'all';
+        NAV.clinicianId = null;
+        NAV.procedure = null;
+        NAV.bubbleCategory = null;
+        NAV.bubbleSubGroup = null;
+        NAV.isolateSource = null;
+        NAV.boxCategory = null;
+        NAV.boxClinicianId = null;
+        NAV.episodeId = null;
+        NAV.decisionId = null;
+        NAV.optionName = null;
+        closeEpisodeOverlay();
+        refreshDepartmentDashboard();
+        return;
+    }
+    if (kind === 'clinician') {
+        setMapIsolate('clinician', NAV.clinicianId === param ? null : param, 'chip');
+        closeEpisodeOverlay();
+        refreshDepartmentDashboard();
+        return;
+    }
+    if (kind === 'procedure') {
+        setMapIsolate('procedure', NAV.procedure === param ? null : param, 'chip');
+        closeEpisodeOverlay();
+        refreshDepartmentDashboard();
+        return;
+    }
+    if (kind === 'bubble-category') {
+        NAV.bubbleCategory = NAV.bubbleCategory === param ? null : param;
+        NAV.bubbleSubGroup = null;
+        renderRiskGapBubbleChart();
+        renderGlobalBreadcrumb();
+        return;
+    }
+    if (kind === 'bubble-subgroup') {
+        NAV.bubbleSubGroup = NAV.bubbleSubGroup === param ? null : param;
+        renderRiskGapBubbleChart();
+        renderGlobalBreadcrumb();
+        return;
+    }
+    if (kind === 'box') {
+        const [category, clinicianId] = String(param || '').split('|||');
+        const same = NAV.boxCategory === category && NAV.boxClinicianId === clinicianId;
+        if (same && NAV.boxCategory) {
+            NAV.boxCategory = null;
+            NAV.boxClinicianId = null;
+        } else {
+            NAV.boxCategory = category;
+            NAV.boxClinicianId = clinicianId;
+        }
+        renderBoxPlot(baseFilteredEpisodes(), DEPARTMENT_CLINICIANS, NAV.clinicianId);
+        renderGlobalBreadcrumb();
+        return;
+    }
+    if (kind === 'episode') {
+        openEpisodeOverlay(param);
+        return;
+    }
+    if (kind === 'decision') {
+        NAV.optionName = null;
+        selectDecision(param);
+        return;
+    }
+    if (kind === 'option') {
+        NAV.optionName = param;
+        renderGlobalBreadcrumb();
+        if (CURRENT_REGIONS && CURRENT_TURNS) renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION, { keepSpine: true });
+        return;
+    }
+    if (kind === 'data-source') {
+        NAV.dataSource = param || 'all';
+        closeEpisodeOverlay();
+        refreshDepartmentDashboard();
+        return;
+    }
+    if (kind === 'tile') {
+        const el = document.getElementById(param);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+    }
+}
 
 async function loadDepartmentOverview() {
+    parkInlineEpisodeSlot();
     const container = document.getElementById('department-content');
     if (!container) return;
     container.innerHTML = "Loading department overview...";
@@ -1003,10 +1385,7 @@ async function loadDepartmentOverview() {
     }
 }
 
-function setDepartmentSubview(view) {
-    DEPARTMENT_SUBVIEW = view;
-    refreshDepartmentDashboard();
-}
+function setDepartmentSubview(view) { /* retired: grouping is driven by NAV */ }
 
 function withinDateRange(ep) {
     if (!DATE_RANGE_DAYS || !ep.episode_date) return true;
@@ -1014,16 +1393,26 @@ function withinDateRange(ep) {
     return days <= DATE_RANGE_DAYS;
 }
 
-// Episodes without a consent-relevant decision are excluded entirely (not shown
-// as a separate category); completeness + procedure + date filters narrow this
-// further. Clinician selection is intentionally NOT applied here — the box
-// plot needs every clinician's episodes side by side in each category lane.
-function baseFilteredEpisodes() {
+function matchesDataSource(ep) {
+    if (NAV.dataSource === 'demo') return ep.source === 'demo';
+    if (NAV.dataSource === 'saved') return ep.source === 'db';
+    return true;
+}
+
+function scopeFilteredEpisodes() {
     return DEPARTMENT_EPISODES
         .filter(ep => ep.has_index_decision)
         .filter(ep => (ep.completeness_pct ?? 100) >= COMPLETENESS_THRESHOLD)
         .filter(ep => !SELECTED_PROCEDURES.size || SELECTED_PROCEDURES.has(ep.procedure))
-        .filter(withinDateRange);
+        .filter(withinDateRange)
+        .filter(matchesDataSource);
+}
+
+function baseFilteredEpisodes() {
+    const isolate = mapIsolate();
+    const scope = scopeFilteredEpisodes();
+    if (isolate?.kind === 'procedure') return scope.filter(ep => ep.procedure === isolate.id);
+    return scope;
 }
 
 function setDateRange(value) {
@@ -1031,11 +1420,13 @@ function setDateRange(value) {
     refreshDepartmentDashboard();
 }
 
-// Adds the clinician filter on top of baseFilteredEpisodes(). Used by the table,
-// Sankey, and header stats, which fully narrow to the selected clinician.
+function setDataSource(value) {
+    navGoTo('data-source', value);
+}
+
 function filteredDepartmentEpisodes() {
     const base = baseFilteredEpisodes();
-    return SELECTED_CLINICIAN_ID ? base.filter(ep => ep.clinician_id === SELECTED_CLINICIAN_ID) : base;
+    return NAV.clinicianId ? base.filter(ep => ep.clinician_id === NAV.clinicianId) : base;
 }
 
 function setCompletenessThreshold(value) {
@@ -1046,14 +1437,25 @@ function setCompletenessThreshold(value) {
 }
 
 function toggleClinicianFilter(id) {
-    SELECTED_CLINICIAN_ID = SELECTED_CLINICIAN_ID === id ? null : id;
-    refreshDepartmentDashboard();
+    navGoTo('clinician', id);
 }
 
 function toggleProcedureFilter(name) {
     if (SELECTED_PROCEDURES.has(name)) SELECTED_PROCEDURES.delete(name);
     else SELECTED_PROCEDURES.add(name);
     PROCEDURE_DROPDOWN_OPEN = true;
+    if (SELECTED_PROCEDURES.size === 1) {
+        NAV.procedure = [...SELECTED_PROCEDURES][0];
+        NAV.grouping = 'procedure';
+        NAV.clinicianId = null;
+        SANKEY_FOCUS_PROCEDURE = NAV.procedure;
+        SANKEY_FOCUS_IS_AUTO = false;
+        syncMapGrouping();
+    } else if (NAV.grouping === 'procedure' && (!NAV.procedure || !SELECTED_PROCEDURES.has(NAV.procedure))) {
+        NAV.procedure = null;
+        NAV.grouping = 'all';
+        SANKEY_FOCUS_IS_AUTO = true;
+    }
     refreshDepartmentDashboard();
 }
 
@@ -1064,49 +1466,56 @@ function toggleProcedureDropdown() {
 }
 
 function refreshDepartmentDashboard() {
+    parkInlineEpisodeSlot();
     const base = baseFilteredEpisodes();
-    const episodes = SELECTED_CLINICIAN_ID ? base.filter(ep => ep.clinician_id === SELECTED_CLINICIAN_ID) : base;
+    const episodes = filteredDepartmentEpisodes();
     const container = document.getElementById('department-content');
     if (!container) return;
+    INLINE_RESTORE_PAUSED = true;
     container.innerHTML = renderDepartmentShell(DEPARTMENT_DATA, episodes);
     const consentTotal = DEPARTMENT_EPISODES.filter(ep => ep.has_index_decision).length;
     const hint = document.getElementById('completenessSliderHint');
     if (hint) hint.textContent = `${episodes.length} of ${consentTotal} consent-relevant episodes included`;
-    if (DEPARTMENT_SUBVIEW === 'clinician') {
-        renderBoxPlot(base, DEPARTMENT_CLINICIANS, SELECTED_CLINICIAN_ID);
-    } else {
-        renderSankeyDelta(sankeyEligibleEpisodes());
-        renderRiskGapBubbleChart(DEPARTMENT_PROCEDURE_DATA.risk_categories || []);
-        renderFramingDotPlot(DEPARTMENT_PROCEDURE_DATA.framing_scores || []);
-    }
+    renderSankeyDelta(sankeyEligibleEpisodes());
+    renderRiskGapBubbleChart();
+    renderFramingDotPlot(DEPARTMENT_PROCEDURE_DATA.framing_scores || []);
+    renderBoxPlot(base, DEPARTMENT_CLINICIANS, NAV.clinicianId);
+    INLINE_RESTORE_PAUSED = false;
+    bindEpisodePeeks();
+    restoreInlineEpisodeIfOpen();
+    renderGlobalBreadcrumb();
 }
 
-// Sankey delta now respects the top procedure checkbox filter (previously it
-// ignored SELECTED_PROCEDURES entirely) as well as the completeness threshold
-// and date range; its own View/Compare selects still choose the focus vs.
-// benchmark procedure from within that filtered set.
 function sankeyEligibleEpisodes() {
     return baseFilteredEpisodes();
 }
 
 function renderDepartmentShell(data, episodes) {
     const legend = (data.clinicians || []).map(c => {
-        const cls = SELECTED_CLINICIAN_ID ? (SELECTED_CLINICIAN_ID === c.id ? 'is-active' : 'is-muted') : '';
+        const cls = NAV.clinicianId ? (NAV.clinicianId === c.id ? 'is-active' : 'is-muted') : '';
         return `<span class="${cls}" onclick="toggleClinicianFilter('${escAttr(c.id)}')" title="Click to isolate ${escAttr(c.name)}"><i class="clinician-swatch" style="background:${c.color}"></i>${escHtml(c.name)}</span>`;
     }).join('');
     const allProcedures = [...new Set(DEPARTMENT_EPISODES.map(e => e.procedure).filter(Boolean))].sort();
     const procedureLabel = SELECTED_PROCEDURES.size === 0
         ? 'All procedures'
         : (SELECTED_PROCEDURES.size === 1 ? [...SELECTED_PROCEDURES][0] : `${SELECTED_PROCEDURES.size} procedures selected`);
-    const rows = episodes.slice().sort((a, b) => (b.core_risk_pct ?? -1) - (a.core_risk_pct ?? -1)).map(ep => `
-        <tr class="decision-row" onclick="openEpisodeOverlay('${escAttr(ep.episode_id)}')">
+    const sortedEpisodes = episodes.slice().sort((a, b) => {
+        if (EPISODE_TABLE_SORT === 'completeness') return (b.completeness_pct ?? 0) - (a.completeness_pct ?? 0);
+        return (b.core_risk_pct ?? -1) - (a.core_risk_pct ?? -1);
+    });
+    const rows = sortedEpisodes.map(ep => `
+        <tr class="decision-row episode-peek-row" onclick="openEpisodeFromRow(event,'${escAttr(ep.episode_id)}')"
+            data-episode-id="${escAttr(ep.episode_id)}"
+            data-peek-clinician="${escAttr(ep.clinician_name || '')}"
+            data-peek-core="${ep.core_risk_pct == null ? 'N/A' : `${ep.core_risk_pct}%`}"
+            data-peek-category="${escAttr(jitterCategory(ep) || 'N/A')}">
             <td><strong>${escHtml(ep.patient_label)}</strong>${ep.source === 'demo' ? ' <span class="badge">demo</span>' : ' <span class="badge" style="background:#2980b9;color:#fff;">saved</span>'}</td>
             <td><span style="color:${ep.clinician_color};font-weight:600;">${escHtml(ep.clinician_name)}</span></td>
             <td>${ep.core_risk_pct == null ? 'N/A' : `${ep.core_risk_pct}%`}</td>
             <td>${ep.completeness_pct ?? 100}% <small>(${ep.transcribed_encounters || 1}/${ep.total_encounters || 1})</small></td>
             <td style="font-size:0.85rem;">${escHtml(jitterCategory(ep) || 'N/A')}</td>
             <td class="status-${ep.status}">${escHtml(ep.status)}</td>
-            <td class="view-link">Open →</td>
+            <td class="view-link" data-episode-id="${escAttr(ep.episode_id)}">Open →</td>
         </tr>`).join('');
 
     return `
@@ -1118,11 +1527,11 @@ function renderDepartmentShell(data, episodes) {
         <button class="run-btn" type="button" onclick="loadDepartmentOverview()">Refresh</button>
     </div>
     <div class="summary-bar">
-        <div class="summary-stat is-hero" style="border-top-color:#e74c3c;"><div class="summary-stat-value" style="color:#e74c3c;">${avgCoreRisk(episodes)}</div><div class="summary-stat-label">Mean Core Risks Discussed</div></div>
-        <div class="summary-stat is-secondary" style="border-top-color:var(--success);"><div class="summary-stat-value" style="color:var(--success);">${pctMeaningful(episodes)}</div><div class="summary-stat-label">Meaningful Comparisons</div></div>
-        <div class="summary-stat is-secondary"><div class="summary-stat-value">${avgCompleteness(episodes)}</div><div class="summary-stat-label">Avg. Transcript Completeness</div></div>
-        <div class="summary-stat is-secondary"><div class="summary-stat-value">${recommendationExplainedPct(episodes)}</div><div class="summary-stat-label">Recommendations Explained</div></div>
-        <div class="summary-stat is-secondary"><div class="summary-stat-value">${questionsAnswered(episodes)}</div><div class="summary-stat-label">Questions Answered</div></div>
+        <div class="summary-stat is-hero is-clickable" style="border-top-color:#e74c3c;" onclick="navGoTo('tile','risk-bubble-heading')"><div class="summary-stat-value" style="color:#e74c3c;">${avgCoreRisk(episodes)}</div><div class="summary-stat-label">Mean Core Risks Discussed</div></div>
+        <div class="summary-stat is-secondary is-clickable" style="border-top-color:var(--success);" onclick="navGoTo('tile','flow-heading')"><div class="summary-stat-value" style="color:var(--success);">${pctMeaningful(episodes)}</div><div class="summary-stat-label">Meaningful Comparisons</div></div>
+        <div class="summary-stat is-secondary is-clickable" onclick="jumpToEpisodeTable('completeness')"><div class="summary-stat-value">${avgCompleteness(episodes)}</div><div class="summary-stat-label">Avg. Transcript Completeness</div></div>
+        <div class="summary-stat is-secondary is-clickable" onclick="navGoTo('tile','framing-dot-heading')"><div class="summary-stat-value">${recommendationExplainedPct(episodes)}</div><div class="summary-stat-label">Recommendations Explained</div></div>
+        <div class="summary-stat is-secondary is-clickable" onclick="navGoTo('tile','questions-heading')"><div class="summary-stat-value">${questionsAnswered(episodes)}</div><div class="summary-stat-label">Questions Answered</div></div>
     </div>
     <div class="dept-controls-row">
         <select class="control-select" title="More departments coming soon"><option>${escHtml(data.department || 'Department')}</option></select>
@@ -1138,26 +1547,57 @@ function renderDepartmentShell(data, episodes) {
             <option value="60" ${DATE_RANGE_DAYS === 60 ? 'selected' : ''}>Last 60 days</option>
             <option value="90" ${DATE_RANGE_DAYS === 90 ? 'selected' : ''}>Last 90 days</option>
         </select>
+        <select class="control-select" onchange="setDataSource(this.value)" title="Filter by data source">
+            <option value="all" ${NAV.dataSource === 'all' ? 'selected' : ''}>All sources</option>
+            <option value="demo" ${NAV.dataSource === 'demo' ? 'selected' : ''}>Demo</option>
+            <option value="saved" ${NAV.dataSource === 'saved' ? 'selected' : ''}>Saved runs</option>
+        </select>
         <div class="dept-stats-inline">${episodes.length} episode${episodes.length === 1 ? '' : 's'} shown · ${(data.clinicians || []).length} clinician${(data.clinicians || []).length === 1 ? '' : 's'}</div>
     </div>
-    <div class="subview-tabs" role="tablist" aria-label="Department analysis level">
-        <button type="button" class="subview-tab${DEPARTMENT_SUBVIEW === 'procedure' ? ' active' : ''}" onclick="setDepartmentSubview('procedure')">Procedure View</button>
-        <button type="button" class="subview-tab${DEPARTMENT_SUBVIEW === 'clinician' ? ' active' : ''}" onclick="setDepartmentSubview('clinician')">Clinician Comparison</button>
+    <div class="map-mode-bar">
+        <span class="chart-control-label">Compare variation</span>
+        <div class="axis-toggle">
+            <button type="button" class="${RISK_BUBBLE_Y_METRIC === 'procedure_variation' ? 'active' : ''}" onclick="setRiskBubbleYMetric('procedure_variation')">Procedure variation</button>
+            <button type="button" class="${RISK_BUBBLE_Y_METRIC === 'clinician_variation' ? 'active' : ''}" onclick="setRiskBubbleYMetric('clinician_variation')">Clinician variation</button>
+        </div>
+        <span class="info-icon" tabindex="0" data-tip="${RISK_BUBBLE_Y_METRIC === 'procedure_variation'
+            ? 'Procedure mode: episode flow, framing, and risk bubbles split by procedure. Use the procedure filter below to isolate one procedure across the map.'
+            : 'Clinician mode: risk bubbles split by clinician, with the quality map below. Use the clinician filter below to isolate someone across that map.'}">i</span>
     </div>
-    ${DEPARTMENT_SUBVIEW === 'clinician' ? renderClinicianSubview(legend) : renderProcedureSubview()}
+    ${RISK_BUBBLE_Y_METRIC === 'clinician_variation' ? `
+    <div class="legend-block">
+        <div class="legend-kicker-row">
+            <div class="legend-kicker">Filter by clinician</div>
+            <span class="info-icon" tabindex="0" data-tip="This is the master filter for the clinician quality map below. Click a name to isolate that clinician — other clinicians stay visible but dimmed in the box plot. Click again to clear.">i</span>
+        </div>
+        <div class="legend-bar clinician-legend" aria-label="Filter box plot and charts by clinician">${legend}</div>
+    </div>` : `
+    <div class="legend-block">
+        <div class="legend-kicker-row">
+            <div class="legend-kicker">Filter by procedure</div>
+            <span class="info-icon" tabindex="0" data-tip="This is the master filter for the procedure map. Click a name to isolate that procedure across the charts below. Click again to clear.">i</span>
+        </div>
+        <div class="legend-bar clinician-legend" aria-label="Filter charts by procedure">${allProcedures.map(p => {
+            const cls = NAV.procedure ? (NAV.procedure === p ? 'is-active' : 'is-muted') : '';
+            return `<span class="${cls}" onclick="navGoTo('procedure','${escAttr(p)}')" title="Click to isolate ${escAttr(p)}">${escHtml(p)}</span>`;
+        }).join('') || '<span style="color:var(--muted);">No procedures yet</span>'}</div>
+    </div>`}
+    <div class="map-charts" data-mode="${escAttr(mapMode())}">
+        ${renderMapCharts()}
+    </div>
     <div class="analytics-grid">
         <div class="analytics-card">
             <p class="section-kicker">Risk follow-up</p>
             <div class="chart-heading-row"><h3 class="chart-heading" style="font-size:1.05rem;">Most Frequent Core Risks Not Discussed</h3><span class="info-icon" tabindex="0" data-tip="Core risks — the risks every patient should hear about for their chosen procedure — ranked by how often they were skipped across the episodes currently shown.">i</span></div>
             ${renderRiskFrequencyChart(data.risk_frequency || [], episodes)}
         </div>
-        <div class="analytics-card">
+        <div class="analytics-card" id="questions-heading">
             <p class="section-kicker">Patient voice</p>
             <div class="chart-heading-row"><h3 class="chart-heading" style="font-size:1.05rem;">Common Patient Questions & Concerns</h3><span class="info-icon" tabindex="0" data-tip="Patient questions from the transcript, grouped into topics by keyword. Longer bars mean that topic came up more often across the episodes currently shown.">i</span></div>
             ${renderQuestionRollup(data.question_rollup || [], episodes)}
         </div>
     </div>
-    <h3>Episodes</h3>
+    <h3 id="episode-table-heading">Episodes</h3>
     <div class="episode-table-wrap">
         <table class="history-table" style="margin-top:0;">
             <thead><tr><th>Episode</th><th>Clinician</th><th>Core risks %</th><th>Completeness</th><th>Discussion category</th><th>Status</th><th></th></tr></thead>
@@ -1166,10 +1606,19 @@ function renderDepartmentShell(data, episodes) {
     </div>`;
 }
 
-function renderProcedureSubview() {
+function jumpToEpisodeTable(sort) {
+    EPISODE_TABLE_SORT = sort || 'core_risk';
+    refreshDepartmentDashboard();
+    requestAnimationFrame(() => {
+        const el = document.getElementById('episode-table-heading');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+}
+
+function renderMapCharts() {
     return `
     <div class="visual-story">
-        <section class="story-step" aria-labelledby="flow-heading">
+        <section class="story-step is-procedure-only" aria-labelledby="flow-heading">
             <div class="analytics-card">
                 <div class="flow-stage">
                     <div class="flow-caption">
@@ -1190,17 +1639,20 @@ function renderProcedureSubview() {
                 <p class="section-kicker">Core risk disclosure gaps</p>
                 <div class="chart-heading-row">
                     <h3 class="chart-heading" id="risk-bubble-heading">Which core risks get missed, and how consistently</h3>
-                    <span class="info-icon" tabindex="0" data-tip="Each bubble is a core-risk category. Horizontal position = how often it's missed across applicable episodes. Vertical position = how much clinicians (or procedures, via the toggle) vary in how often they miss it. Bubble size = number of applicable episodes — see the size key below. Click a bubble to split it by clinician or procedure and drill into individual episodes.">i</span>
+                    <span class="info-icon" tabindex="0" data-tip="Each bubble is a core-risk category. Horizontal position = how often it's missed across applicable episodes. Vertical position = how much procedures (or clinicians, via the Compare variation toggle above) vary in how often they miss it. Bubble size = number of applicable episodes. If a procedure or clinician is already selected above, click a bubble to see those episodes. Otherwise click a bubble to split it, then click a sub-bubble — or click empty space to contract.">i</span>
                 </div>
-                <p class="jitter-hint">Bubbles toward the upper-right are missed often <em>and</em> inconsistently — the best target for a shared checklist or reminder. Click any bubble to break it down further.</p>
+                <p class="jitter-hint">${NAV.clinicianId
+                    ? `Showing disclosure-gap rates for <em>${escHtml(clinicianName(NAV.clinicianId))}</em> only. Click a bubble to open that clinician's episodes for the category — no extra split.`
+                    : (NAV.grouping === 'procedure' && NAV.procedure
+                        ? `Showing disclosure-gap rates for <em>${escHtml(NAV.procedure)}</em> only. Click a bubble to open that procedure's episodes for the category — no extra split.`
+                        : 'Bubbles toward the upper-right are missed often <em>and</em> inconsistently — the best target for a shared checklist or reminder. Click any bubble to break it down further.')}</p>
                 <div class="chart-controls-row" id="riskBubbleControls"></div>
                 <div id="riskBubbleLegend"></div>
-                <div class="breadcrumb-trail" id="riskBubbleBreadcrumb"></div>
                 <div id="riskBubblePlot"></div>
                 <div id="riskBubbleZoomPanel"></div>
             </div>
         </section>
-        <section class="story-step" aria-labelledby="framing-dot-heading">
+        <section class="story-step is-procedure-only" aria-labelledby="framing-dot-heading">
             <div class="analytics-card">
                 <p class="section-kicker">Which Procedures Skew Toward Single-Option vs. Comparative Framing</p>
                 <div class="chart-heading-row">
@@ -1210,22 +1662,14 @@ function renderProcedureSubview() {
                 <div id="framingDotPlot"></div>
             </div>
         </section>
-    </div>`;
-}
-
-function renderClinicianSubview(legend) {
-    return `
-    <div class="visual-story">
-        <section class="story-step" aria-labelledby="quality-map-heading">
+        <section class="story-step is-clinician-only" aria-labelledby="quality-map-heading">
             <div class="jitter-wrap">
                 <p class="section-kicker">Secondary analysis</p>
                 <div class="chart-heading-row">
                     <h3 class="chart-heading" id="quality-map-heading">Communication Quality by Clinician</h3>
                     <span class="info-icon" tabindex="0" data-tip="Each box summarizes one clinician's episodes in one discussion category: the line is the median % of core risks discussed, the box spans the middle 50% of episodes (IQR), and the whiskers extend to the most typical range. Dots beyond the whiskers are outlier episodes. n= is the number of episodes behind that box.">i</span>
                 </div>
-                <p class="jitter-hint">Every clinician's distribution is shown side by side in each category lane, so you can see both the department-wide pattern and how much any one clinician differs from it. Click a box to see its episodes.</p>
-                <div class="legend-bar clinician-legend" aria-label="Clinician colors">${legend}</div>
-                ${SELECTED_CLINICIAN_ID ? `<p class="jitter-hint" style="margin:-6px 0 14px;">This clinician's boxes are highlighted; click their name again to clear the filter.</p>` : ''}
+                <p class="jitter-hint">Every clinician's distribution is shown side by side in each category lane. The filter above dims other clinicians without removing them. Click a box to see its episodes — that drill-in is separate from the filter, and deselecting the box restores full visibility.</p>
                 <div class="plot-stage">
                     <div id="boxPlot"></div>
                 </div>
@@ -1342,10 +1786,7 @@ function categoryPercents(episodes) {
 }
 
 function setSankeyFocus(name) {
-    SANKEY_FOCUS_PROCEDURE = name;
-    SANKEY_FOCUS_IS_AUTO = false;
-    if (SANKEY_COMPARE_SCOPE === name) SANKEY_COMPARE_SCOPE = 'all';
-    renderSankeyDelta(sankeyEligibleEpisodes());
+    navGoTo('procedure', name);
 }
 
 function setSankeyCompare(scope) {
@@ -1501,8 +1942,19 @@ const RISK_CATEGORY_COLORS = (typeof d3 !== 'undefined' ? d3.scaleOrdinal() : { 
     .range(['#1451a4', '#08a3b7', '#8e6fce', '#5968cf', '#1769e0', '#0f9e93', '#2e7de1', '#06182b']);
 
 function setRiskBubbleYMetric(metric) {
+    if (RISK_BUBBLE_Y_METRIC === metric) return;
     RISK_BUBBLE_Y_METRIC = metric;
-    renderRiskGapBubbleChart(DEPARTMENT_PROCEDURE_DATA.risk_categories || []);
+    NAV.bubbleSubGroup = null;
+    NAV.isolateSource = null;
+    if (metric === 'procedure_variation') {
+        NAV.clinicianId = null;
+        NAV.boxCategory = null;
+        NAV.boxClinicianId = null;
+    } else {
+        NAV.procedure = null;
+    }
+    syncMapGrouping();
+    refreshDepartmentDashboard();
 }
 
 // --- Client-side mirror of procedure_analytics.py's category inference, so
@@ -1540,8 +1992,108 @@ function episodeRiskCategoryStatus(ep, category) {
     return items.some(item => item.detection_status !== 'Discussed') ? 'Gap' : 'Discussed';
 }
 
+function populationStdev(values) {
+    if (!values || values.length < 2) return null;
+    const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+    return Math.sqrt(values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length);
+}
+
+// Client-side mirror of procedure_analytics.risk_category_gap_stats, so the
+// bubble chart can follow the same clinician/procedure isolate as the rest
+// of the map instead of staying locked to the department-wide payload.
+function riskCategoryGapStats(episodes, minClinicians = 3, minProcedures = 2, minEpisodesPerGroup = 5) {
+    const overall = new Map();
+    const byClinician = new Map();
+    const byProcedure = new Map();
+    const ensure = (map, key, factory) => {
+        if (!map.has(key)) map.set(key, factory());
+        return map.get(key);
+    };
+    const bump = (bucket, isGap) => {
+        bucket.total += 1;
+        bucket.gap += isGap ? 1 : 0;
+    };
+
+    (episodes || []).forEach(ep => {
+        (ep.core_risk_items || []).forEach(item => {
+            const category = resolveRiskCategory(item);
+            if (!category) return;
+            const isGap = item.detection_status !== 'Discussed';
+            bump(ensure(overall, category, () => ({ gap: 0, total: 0 })), isGap);
+            if (ep.clinician_id) {
+                bump(ensure(ensure(byClinician, category, () => new Map()), ep.clinician_id, () => ({ gap: 0, total: 0 })), isGap);
+            }
+            if (ep.procedure) {
+                bump(ensure(ensure(byProcedure, category, () => new Map()), ep.procedure, () => ({ gap: 0, total: 0 })), isGap);
+            }
+        });
+    });
+
+    const fallback = DEPARTMENT_PROCEDURE_DATA.risk_categories || [];
+    const results = [];
+    overall.forEach((agg, category) => {
+        if (!agg.total) return;
+        const fb = fallback.find(row => row.risk_category === category);
+        const clinicianRates = [...(byClinician.get(category)?.values() || [])]
+            .filter(group => group.total >= minEpisodesPerGroup)
+            .map(group => group.gap / group.total);
+        const procedureRates = [...(byProcedure.get(category)?.values() || [])]
+            .filter(group => group.total >= minEpisodesPerGroup)
+            .map(group => group.gap / group.total);
+        const clinVar = clinicianRates.length >= minClinicians
+            ? Math.round(1000 * populationStdev(clinicianRates)) / 10
+            : null;
+        const procVar = procedureRates.length >= minProcedures
+            ? Math.round(1000 * populationStdev(procedureRates)) / 10
+            : null;
+        results.push({
+            risk_category: category,
+            gap_rate: Math.round(1000 * agg.gap / agg.total) / 10,
+            applicable_episodes: agg.total,
+            clinician_count: clinicianRates.length,
+            clinician_variation: clinVar ?? fb?.clinician_variation ?? null,
+            procedure_count: procedureRates.length,
+            procedure_variation: procVar ?? fb?.procedure_variation ?? null,
+            clinician_rate_range: clinicianRates.length
+                ? [Math.round(100 * Math.min(...clinicianRates)), Math.round(100 * Math.max(...clinicianRates))]
+                : (fb?.clinician_rate_range ?? null),
+            by_clinician: [...(byClinician.get(category)?.entries() || [])]
+                .filter(([, group]) => group.total >= minEpisodesPerGroup)
+                .map(([clinician_id, group]) => ({
+                    clinician_id,
+                    gap_rate: Math.round(1000 * group.gap / group.total) / 10,
+                    n: group.total,
+                }))
+                .sort((a, b) => b.gap_rate - a.gap_rate),
+            by_procedure: [...(byProcedure.get(category)?.entries() || [])]
+                .filter(([, group]) => group.total >= minEpisodesPerGroup)
+                .map(([procedure, group]) => ({
+                    procedure,
+                    gap_rate: Math.round(1000 * group.gap / group.total) / 10,
+                    n: group.total,
+                }))
+                .sort((a, b) => b.gap_rate - a.gap_rate),
+        });
+    });
+    results.sort((a, b) => b.applicable_episodes - a.applicable_episodes);
+    return results;
+}
+
+function bubbleChartRows() {
+    const isolate = mapIsolate();
+    const rows = riskCategoryGapStats(scopeFilteredEpisodes());
+    if (!isolate) return rows;
+    return rows.map(row => {
+        const sub = isolate.kind === 'procedure'
+            ? (row.by_procedure || []).find(s => s.procedure === isolate.id)
+            : (row.by_clinician || []).find(s => s.clinician_id === isolate.id);
+        if (!sub) return null;
+        return { ...row, gap_rate: sub.gap_rate, applicable_episodes: sub.n };
+    }).filter(Boolean);
+}
+
 function bubbleSubGroupLabel(category, subGroup) {
-    if (BUBBLE_ZOOM_STATE.splitBy === 'clinician') {
+    if (bubbleSplitBy() === 'clinician') {
         const clin = DEPARTMENT_CLINICIANS.find(c => c.id === subGroup);
         return clin ? clin.name : subGroup;
     }
@@ -1566,33 +2118,162 @@ function wrapBubbleLabel(text) {
     return bestSpace === -1 ? [text] : [text.slice(0, bestSpace), text.slice(bestSpace + 1)];
 }
 
+function wrapCategoryLabel(text) {
+    if (!text) return [''];
+    if (text.includes(' / ')) return text.split(' / ');
+    return wrapBubbleLabel(text);
+}
+
+function placeRiskBubbleLabels(labelRows, allRows, x, y, r, yField, bounds) {
+    const CHAR_W = 6.45;
+    const LINE_H = 13;
+    const BASELINE = 10;
+    const LABEL_PAD = 4;
+    const BUBBLE_PAD = 5;
+    const LEADER_DIST = 22;
+    const EDGE_GAP = 9;
+
+    const bubbles = allRows.map(row => ({
+        id: row.risk_category,
+        cx: x(row.gap_rate),
+        cy: y(row[yField]),
+        radius: r(row.applicable_episodes),
+    }));
+
+    const items = labelRows.map(row => {
+        const lines = wrapCategoryLabel(row.risk_category);
+        return {
+            id: row.risk_category,
+            row,
+            lines,
+            cx: x(row.gap_rate),
+            cy: y(row[yField]),
+            radius: r(row.applicable_episodes),
+            labelW: Math.max(...lines.map(line => line.length)) * CHAR_W + 6,
+            labelH: lines.length * LINE_H + 2,
+        };
+    });
+
+    const nearby = item => bubbles.filter(b => b.id !== item.id
+        && Math.hypot(b.cx - item.cx, b.cy - item.cy) < b.radius + item.radius + 90).length;
+    items.sort((a, b) => nearby(a) - nearby(b));
+
+    const occupied = [
+        { x0: bounds.left, y0: bounds.top, x1: bounds.left + 118, y1: bounds.top + 16 },
+        { x0: bounds.right - 168, y0: bounds.top, x1: bounds.right, y1: bounds.top + 16 },
+        { x0: bounds.left, y0: bounds.bottom - 16, x1: bounds.left + 128, y1: bounds.bottom },
+        { x0: bounds.right - 138, y0: bounds.bottom - 16, x1: bounds.right, y1: bounds.bottom },
+    ];
+
+    const boxesOverlap = (a, b) =>
+        a.x0 < b.x1 + LABEL_PAD && a.x1 > b.x0 - LABEL_PAD &&
+        a.y0 < b.y1 + LABEL_PAD && a.y1 > b.y0 - LABEL_PAD;
+
+    const boxHitsBubble = (box, bubble) => {
+        const nx = Math.max(box.x0, Math.min(bubble.cx, box.x1));
+        const ny = Math.max(box.y0, Math.min(bubble.cy, box.y1));
+        const pad = bubble.radius + BUBBLE_PAD;
+        return (nx - bubble.cx) ** 2 + (ny - bubble.cy) ** 2 < pad * pad;
+    };
+
+    const inBounds = box =>
+        box.x0 >= bounds.left && box.x1 <= bounds.right &&
+        box.y0 >= bounds.top && box.y1 <= bounds.bottom;
+
+    const makeBox = (item, side, nudge, extra) => {
+        const w = item.labelW, h = item.labelH;
+        const gap = EDGE_GAP + extra;
+        const cx = item.cx, cy = item.cy, rad = item.radius;
+        let x0, y0, anchor, lx;
+        if (side === 'n' || side === 's') {
+            x0 = cx - w / 2 + nudge;
+            y0 = side === 'n' ? cy - rad - gap - h : cy + rad + gap;
+            anchor = 'middle';
+            lx = x0 + w / 2;
+        } else if (side === 'e') {
+            x0 = cx + rad + gap;
+            y0 = cy - h / 2 + nudge;
+            anchor = 'start';
+            lx = x0;
+        } else if (side === 'w') {
+            x0 = cx - rad - gap - w;
+            y0 = cy - h / 2 + nudge;
+            anchor = 'end';
+            lx = x0 + w;
+        } else if (side === 'ne' || side === 'se') {
+            x0 = cx + rad * 0.4 + extra;
+            y0 = side === 'ne' ? cy - rad - gap - h : cy + rad + gap;
+            anchor = 'start';
+            lx = x0;
+        } else {
+            x0 = cx - rad * 0.4 - extra - w;
+            y0 = side === 'nw' ? cy - rad - gap - h : cy + rad + gap;
+            anchor = 'end';
+            lx = x0 + w;
+        }
+        return { x0, y0, x1: x0 + w, y1: y0 + h, anchor, lx, ly: y0 + BASELINE, side };
+    };
+
+    const trials = [];
+    const northNudges = [0, -26, 26, -52, 52, -78, 78];
+    const sideNudges = [0, -16, 16, -32, 32];
+    [0, 8, 18, 30, 46, 64].forEach(extra => {
+        northNudges.forEach(nudge => trials.push({ side: 'n', nudge, extra }));
+        trials.push({ side: 'nw', nudge: 0, extra }, { side: 'ne', nudge: 0, extra });
+        sideNudges.forEach(nudge => {
+            trials.push({ side: 'w', nudge, extra }, { side: 'e', nudge, extra });
+        });
+        northNudges.forEach(nudge => trials.push({ side: 's', nudge, extra }));
+        trials.push({ side: 'sw', nudge: 0, extra }, { side: 'se', nudge: 0, extra });
+    });
+
+    const placed = [];
+    items.forEach(item => {
+        const def = makeBox(item, 'n', 0, 0);
+        let clear = null;
+        let fallback = null;
+        trials.forEach(trial => {
+            const box = makeBox(item, trial.side, trial.nudge, trial.extra);
+            if (!inBounds(box) || occupied.some(other => boxesOverlap(box, other))) return;
+            const hits = bubbles.reduce((n, bubble) => n + (boxHitsBubble(box, bubble) ? 1 : 0), 0);
+            const dist = Math.hypot(box.lx - def.lx, box.ly - def.ly);
+            const score = trial.extra * 0.25 + Math.abs(trial.nudge) * 0.04 + dist * 0.05
+                + (trial.side === 'n' ? 0 : trial.side === 's' ? 6 : 3);
+            if (hits === 0 && !clear) clear = { ...box, score };
+            if (!fallback || score + hits * 40 < fallback.score) fallback = { ...box, score: score + hits * 40 };
+        });
+        const chosen = clear || fallback || def;
+        occupied.push(chosen);
+
+        const nx = Math.max(chosen.x0 + 2, Math.min(item.cx, chosen.x1 - 2));
+        const ny = Math.max(chosen.y0 + 2, Math.min(item.cy, chosen.y1 - 2));
+        let dx = nx - item.cx, dy = ny - item.cy;
+        const len = Math.hypot(dx, dy) || 1;
+        dx /= len;
+        dy /= len;
+        const moveDist = Math.hypot(chosen.lx - def.lx, chosen.ly - def.ly);
+        const leaderX1 = item.cx + dx * (item.radius + 3);
+        const leaderY1 = item.cy + dy * (item.radius + 3);
+        const leaderLen = Math.hypot(nx - leaderX1, ny - leaderY1);
+        placed.push({
+            ...item,
+            ...chosen,
+            leader: moveDist >= LEADER_DIST && leaderLen >= 8,
+            leaderX1,
+            leaderY1,
+            leaderX2: nx,
+            leaderY2: ny,
+        });
+    });
+    return placed;
+}
+
 // Single dispatcher for every breadcrumb crumb (top bubble-chart bar, box-plot
 // zoom selections, and the episode overlay's own trail) — keeps navigation
 // state changes in one place so "click a crumb" always lands on a real,
 // consistent map state instead of a dead end.
 function breadcrumbGoTo(kind, param) {
-    closeEpisodeOverlay();
-    if (kind === 'procedure-root') {
-        DEPARTMENT_SUBVIEW = 'procedure';
-        BUBBLE_ZOOM_STATE = { category: null, splitBy: 'clinician', subGroup: null };
-    } else if (kind === 'procedure-category') {
-        DEPARTMENT_SUBVIEW = 'procedure';
-        BUBBLE_ZOOM_STATE.category = param;
-        BUBBLE_ZOOM_STATE.subGroup = null;
-    } else if (kind === 'procedure-subgroup') {
-        const [category, subGroup] = param.split('|||');
-        DEPARTMENT_SUBVIEW = 'procedure';
-        BUBBLE_ZOOM_STATE.category = category;
-        BUBBLE_ZOOM_STATE.subGroup = subGroup;
-    } else if (kind === 'clinician-root') {
-        DEPARTMENT_SUBVIEW = 'clinician';
-        BOX_PLOT_SELECTION = null;
-    } else if (kind === 'clinician-box') {
-        const [category, clinicianId] = param.split('|||');
-        DEPARTMENT_SUBVIEW = 'clinician';
-        BOX_PLOT_SELECTION = { category, clinicianId };
-    }
-    refreshDepartmentDashboard();
+    navGoTo(kind, param);
 }
 
 function renderBreadcrumbTrail(crumbs) {
@@ -1600,44 +2281,28 @@ function renderBreadcrumbTrail(crumbs) {
         const isLast = i === crumbs.length - 1;
         const sep = i > 0 ? '<span class="crumb-sep">&rsaquo;</span>' : '';
         if (isLast) return `${sep}<span class="crumb is-current">${escHtml(c.label)}</span>`;
-        return `${sep}<button type="button" class="crumb" onclick="breadcrumbGoTo('${escAttr(c.kind)}','${escAttr(c.param)}')">${escHtml(c.label)}</button>`;
+        return `${sep}<button type="button" class="crumb" onclick="navGoTo('${escAttr(c.kind)}','${escAttr(c.param)}')">${escHtml(c.label)}</button>`;
     }).join('');
 }
 
-function bubbleBreadcrumbCrumbs() {
-    const crumbs = [{ label: 'All categories', kind: 'procedure-root', param: '' }];
-    if (BUBBLE_ZOOM_STATE.category) {
-        crumbs.push({ label: BUBBLE_ZOOM_STATE.category, kind: 'procedure-category', param: BUBBLE_ZOOM_STATE.category });
-        if (BUBBLE_ZOOM_STATE.subGroup) {
-            crumbs.push({
-                label: bubbleSubGroupLabel(BUBBLE_ZOOM_STATE.category, BUBBLE_ZOOM_STATE.subGroup),
-                kind: 'procedure-subgroup',
-                param: `${BUBBLE_ZOOM_STATE.category}|||${BUBBLE_ZOOM_STATE.subGroup}`,
-            });
-        }
-    }
-    return crumbs;
-}
-
-// Breadcrumb trail wherever an episode overlay was opened from, so closing it
-// (or clicking a crumb) returns the user to the exact prior "map" state.
-function episodeBreadcrumbCrumbs(ep) {
-    const crumbs = DEPARTMENT_SUBVIEW === 'clinician'
-        ? (() => {
-            const list = [{ label: 'Clinician Comparison', kind: 'clinician-root', param: '' }];
-            if (BOX_PLOT_SELECTION) {
-                const clin = DEPARTMENT_CLINICIANS.find(c => c.id === BOX_PLOT_SELECTION.clinicianId);
-                list.push({
-                    label: `${clin ? clin.name : 'Clinician'} — ${BOX_PLOT_SELECTION.category}`,
-                    kind: 'clinician-box',
-                    param: `${BOX_PLOT_SELECTION.category}|||${BOX_PLOT_SELECTION.clinicianId}`,
-                });
-            }
-            return list;
-        })()
-        : bubbleBreadcrumbCrumbs();
-    crumbs.push({ label: ep.patient_label, kind: 'episode', param: ep.episode_id });
-    return crumbs;
+function bindEpisodePeeks() {
+    const tip = document.getElementById('peekTooltip');
+    document.querySelectorAll('.episode-peek-row').forEach(row => {
+        const episodeId = row.dataset.episodeId;
+        if (!episodeId) return;
+        row.addEventListener('mouseenter', () => {
+            if (tip) tip.style.opacity = 0;
+            const slot = document.getElementById('episodeInlineDetail');
+            if (NAV.episodeId === episodeId && slot && !slot.hidden) return;
+            clearTimeout(spinePeekTimer);
+            spinePeekTimer = setTimeout(() => showSpinePeek(episodeId, row), 180);
+        });
+        row.addEventListener('mouseleave', () => {
+            clearTimeout(spinePeekTimer);
+            spinePeekTimer = null;
+            hideSpinePeek();
+        });
+    });
 }
 
 function formatEpisodeDate(ep) {
@@ -1683,7 +2348,11 @@ function renderEpisodeListPanel(title, episodes, opts = {}) {
     const statusSummary = statusColumn?.summary ? statusColumn.summary(episodes) : null;
 
     const rows = shown.map(ep => `
-        <tr class="zoom-episode-row" onclick="openEpisodeOverlay('${escAttr(ep.episode_id)}')">
+        <tr class="zoom-episode-row episode-peek-row" onclick="openEpisodeFromRow(event,'${escAttr(ep.episode_id)}')"
+            data-episode-id="${escAttr(ep.episode_id)}"
+            data-peek-clinician="${escAttr(ep.clinician_name || '')}"
+            data-peek-core="${ep.core_risk_pct == null ? 'N/A' : `${ep.core_risk_pct}%`}"
+            data-peek-category="${escAttr(jitterCategory(ep) || 'N/A')}">
             <td><span class="zoom-episode-swatch" style="background:${ep.clinician_color || '#7f8c8d'}"></span><strong>${escHtml(ep.patient_label)}</strong>${ep.source === 'demo' ? ' <span class="badge">demo</span>' : ''}</td>
             <td style="color:${ep.clinician_color || 'inherit'};font-weight:600;">${escHtml(ep.clinician_name || 'N/A')}</td>
             <td>${escHtml(ep.procedure || 'N/A')}</td>
@@ -1693,7 +2362,7 @@ function renderEpisodeListPanel(title, episodes, opts = {}) {
             <td style="white-space:nowrap;">${formatEpisodeDate(ep)}</td>
             ${riskCategory ? `<td>${renderRiskItemChips(ep, riskCategory)}</td>` : ''}
             ${statusColumn ? `<td style="white-space:nowrap;">${statusColumn.render(ep)}</td>` : ''}
-            <td class="view-link" style="white-space:nowrap;">Open &rarr;</td>
+            <td class="view-link" data-episode-id="${escAttr(ep.episode_id)}" style="white-space:nowrap;">Open &rarr;</td>
         </tr>`).join('');
     const moreNote = episodes.length > shown.length
         ? `<p class="jitter-hint" style="margin:8px 0 0;">Showing the first ${shown.length} of ${episodes.length} episodes.</p>` : '';
@@ -1723,23 +2392,25 @@ function renderEpisodeListPanel(title, episodes, opts = {}) {
 }
 
 function selectBubbleCategory(category, defaultSplitBy) {
-    if (BUBBLE_ZOOM_STATE.category === category) {
-        BUBBLE_ZOOM_STATE = { category: null, splitBy: 'clinician', subGroup: null };
-    } else {
-        BUBBLE_ZOOM_STATE = { category, splitBy: defaultSplitBy || 'clinician', subGroup: null };
-    }
-    renderRiskGapBubbleChart(DEPARTMENT_PROCEDURE_DATA.risk_categories || []);
+    navGoTo('bubble-category', category);
 }
 
 function selectBubbleSubGroup(subGroup) {
-    BUBBLE_ZOOM_STATE.subGroup = BUBBLE_ZOOM_STATE.subGroup === subGroup ? null : subGroup;
-    renderRiskGapBubbleChart(DEPARTMENT_PROCEDURE_DATA.risk_categories || []);
+    navGoTo('bubble-subgroup', subGroup);
 }
 
 function setBubbleSplitBy(mode) {
-    BUBBLE_ZOOM_STATE.splitBy = mode;
-    BUBBLE_ZOOM_STATE.subGroup = null;
-    renderRiskGapBubbleChart(DEPARTMENT_PROCEDURE_DATA.risk_categories || []);
+    if (mode === 'clinician' && NAV.clinicianId) navGoTo('clinician', NAV.clinicianId);
+    else if (mode === 'procedure' && NAV.procedure) navGoTo('procedure', NAV.procedure);
+    else if (mode === 'clinician') {
+        NAV.grouping = 'clinician';
+        renderRiskGapBubbleChart();
+        renderGlobalBreadcrumb();
+    } else {
+        NAV.grouping = 'procedure';
+        renderRiskGapBubbleChart();
+        renderGlobalBreadcrumb();
+    }
 }
 
 function renderBubbleSizeLegend(usable, r) {
@@ -1755,19 +2426,26 @@ function renderBubbleSizeLegend(usable, r) {
 }
 
 function renderRiskBubbleZoomPanel() {
+    parkInlineEpisodeSlot();
     const panel = document.getElementById('riskBubbleZoomPanel');
     if (!panel) return;
-    const { category, subGroup, splitBy } = BUBBLE_ZOOM_STATE;
-    if (!category || !subGroup) {
+    const category = NAV.bubbleCategory;
+    const isolate = mapIsolate();
+    const subGroup = NAV.bubbleSubGroup;
+    const splitBy = bubbleSplitBy();
+    if (!category || (!isolate && !subGroup)) {
         panel.innerHTML = '';
+        restoreInlineEpisodeIfOpen();
         return;
     }
-    const episodes = baseFilteredEpisodes().filter(ep => {
-        const status = episodeRiskCategoryStatus(ep, category);
-        if (!status) return false;
-        return splitBy === 'clinician' ? ep.clinician_id === subGroup : ep.procedure === subGroup;
+    const drillKey = isolate ? isolate.id : subGroup;
+    const drillLabel = isolate ? isolate.label : bubbleSubGroupLabel(category, subGroup);
+    const episodes = (isolate ? filteredDepartmentEpisodes() : scopeFilteredEpisodes()).filter(ep => {
+        if (!episodeRiskCategoryStatus(ep, category)) return false;
+        if (isolate) return true;
+        return splitBy === 'clinician' ? ep.clinician_id === drillKey : ep.procedure === drillKey;
     });
-    const title = `${category} — ${bubbleSubGroupLabel(category, subGroup)}`;
+    const title = `${category} — ${drillLabel}`;
     panel.innerHTML = renderEpisodeListPanel(title, episodes, {
         riskCategory: category,
         statusColumn: {
@@ -1783,6 +2461,8 @@ function renderRiskBubbleZoomPanel() {
             }
         }
     });
+    bindEpisodePeeks();
+    restoreInlineEpisodeIfOpen();
 }
 
 // "Danger zone" bubble chart: x = how often a core-risk category is missed,
@@ -1800,132 +2480,194 @@ function renderRiskGapBubbleChart(rows) {
     const controlsEl = document.getElementById('riskBubbleControls');
     if (!el || typeof d3 === 'undefined') return;
 
+    rows = rows || bubbleChartRows();
     const yField = RISK_BUBBLE_Y_METRIC;
     const yLabel = yField === 'procedure_variation' ? 'Variation across procedures' : 'Variation across clinicians';
-    const zoomed = BUBBLE_ZOOM_STATE.category;
+    const zoomed = NAV.bubbleCategory;
+    const splitBy = bubbleSplitBy();
+    const isolate = mapIsolate();
+    const filterLabel = isolate ? isolate.label : null;
+    const selectedSub = NAV.bubbleSubGroup;
+    const expand = Boolean(zoomed && !isolate);
+    const prevZoomed = el.dataset.zoomedCategory || '';
+    const sameZoom = prevZoomed === (zoomed || '');
+    const wasExpanded = el.dataset.expanded === '1';
+    const collapsing = wasExpanded && !expand;
 
     if (controlsEl) {
-        controlsEl.innerHTML = `
-            <span class="chart-control-label">Y-axis</span>
-            <div class="axis-toggle">
-                <button type="button" class="${yField === 'clinician_variation' ? 'active' : ''}" onclick="setRiskBubbleYMetric('clinician_variation')">Clinician variation</button>
-                <button type="button" class="${yField === 'procedure_variation' ? 'active' : ''}" onclick="setRiskBubbleYMetric('procedure_variation')">Procedure variation</button>
-            </div>`;
+        controlsEl.innerHTML = isolate
+            ? `<span class="chart-control-label">Showing ${escHtml(filterLabel)} · click a bubble for episodes</span>`
+            : `<span class="chart-control-label">Click a bubble to split by ${splitBy}</span>`;
     }
 
-    const breadcrumbEl = document.getElementById('riskBubbleBreadcrumb');
-    if (breadcrumbEl) breadcrumbEl.innerHTML = renderBreadcrumbTrail(bubbleBreadcrumbCrumbs());
-
-    el.innerHTML = '';
     const usable = (rows || []).filter(row => row[yField] != null);
     if (!usable.length) {
-        el.innerHTML = '<p class="jitter-hint">Not enough clinicians/procedures with comparable data yet for this view.</p>';
+        el.innerHTML = filterLabel
+            ? `<p class="jitter-hint">Not enough comparable gap data for ${escHtml(filterLabel)} yet.</p>`
+            : '<p class="jitter-hint">Not enough clinicians/procedures with comparable data yet for this view.</p>';
         renderRiskBubbleZoomPanel();
         return;
     }
 
     const width = Math.max(el.clientWidth || 1000, 760), height = 540;
     const margin = { top: 44, right: 40, bottom: 64, left: 68 };
-    const tooltip = d3.select(el).append('div').attr('class', 'beeswarm-tooltip');
-    const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${width} ${height}`).attr('role', 'img')
-        .attr('aria-label', 'Core risk disclosure gap frequency vs variation');
-
     const x = d3.scaleLinear().domain([0, 100]).range([margin.left, width - margin.right]);
     const maxY = Math.max(10, ...usable.map(row => row[yField]));
     const y = d3.scaleLinear().domain([0, maxY * 1.2]).range([height - margin.bottom, margin.top]);
     const r = d3.scaleSqrt().domain([0, Math.max(1, ...usable.map(row => row.applicable_episodes))]).range([8, 36]);
     const medianY = d3.median(usable, row => row[yField]) || 0;
+    const dur = el.querySelector('svg') && (sameZoom || collapsing || wasExpanded || zoomed) ? 420 : 0;
+
+    let svg = d3.select(el).select('svg');
+    let tooltip = d3.select(el).select('.beeswarm-tooltip');
+    if (svg.empty()) {
+        el.innerHTML = '';
+        tooltip = d3.select(el).append('div').attr('class', 'beeswarm-tooltip');
+        svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${width} ${height}`).attr('role', 'img')
+            .attr('aria-label', 'Core risk disclosure gap frequency vs variation');
+        svg.append('g').attr('class', 'static-layer');
+        svg.append('g').attr('class', 'bubble-layer');
+        svg.append('g').attr('class', 'sub-layer');
+        svg.append('g').attr('class', 'label-layer');
+    } else {
+        svg.attr('viewBox', `0 0 ${width} ${height}`);
+        if (tooltip.empty()) tooltip = d3.select(el).append('div').attr('class', 'beeswarm-tooltip');
+        if (svg.select('g.static-layer').empty()) svg.insert('g', ':first-child').attr('class', 'static-layer');
+        if (svg.select('g.bubble-layer').empty()) svg.append('g').attr('class', 'bubble-layer');
+        if (svg.select('g.sub-layer').empty()) svg.append('g').attr('class', 'sub-layer');
+        if (svg.select('g.label-layer').empty()) svg.append('g').attr('class', 'label-layer');
+    }
+
+    const staticG = svg.select('g.static-layer');
+    const bubbleG = svg.select('g.bubble-layer');
+    const subG = svg.select('g.sub-layer');
+    const labelG = svg.select('g.label-layer');
+    staticG.lower();
+    labelG.raise();
 
     renderBubbleSizeLegend(usable, r);
-
-    svg.append('g').attr('transform', `translate(0,${height - margin.bottom})`)
+    staticG.selectAll('*').remove();
+    staticG.append('rect').attr('class', 'plot-bg').attr('x', 0).attr('y', 0)
+        .attr('width', width).attr('height', height).attr('fill', 'transparent')
+        .style('cursor', zoomed ? 'pointer' : 'default')
+        .on('click', () => {
+            if (IGNORE_BUBBLE_BG_CLICK) return;
+            if (zoomed) selectBubbleCategory(zoomed);
+        });
+    staticG.append('g').attr('transform', `translate(0,${height - margin.bottom})`)
         .call(d3.axisBottom(x).ticks(5).tickFormat(d => `${d}%`))
         .call(g => g.select('.domain').attr('stroke', '#d4e2f0'))
         .selectAll('text').attr('fill', '#5d7691').style('font-size', '11px');
-    svg.append('g').attr('transform', `translate(${margin.left},0)`)
+    staticG.append('g').attr('transform', `translate(${margin.left},0)`)
         .call(d3.axisLeft(y).ticks(5))
         .call(g => g.select('.domain').attr('stroke', '#d4e2f0'))
         .selectAll('text').attr('fill', '#5d7691').style('font-size', '11px');
-
-    svg.append('line').attr('x1', x(50)).attr('x2', x(50)).attr('y1', margin.top).attr('y2', height - margin.bottom)
+    staticG.append('line').attr('x1', x(50)).attr('x2', x(50)).attr('y1', margin.top).attr('y2', height - margin.bottom)
         .attr('stroke', '#c7d7e6').attr('stroke-dasharray', '4,4');
-    svg.append('line').attr('x1', margin.left).attr('x2', width - margin.right).attr('y1', y(medianY)).attr('y2', y(medianY))
+    staticG.append('line').attr('x1', margin.left).attr('x2', width - margin.right).attr('y1', y(medianY)).attr('y2', y(medianY))
         .attr('stroke', '#c7d7e6').attr('stroke-dasharray', '4,4');
-
-    const quadrantLabel = (tx, ty, anchor, text) => svg.append('text').attr('x', tx).attr('y', ty).attr('text-anchor', anchor)
+    const quadrantLabel = (tx, ty, anchor, text) => staticG.append('text').attr('x', tx).attr('y', ty).attr('text-anchor', anchor)
         .style('font-size', '10px').style('font-weight', 700).style('font-style', 'italic').attr('fill', '#9bb0c4').text(text);
     quadrantLabel(margin.left + 8, margin.top + 16, 'start', 'Isolated variation');
     quadrantLabel(width - margin.right - 8, margin.top + 16, 'end', 'Concentrated recurring gap');
     quadrantLabel(margin.left + 8, height - margin.bottom - 12, 'start', 'Consistently low gap');
     quadrantLabel(width - margin.right - 8, height - margin.bottom - 12, 'end', 'Broad recurring gap');
-
-    svg.append('text').attr('x', (margin.left + width - margin.right) / 2).attr('y', height - 16).attr('text-anchor', 'middle')
+    staticG.append('text').attr('x', (margin.left + width - margin.right) / 2).attr('y', height - 16).attr('text-anchor', 'middle')
         .style('font-size', '10px').style('font-weight', 800).style('letter-spacing', '0.14em').attr('fill', '#5d7691')
         .text('GAP RATE AMONG APPLICABLE EPISODES');
-    svg.append('text').attr('transform', 'rotate(-90)').attr('x', -(margin.top + height - margin.bottom) / 2).attr('y', 16).attr('text-anchor', 'middle')
+    staticG.append('text').attr('transform', 'rotate(-90)').attr('x', -(margin.top + height - margin.bottom) / 2).attr('y', 16).attr('text-anchor', 'middle')
         .style('font-size', '10px').style('font-weight', 800).style('letter-spacing', '0.14em').attr('fill', '#5d7691')
         .text(yLabel.toUpperCase());
 
     const selectedRow = zoomed ? usable.find(row => row.risk_category === zoomed) : null;
+    const parentOf = row => row ? [x(row.gap_rate), y(row[yField])] : [0, 0];
 
-    svg.append('g').selectAll('circle').data(usable).join('circle')
-        .attr('cx', row => x(row.gap_rate)).attr('cy', row => y(row[yField])).attr('r', row => r(row.applicable_episodes))
+    if (collapsing) {
+        const prevRow = usable.find(row => row.risk_category === prevZoomed);
+        const [px, py] = parentOf(prevRow);
+        const outgoing = subG.classed('sub-layer', false).attr('class', 'sub-layer-out');
+        outgoing.selectAll('g.sub-bubble').transition().duration(dur)
+            .attr('transform', `translate(${px},${py})`).style('opacity', 0);
+        outgoing.selectAll('line').transition().duration(dur).attr('stroke-opacity', 0);
+        outgoing.transition().duration(dur).on('end', function() { d3.select(this).remove(); });
+        svg.insert('g', 'g.label-layer').attr('class', 'sub-layer');
+    }
+
+    el.dataset.zoomedCategory = zoomed || '';
+    el.dataset.expanded = expand ? '1' : '';
+    const liveSub = svg.select('g.sub-layer');
+
+    const bubbleSel = bubbleG.selectAll('circle.cat-bubble').data(usable, d => d.risk_category);
+    bubbleSel.enter().append('circle').attr('class', 'cat-bubble')
+        .attr('cx', row => x(row.gap_rate)).attr('cy', row => y(row[yField])).attr('r', 0)
         .attr('fill', row => RISK_CATEGORY_COLORS(row.risk_category))
-        .attr('fill-opacity', row => !zoomed ? 0.75 : (row.risk_category === zoomed ? 0.88 : 0.1))
-        .attr('stroke', row => row.risk_category === zoomed ? 'var(--navy)' : '#fff')
-        .attr('stroke-width', row => row.risk_category === zoomed ? 3 : 1.5)
         .style('cursor', 'pointer')
+        .merge(bubbleSel)
         .on('mousemove', function(event, row) {
             const rect = el.getBoundingClientRect();
             const rangeText = row.clinician_rate_range ? `${row.clinician_rate_range[0]}–${row.clinician_rate_range[1]}%` : 'n/a';
             tooltip.html(
-                `<strong>${escHtml(row.risk_category)}</strong><br>` +
+                `<strong>${escHtml(row.risk_category)}</strong>${filterLabel ? ` · ${escHtml(filterLabel)}` : ''}<br>` +
                 `${row.gap_rate}% gap · ${row.applicable_episodes} episodes<br>` +
                 `Clinician rates: ${rangeText}<br>` +
-                `<em>Click to split by clinician/procedure</em>`
+                `<em>${isolate ? 'Click to see episodes' : `Click to split by ${splitBy}`}</em>`
             ).style('left', `${event.clientX - rect.left + 12}px`).style('top', `${event.clientY - rect.top - 18}px`).style('opacity', 1);
         })
         .on('mouseleave', () => tooltip.style('opacity', 0))
-        .on('click', (_, row) => {
-            const bySplit = row.by_procedure && row.by_procedure.length > (row.by_clinician || []).length ? 'procedure' : 'clinician';
-            selectBubbleCategory(row.risk_category, bySplit);
+        .on('click', (event, row) => { event.stopPropagation(); selectBubbleCategory(row.risk_category); })
+        .transition().duration(dur)
+        .attr('cx', row => x(row.gap_rate)).attr('cy', row => y(row[yField])).attr('r', row => r(row.applicable_episodes))
+        .attr('fill-opacity', row => !zoomed ? 0.75 : (row.risk_category === zoomed ? 0.88 : 0.1))
+        .attr('stroke', row => row.risk_category === zoomed ? 'var(--navy)' : '#fff')
+        .attr('stroke-width', row => row.risk_category === zoomed ? 3 : 1.5)
+        .on('end', () => {
+            staticG.lower();
+            if (zoomed) bubbleG.selectAll('circle.cat-bubble').filter(row => row.risk_category === zoomed).raise();
+            labelG.raise();
         });
+    bubbleSel.exit().transition().duration(200).attr('r', 0).remove();
+    if (zoomed) bubbleG.selectAll('circle.cat-bubble').filter(row => row.risk_category === zoomed).raise();
+    staticG.lower();
+    labelG.raise();
 
-    // Once a category is zoomed, its siblings' labels would otherwise sit
-    // right on top of the new sub-bubble cluster — drop them entirely rather
-    // than just graying them out, so only the focused category is labeled.
-    // For the remaining labels, resolve horizontal overlaps (bubbles close
-    // together at similar heights) by nudging the later one further up,
-    // rather than letting them run into each other — each label always
-    // stays centered above its own bubble, just at varying heights.
-    const CHAR_WIDTH_ESTIMATE = 6.4;
-    const labelCandidates = usable.filter(row => !zoomed || row.risk_category === zoomed).map(row => ({
-        row,
-        cx: x(row.gap_rate),
-        halfWidth: (row.risk_category.length * CHAR_WIDTH_ESTIMATE) / 2 + 5
-    })).sort((a, b) => a.cx - b.cx);
-    const placedLabels = [];
-    labelCandidates.forEach(c => {
-        let ty = y(c.row[yField]) - r(c.row.applicable_episodes) - 8;
-        for (let guard = 0; guard < 8; guard++) {
-            const conflict = placedLabels.find(p => Math.abs(c.cx - p.cx) < (c.halfWidth + p.halfWidth) && Math.abs(ty - p.ty) < 18);
-            if (!conflict) break;
-            ty = Math.min(ty, conflict.ty) - 18;
-        }
-        c.ty = Math.max(margin.top + 8, ty);
-        placedLabels.push(c);
+    const placedLabels = placeRiskBubbleLabels(usable, usable, x, y, r, yField, {
+        left: margin.left + 8,
+        right: width - margin.right - 8,
+        top: margin.top + 8,
+        bottom: height - margin.bottom - 10,
     });
 
-    svg.append('g').selectAll('text').data(labelCandidates).join('text')
-        .attr('x', c => c.cx).attr('y', c => c.ty)
-        .attr('text-anchor', 'middle').style('font-size', '11px').style('font-weight', 700)
-        .attr('fill', '#0d2136')
-        .text(c => c.row.risk_category);
+    labelG.selectAll(':scope > text.cat-label').remove();
+    const labelSel = labelG.selectAll('g.cat-ann').data(placedLabels, d => d.id);
+    labelSel.exit().remove();
+    const labelEnter = labelSel.enter().append('g').attr('class', 'cat-ann').style('pointer-events', 'none');
+    labelEnter.append('line').attr('class', 'cat-leader');
+    labelEnter.append('text').attr('class', 'cat-label')
+        .style('font-size', '11px').style('font-weight', 700)
+        .attr('fill', '#0d2136').attr('stroke', '#fff').attr('stroke-width', 4)
+        .style('paint-order', 'stroke');
+    const labelAll = labelEnter.merge(labelSel);
+    labelAll.style('opacity', d => !zoomed || d.id === zoomed ? 1 : 0);
+    labelAll.select('line.cat-leader')
+        .attr('stroke', '#9bb0c4').attr('stroke-width', 1)
+        .attr('x1', d => d.leaderX1).attr('y1', d => d.leaderY1)
+        .attr('x2', d => d.leaderX2).attr('y2', d => d.leaderY2)
+        .attr('stroke-opacity', d => d.leader ? 0.8 : 0);
+    labelAll.select('text.cat-label')
+        .attr('text-anchor', d => d.anchor)
+        .attr('x', d => d.lx).attr('y', d => d.ly)
+        .attr('stroke', '#fff').attr('stroke-width', 4).style('paint-order', 'stroke')
+        .each(function(d) {
+            d3.select(this).selectAll('tspan').data(d.lines).join('tspan')
+                .attr('x', d.lx)
+                .attr('dy', (_, i) => i === 0 ? 0 : 13)
+                .text(line => line);
+        });
+    labelG.raise();
 
-    if (selectedRow) {
-        const splitBy = BUBBLE_ZOOM_STATE.splitBy;
+    const drawSubCluster = (layer, fromParent) => {
         const subRows = (splitBy === 'clinician' ? selectedRow.by_clinician : selectedRow.by_procedure) || [];
-        const parentX = x(selectedRow.gap_rate), parentY = y(selectedRow[yField]);
+        const [parentX, parentY] = parentOf(selectedRow);
         const subGroupKey = s => splitBy === 'clinician' ? s.clinician_id : s.procedure;
         const subGroupColor = s => splitBy === 'clinician'
             ? (DEPARTMENT_CLINICIANS.find(c => c.id === s.clinician_id)?.color || RISK_CATEGORY_COLORS(selectedRow.risk_category))
@@ -1933,12 +2675,9 @@ function renderRiskGapBubbleChart(rows) {
         const subR = d3.scaleSqrt().domain([0, Math.max(1, ...subRows.map(s => s.n))]).range([6, 20]);
         const maxSubR = subRows.length ? Math.max(...subRows.map(s => subR(s.n))) : 10;
         const subLabelLines = subRows.map(d => wrapBubbleLabel(bubbleSubGroupLabel(selectedRow.risk_category, subGroupKey(d))));
-        // Space bubbles apart by whichever is wider: the circles themselves,
-        // or their (possibly two-line) text labels — long procedure names
-        // otherwise overlap their neighbors' labels.
-        const CHAR_WIDTH_ESTIMATE = 5.6;
+        const CHAR_W = 5.6;
         const maxLabelWidth = subLabelLines.length
-            ? Math.max(...subLabelLines.map(lines => Math.max(...lines.map(l => l.length)) * CHAR_WIDTH_ESTIMATE))
+            ? Math.max(...subLabelLines.map(lines => Math.max(...lines.map(l => l.length)) * CHAR_W))
             : 0;
         const maxLabelLines = subLabelLines.length ? Math.max(1, ...subLabelLines.map(lines => lines.length)) : 1;
         const spacing = Math.max(maxSubR * 2 + 14, maxLabelWidth + 18);
@@ -1947,55 +2686,80 @@ function renderRiskGapBubbleChart(rows) {
         startX = Math.max(margin.left + maxSubR + 4, Math.min(startX, width - margin.right - maxSubR - 4 - totalWidth));
         const clusterY = Math.min(height - margin.bottom - maxSubR - 30 - (maxLabelLines - 1) * 11, parentY + 96);
 
-        svg.append('line').attr('x1', parentX).attr('y1', parentY).attr('x2', parentX).attr('y2', clusterY - maxSubR - 4)
-            .attr('stroke', 'var(--navy)').attr('stroke-width', 1.5).attr('stroke-dasharray', '3,3');
+        layer.selectAll('*').remove();
+        layer.append('line').attr('x1', parentX).attr('y1', parentY).attr('x2', parentX).attr('y2', clusterY - maxSubR - 4)
+            .attr('stroke', 'var(--navy)').attr('stroke-width', 1.5).attr('stroke-dasharray', '3,3')
+            .attr('stroke-opacity', fromParent ? 0 : 1)
+            .transition().duration(dur).attr('stroke-opacity', 1);
 
-        const controlsY = clusterY - maxSubR - 26;
-        if (selectedRow.by_clinician?.length && selectedRow.by_procedure?.length) {
-            const toggle = svg.append('g').attr('transform', `translate(${parentX},${controlsY})`);
-            const labelClin = 'By clinician', labelProc = 'By procedure';
-            toggle.append('text').attr('text-anchor', 'middle').style('font-size', '10px').style('font-weight', 800)
-                .style('letter-spacing', '0.08em').attr('fill', splitBy === 'clinician' ? 'var(--secondary)' : '#9bb0c4')
-                .attr('x', -60).style('cursor', 'pointer').text(labelClin.toUpperCase())
-                .on('click', () => setBubbleSplitBy('clinician'));
-            toggle.append('text').attr('text-anchor', 'middle').style('font-size', '10px').style('font-weight', 800)
-                .style('letter-spacing', '0.08em').attr('fill', splitBy === 'procedure' ? 'var(--secondary)' : '#9bb0c4')
-                .attr('x', 60).style('cursor', 'pointer').text(labelProc.toUpperCase())
-                .on('click', () => setBubbleSplitBy('procedure'));
-        }
-
-        const subGroup = svg.append('g').selectAll('g').data(subRows).join('g')
-            .attr('transform', (d, i) => `translate(${startX + i * spacing},${clusterY})`);
+        const nodes = subRows.map((d, i) => ({ ...d, tx: startX + i * spacing, ty: clusterY, key: subGroupKey(d) }));
+        const subGroup = layer.selectAll('g.sub-bubble').data(nodes, d => d.key).join('g')
+            .attr('class', 'sub-bubble')
+            .attr('transform', d => fromParent ? `translate(${parentX},${parentY})` : `translate(${d.tx},${d.ty})`);
+        subGroup.transition().duration(dur).attr('transform', d => `translate(${d.tx},${d.ty})`);
 
         subGroup.append('circle')
             .attr('r', d => subR(d.n))
             .attr('fill', d => subGroupColor(d))
-            .attr('fill-opacity', d => !BUBBLE_ZOOM_STATE.subGroup ? 0.85 : (subGroupKey(d) === BUBBLE_ZOOM_STATE.subGroup ? 0.95 : 0.15))
-            .attr('stroke', d => subGroupKey(d) === BUBBLE_ZOOM_STATE.subGroup ? 'var(--navy)' : '#fff')
-            .attr('stroke-width', d => subGroupKey(d) === BUBBLE_ZOOM_STATE.subGroup ? 2.5 : 1.3)
+            .attr('fill-opacity', d => !selectedSub ? 0.85 : (d.key === selectedSub ? 0.95 : 0.18))
+            .attr('stroke', d => d.key === selectedSub ? 'var(--navy)' : '#fff')
+            .attr('stroke-width', d => d.key === selectedSub ? 2.5 : 1.3)
             .style('cursor', 'pointer')
             .on('mousemove', function(event, d) {
                 const rect = el.getBoundingClientRect();
-                const label = bubbleSubGroupLabel(selectedRow.risk_category, subGroupKey(d));
-                tooltip.html(`<strong>${escHtml(label)}</strong><br>${d.gap_rate}% gap · n=${d.n}<br><em>Click to see episodes</em>`)
-                    .style('left', `${event.clientX - rect.left + 12}px`).style('top', `${event.clientY - rect.top - 18}px`).style('opacity', 1);
+                const label = bubbleSubGroupLabel(selectedRow.risk_category, d.key);
+                const groupEps = baseFilteredEpisodes().filter(ep => {
+                    if (!episodeRiskCategoryStatus(ep, selectedRow.risk_category)) return false;
+                    return splitBy === 'clinician' ? ep.clinician_id === d.key : ep.procedure === d.key;
+                });
+                const withCore = groupEps.filter(ep => ep.core_risk_pct != null);
+                const avg = withCore.length ? Math.round(withCore.reduce((s, ep) => s + ep.core_risk_pct, 0) / withCore.length) : null;
+                const cats = groupEps.map(ep => jitterCategory(ep)).filter(Boolean);
+                const dominant = cats.sort((a, b) => cats.filter(c => c === b).length - cats.filter(c => c === a).length)[0] || 'N/A';
+                tooltip.html(
+                    `<strong>${escHtml(label)}</strong><br>` +
+                    `Core risks ${avg == null ? 'N/A' : avg + '%'} · ${escHtml(dominant)}<br>` +
+                    `${d.gap_rate}% gap · n=${d.n}<br>` +
+                    `<em>${d.key === selectedSub ? 'Click to deselect' : 'Click to see episodes'}</em>`
+                ).style('left', `${event.clientX - rect.left + 12}px`).style('top', `${event.clientY - rect.top - 18}px`).style('opacity', 1);
             })
             .on('mouseleave', () => tooltip.style('opacity', 0))
-            .on('click', (_, d) => selectBubbleSubGroup(subGroupKey(d)));
+            .on('click', (event, d) => {
+                event.preventDefault();
+                event.stopPropagation();
+                selectBubbleSubGroup(d.key);
+            });
 
         subGroup.append('text').attr('y', d => subR(d.n) + 14).attr('text-anchor', 'middle')
             .style('font-size', '9.5px').style('font-weight', 700).attr('fill', '#5d7691')
+            .style('pointer-events', 'none').attr('stroke', '#fff').attr('stroke-width', 3).style('paint-order', 'stroke')
             .each(function(d) {
-                const lines = wrapBubbleLabel(bubbleSubGroupLabel(selectedRow.risk_category, subGroupKey(d)));
+                const lines = wrapBubbleLabel(bubbleSubGroupLabel(selectedRow.risk_category, d.key));
                 d3.select(this).selectAll('tspan').data(lines).join('tspan')
                     .attr('x', 0).attr('dy', (line, i) => i === 0 ? 0 : 11).text(line => line);
             });
 
         if (!subRows.length) {
-            svg.append('text').attr('x', parentX).attr('y', clusterY).attr('text-anchor', 'middle')
+            layer.append('text').attr('x', parentX).attr('y', clusterY).attr('text-anchor', 'middle')
                 .style('font-size', '11px').style('font-style', 'italic').attr('fill', '#9bb0c4')
                 .text('Not enough episodes per group to split this category yet.');
         }
+        labelG.raise();
+    };
+
+    if (expand && selectedRow) {
+        if (sameZoom && !liveSub.selectAll('g.sub-bubble').empty()) {
+            liveSub.selectAll('g.sub-bubble circle')
+                .transition().duration(220)
+                .attr('fill-opacity', d => !selectedSub ? 0.85 : (d.key === selectedSub ? 0.95 : 0.18))
+                .attr('stroke', d => d.key === selectedSub ? 'var(--navy)' : '#fff')
+                .attr('stroke-width', d => d.key === selectedSub ? 2.5 : 1.3);
+        } else {
+            drawSubCluster(liveSub, true);
+        }
+        if (selectedSub) liveSub.selectAll('g.sub-bubble').filter(d => d.key === selectedSub).raise();
+    } else if (!collapsing) {
+        liveSub.selectAll('*').remove();
     }
 
     renderRiskBubbleZoomPanel();
@@ -2062,7 +2826,8 @@ function renderFramingDotPlot(rows) {
                 `n=${d.n} episodes`
             ).style('left', `${event.clientX - rect.left + 12}px`).style('top', `${event.clientY - rect.top - 18}px`).style('opacity', 1);
         })
-        .on('mouseleave', () => tooltip.style('opacity', 0));
+        .on('mouseleave', () => tooltip.style('opacity', 0))
+        .on('click', (_, d) => navGoTo('procedure', d.procedure));
 
     row.append('text').attr('x', width - margin.right + 14).attr('y', 5).attr('text-anchor', 'start')
         .style('font-size', '11px').style('font-weight', 700).attr('fill', '#5d7691')
@@ -2086,22 +2851,25 @@ function boxPlotStats(values) {
 }
 
 function selectBoxPlotGroup(category, clinicianId) {
-    BOX_PLOT_SELECTION = (BOX_PLOT_SELECTION && BOX_PLOT_SELECTION.category === category && BOX_PLOT_SELECTION.clinicianId === clinicianId)
-        ? null : { category, clinicianId };
-    renderBoxPlotZoomPanel();
+    navGoTo('box', `${category}|||${clinicianId}`);
 }
 
 function renderBoxPlotZoomPanel() {
+    parkInlineEpisodeSlot();
     const panel = document.getElementById('boxPlotZoomPanel');
     if (!panel) return;
-    if (!BOX_PLOT_SELECTION) {
+    if (!NAV.boxCategory || !NAV.boxClinicianId) {
         panel.innerHTML = '';
+        restoreInlineEpisodeIfOpen();
         return;
     }
-    const { category, clinicianId } = BOX_PLOT_SELECTION;
+    const category = NAV.boxCategory;
+    const clinicianId = NAV.boxClinicianId;
     const clin = BOX_PLOT_CLINICIANS.find(c => c.id === clinicianId);
     const episodes = BOX_PLOT_EPISODES.filter(ep => ep.clinician_id === clinicianId && jitterCategory(ep) === category);
     panel.innerHTML = renderEpisodeListPanel(`${clin ? clin.name : 'Clinician'} — ${category}`, episodes);
+    bindEpisodePeeks();
+    restoreInlineEpisodeIfOpen();
 }
 
 // Small-multiples box plot: same x-axis (4 discussion categories) and y-axis
@@ -2165,12 +2933,15 @@ function renderBoxPlot(episodes, clinicians, selectedClinicianId) {
             if (!values.length) return;
             const stats = boxPlotStats(values);
             const cx = laneX - laneHalfWidth + slotWidth * (i + 0.5);
-            const isSelected = selectedClinicianId === clin.id;
-            const isDimmed = selectedClinicianId && !isSelected;
+            const isBoxSelected = NAV.boxCategory === category && NAV.boxClinicianId === clin.id;
+            const isLegendSelected = selectedClinicianId === clin.id;
+            const keepVisible = new Set([NAV.boxClinicianId, selectedClinicianId].filter(Boolean));
+            const isDimmed = keepVisible.size ? !keepVisible.has(clin.id) : false;
             const opacity = isDimmed ? 0.16 : 0.85;
-            const strokeWidth = isSelected ? 2.2 : 1.2;
+            const strokeWidth = isBoxSelected || isLegendSelected ? 2.2 : 1.2;
 
-            const g = svg.append('g').style('cursor', 'pointer')
+            const g = svg.append('g').attr('class', 'box-glyph').style('cursor', 'pointer')
+                .attr('data-category', category).attr('data-clinician', clin.id)
                 .attr('tabindex', 0).attr('role', 'button')
                 .attr('aria-label', `${clin.name}, ${category}: median ${Math.round(stats.median)}%, n=${stats.n}`)
                 .on('click', () => selectBoxPlotGroup(category, clin.id))
@@ -2179,10 +2950,12 @@ function renderBoxPlot(episodes, clinicians, selectedClinicianId) {
                 })
                 .on('mousemove', (event) => {
                     const rect = el.getBoundingClientRect();
+                    const groupEps = (episodes || []).filter(ep => ep.clinician_id === clin.id && jitterCategory(ep) === category);
+                    const cats = groupEps.map(ep => jitterCategory(ep)).filter(Boolean);
                     tooltip.html(
                         `<strong>${escHtml(clin.name)}</strong> — ${escHtml(category)}<br>` +
-                        `Median ${Math.round(stats.median)}% · IQR ${Math.round(stats.q1)}–${Math.round(stats.q3)}%<br>` +
-                        `n=${stats.n} episode${stats.n === 1 ? '' : 's'}<br><em>Click to see episodes</em>`
+                        `Core risks median ${Math.round(stats.median)}%<br>` +
+                        `${escHtml(category)} · n=${stats.n}<br><em>Click to see episodes</em>`
                     ).style('left', `${event.clientX - rect.left + 12}px`).style('top', `${event.clientY - rect.top - 18}px`).style('opacity', 1);
                 })
                 .on('mouseleave', () => tooltip.style('opacity', 0));
@@ -2204,7 +2977,7 @@ function renderBoxPlot(episodes, clinicians, selectedClinicianId) {
                 .attr('fill', clin.color).attr('fill-opacity', isDimmed ? 0.08 : 0.32)
                 .attr('stroke', clin.color).attr('stroke-width', strokeWidth).attr('stroke-opacity', opacity);
             g.append('line').attr('x1', cx - boxWidth / 2).attr('x2', cx + boxWidth / 2).attr('y1', y(stats.median)).attr('y2', y(stats.median))
-                .attr('stroke', clin.color).attr('stroke-width', isSelected ? 2.6 : 2).attr('stroke-opacity', isDimmed ? 0.3 : 1);
+                .attr('stroke', clin.color).attr('stroke-width', isBoxSelected || isLegendSelected ? 2.6 : 2).attr('stroke-opacity', isDimmed ? 0.3 : 1);
             g.selectAll('.outlier').data(stats.outliers).join('circle')
                 .attr('cx', cx).attr('cy', v => y(v)).attr('r', 2.6)
                 .attr('fill', clin.color).attr('fill-opacity', opacity);
@@ -2213,92 +2986,215 @@ function renderBoxPlot(episodes, clinicians, selectedClinicianId) {
                 .text(`n=${stats.n}`);
         });
     });
+    renderBoxPlotZoomPanel();
 }
 
-// Episode detail "command center": a slide-in overlay (not a tab switch) that
-// mounts the same renderUI()-driven detail view. Every drill-down entry point
-// (episode table, box plot, bubble-chart semantic zoom, History's saved runs)
-// opens episodes this way now, so users never lose their place on the "map" —
-// closing the overlay (Escape, backdrop click, or the × button) returns them
-// to exactly where they were.
-async function openEpisodeOverlay(episodeId) {
-    const backdrop = document.getElementById('episodeOverlayBackdrop');
-    const body = document.getElementById('episodeOverlayBody');
-    const titleEl = document.getElementById('episodeOverlayTitle');
-    if (!backdrop || !body) return;
-    body.innerHTML = '<p>Loading episode...</p>';
-    backdrop.classList.add('open');
-    document.body.style.overflow = 'hidden';
-    CURRENT_RENDER_TARGET = 'episodeOverlayBody';
-    try {
+// Episode detail mounts inline under the list that opened it. Hovering an
+// episode row peeks the cockpit in a floating card. Escape / close returns to the map.
+const EPISODE_CACHE = new Map();
+const EPISODE_INFLIGHT = new Map();
+let INLINE_RESTORE_PAUSED = false;
+let EPISODE_OPEN_SEQ = 0;
+let spinePeekTimer = null;
+let spinePeekEpisodeId = null;
+
+function parseEpisodePayload(data, episodeId) {
+    const raw = data.regions;
+    let regions, schemaVersion;
+    if (raw && !Array.isArray(raw) && raw.decisions) {
+        regions = raw.decisions;
+        schemaVersion = raw.schema_version || 2;
+    } else {
+        regions = raw || [];
+        schemaVersion = data.schema_version;
+    }
+    const episode = data.episode || { episode_id: data.episode_id || episodeId, patient_label: data.episode_id || episodeId };
+    return { episodeId, regions, turns: data.turns || [], schemaVersion, episode };
+}
+
+async function fetchEpisode(episodeId) {
+    if (EPISODE_CACHE.has(episodeId)) return EPISODE_CACHE.get(episodeId);
+    if (EPISODE_INFLIGHT.has(episodeId)) return EPISODE_INFLIGHT.get(episodeId);
+    const pending = (async () => {
         const res = await fetch(`/api/department/episode/${encodeURIComponent(episodeId)}`);
         if (!res.ok) throw new Error(await res.text());
-        const data = await res.json();
-        const raw = data.regions;
-        let regions, schemaVersion;
-        if (raw && !Array.isArray(raw) && raw.decisions) {
-            regions = raw.decisions;
-            schemaVersion = raw.schema_version || 2;
-        } else {
-            regions = raw || [];
-            schemaVersion = data.schema_version;
-        }
-        const ep = data.episode || { episode_id: data.episode_id || episodeId, patient_label: data.episode_id || episodeId };
-        if (titleEl) titleEl.textContent = ep.clinician_name ? `${ep.patient_label} — ${ep.clinician_name}` : ep.patient_label;
-        const breadcrumbEl = document.getElementById('episodeOverlayBreadcrumb');
-        if (breadcrumbEl) breadcrumbEl.innerHTML = renderBreadcrumbTrail(episodeBreadcrumbCrumbs(ep));
+        const payload = parseEpisodePayload(await res.json(), episodeId);
+        EPISODE_CACHE.set(episodeId, payload);
+        return payload;
+    })().finally(() => EPISODE_INFLIGHT.delete(episodeId));
+    EPISODE_INFLIGHT.set(episodeId, pending);
+    return pending;
+}
 
+function cacheEpisodePayload(payload) {
+    if (!payload?.episodeId) return;
+    EPISODE_CACHE.set(payload.episodeId, payload);
+}
+
+function parkInlineEpisodeSlot() {
+    const slot = document.getElementById('episodeInlineDetail');
+    const view = document.getElementById('view-department');
+    if (slot && view && slot.parentElement !== view) view.appendChild(slot);
+    if (slot && NAV.episodeId) slot.hidden = true;
+}
+
+function originatingListEl() {
+    if (NAV.episodeAnchor === 'bubble') return document.querySelector('#riskBubbleZoomPanel .zoom-episode-panel');
+    if (NAV.episodeAnchor === 'box') return document.querySelector('#boxPlotZoomPanel .zoom-episode-panel');
+    return document.querySelector('#department-content .episode-table-wrap');
+}
+
+function placeInlineEpisodeSlot() {
+    const slot = document.getElementById('episodeInlineDetail');
+    if (!slot) return;
+    const host = originatingListEl() || document.querySelector('#department-content .episode-table-wrap');
+    if (host && host.parentNode) host.insertAdjacentElement('afterend', slot);
+    else parkInlineEpisodeSlot();
+    slot.hidden = false;
+}
+
+function openEpisodeFromRow(event, episodeId) {
+    const zoom = event.currentTarget.closest('.zoom-episode-panel');
+    if (zoom && zoom.closest('#riskBubbleZoomPanel')) NAV.episodeAnchor = 'bubble';
+    else if (zoom && zoom.closest('#boxPlotZoomPanel')) NAV.episodeAnchor = 'box';
+    else NAV.episodeAnchor = 'table';
+    navGoTo('episode', episodeId);
+}
+
+function mountInlineEpisode(payload, opts = {}) {
+    const body = document.getElementById('episodeInlineBody');
+    const titleEl = document.getElementById('episodeInlineTitle');
+    if (!body) return;
+    const ep = payload.episode;
+    CURRENT_EPISODE_META = ep;
+    if (titleEl) titleEl.textContent = ep.clinician_name ? `${ep.patient_label} — ${ep.clinician_name}` : (ep.patient_label || 'Episode detail');
+    if (!opts.restore) {
         CURRENT_SELECTED_DECISION_ID = null;
-        renderUI(regions, data.turns || [], schemaVersion);
-        if (data.episode) {
-            const banner = document.createElement('div');
-            banner.className = 'map-options';
-            banner.style.cssText = 'background:#eaf2fa;border:0;border-left:3px solid #1769e0;margin-bottom:16px;';
-            banner.innerHTML = `<strong>${escHtml(ep.patient_label)}</strong> · ${escHtml(ep.clinician_name)} · Core risks ${ep.core_risk_pct == null ? 'N/A' : `${ep.core_risk_pct}%`} · ${escHtml(jitterCategory(ep))}` +
-                (ep.source === 'demo' ? ' · <em>demo episode</em>' : ' · <em>saved analysis</em>');
-            body.insertBefore(banner, body.firstChild);
+        CURRENT_GLYPH = { key: 'overview', turn: null };
+        CURRENT_EXPANDED_CLUSTER = null;
+        TRANSCRIPT_OPEN = false;
+        NAV.decisionId = payload.regions[0]?.decision_id || null;
+        NAV.optionName = null;
+    }
+    CURRENT_RENDER_TARGET = 'episodeInlineBody';
+    renderUI(payload.regions, payload.turns, payload.schemaVersion);
+    renderGlobalBreadcrumb();
+}
+
+function restoreInlineEpisodeIfOpen() {
+    if (INLINE_RESTORE_PAUSED || !NAV.episodeId) return;
+    const payload = EPISODE_CACHE.get(NAV.episodeId);
+    placeInlineEpisodeSlot();
+    if (payload) mountInlineEpisode(payload, { restore: true });
+    else openEpisodeOverlay(NAV.episodeId, { restore: true });
+}
+
+async function openEpisodeOverlay(episodeId, opts = {}) {
+    hideSpinePeek();
+    const tip = document.getElementById('peekTooltip');
+    if (tip) tip.style.opacity = 0;
+    const body = document.getElementById('episodeInlineBody');
+    if (!body) return;
+    const seq = ++EPISODE_OPEN_SEQ;
+    NAV.episodeId = episodeId;
+    if (!NAV.episodeAnchor) NAV.episodeAnchor = 'table';
+    if (!opts.restore) {
+        NAV.decisionId = null;
+        NAV.optionName = null;
+        CURRENT_EPISODE_META = null;
+        CURRENT_SELECTED_DECISION_ID = null;
+        CURRENT_GLYPH = { key: 'overview', turn: null };
+        CURRENT_EXPANDED_CLUSTER = null;
+    }
+    placeInlineEpisodeSlot();
+    CURRENT_RENDER_TARGET = 'episodeInlineBody';
+    body.innerHTML = '<p>Loading episode...</p>';
+    renderGlobalBreadcrumb();
+    try {
+        const payload = await fetchEpisode(episodeId);
+        if (seq !== EPISODE_OPEN_SEQ || NAV.episodeId !== episodeId) return;
+        mountInlineEpisode(payload, opts);
+        if (!opts.restore) {
+            const slot = document.getElementById('episodeInlineDetail');
+            if (slot) slot.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     } catch (e) {
+        if (seq !== EPISODE_OPEN_SEQ) return;
         body.innerHTML = `<span class="error">Failed to open episode: ${e.message}</span>`;
     }
 }
 
 function closeEpisodeOverlay() {
-    const backdrop = document.getElementById('episodeOverlayBackdrop');
-    if (backdrop) backdrop.classList.remove('open');
-    document.body.style.overflow = '';
-    if (CURRENT_RENDER_TARGET === 'episodeOverlayBody') CURRENT_RENDER_TARGET = 'resultsContent';
+    hideSpinePeek();
+    EPISODE_OPEN_SEQ += 1;
+    const slot = document.getElementById('episodeInlineDetail');
+    const body = document.getElementById('episodeInlineBody');
+    if (body) body.innerHTML = '';
+    if (slot) slot.hidden = true;
+    parkInlineEpisodeSlot();
+    NAV.episodeId = null;
+    NAV.decisionId = null;
+    NAV.optionName = null;
+    NAV.episodeAnchor = null;
+    CURRENT_EPISODE_META = null;
+    CURRENT_EXPANDED_CLUSTER = null;
+    CURRENT_RENDER_TARGET = 'episodeInlineBody';
+    renderGlobalBreadcrumb();
+}
+
+function positionSpinePeek(anchor) {
+    const peek = document.getElementById('spinePeek');
+    if (!peek || !anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    const w = peek.offsetWidth || 860;
+    const h = peek.offsetHeight || 420;
+    let left = rect.right + 12;
+    if (left + w > window.innerWidth - 12) left = rect.left - w - 12;
+    if (left < 12) left = Math.max(12, Math.min(rect.left, window.innerWidth - w - 12));
+    let top = rect.bottom + 8;
+    if (top + h > window.innerHeight - 12) top = rect.top - h - 8;
+    top = Math.max(12, Math.min(top, window.innerHeight - h - 12));
+    peek.style.left = `${left}px`;
+    peek.style.top = `${top}px`;
+}
+
+function hideSpinePeek() {
+    spinePeekEpisodeId = null;
+    const peek = document.getElementById('spinePeek');
+    if (peek) peek.classList.remove('is-visible');
+}
+
+document.addEventListener('scroll', () => {
+    if (spinePeekEpisodeId) hideSpinePeek();
+}, true);
+
+async function showSpinePeek(episodeId, anchor) {
+    spinePeekEpisodeId = episodeId;
+    const peek = document.getElementById('spinePeek');
+    const peekBody = document.getElementById('spinePeekBody');
+    if (!peek || !peekBody) return;
+    try {
+        const payload = await fetchEpisode(episodeId);
+        if (spinePeekEpisodeId !== episodeId) return;
+        peekBody.innerHTML = renderEpisodeCockpitPeek(payload);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            if (spinePeekEpisodeId !== episodeId) return;
+            positionSpinePeek(anchor);
+            peek.classList.add('is-visible');
+        }));
+    } catch (e) {
+        if (spinePeekEpisodeId === episodeId) hideSpinePeek();
+    }
 }
 
 document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
-    const backdrop = document.getElementById('episodeOverlayBackdrop');
-    if (backdrop && backdrop.classList.contains('open')) closeEpisodeOverlay();
+    if (NAV.runPanelOpen) { closeRunPanel(); return; }
+    if (NAV.episodeId) closeEpisodeOverlay();
 });
 
-async function loadHistory() {
-    const container = document.getElementById('history-content');
-    container.innerHTML = "Loading database...";
-    try {
-        const res = await fetch('/api/history');
-        const data = await res.json();
-        if (data.length === 0) return container.innerHTML = "<p>No runs found.</p>";
-
-        let html = `<table class="history-table"><thead><tr><th>ID</th><th>Encounters Merged</th><th>Run Date</th><th>Action</th></tr></thead><tbody>`;
-        data.forEach(row => {
-            html += `<tr onclick="loadRun(${row.id})"><td>#${row.id}</td><td><strong>${row.filename}</strong></td><td>${row.run_date}</td><td class="view-link">View Pipeline →</td></tr>`;
-        });
-        html += `</tbody></table>`;
-        container.innerHTML = html;
-    } catch (e) {
-        container.innerHTML = `<span class="error">Failed to load history: ${e.message}</span>`;
-    }
-}
-
-// Saved runs from Database History now open in the same command-center
-// overlay as department episodes, via the department episode endpoint's
-// existing "run_<id>" handling — one detail experience everywhere.
 function loadRun(id) {
+    NAV.episodeAnchor = 'table';
     openEpisodeOverlay(`run_${id}`);
 }
 
@@ -2315,11 +3211,50 @@ const REGION_COLORS = [
 let CURRENT_REGIONS = null;
 let CURRENT_TURNS = null;
 let CURRENT_SELECTED_DECISION_ID = null;
+let CURRENT_GLYPH = { key: 'overview', turn: null };
+let CURRENT_EXPANDED_CLUSTER = null;
+let TRANSCRIPT_OPEN = false;
+let COCKPIT_CTX = null;
 let CURRENT_SCHEMA_VERSION = null;
 let CURRENT_RUN_META = {};
 // renderUI()/selectDecision() render into whichever container is "live":
-// the Run Analysis results tab by default, or the episode overlay while it's open.
-let CURRENT_RENDER_TARGET = 'resultsContent';
+// the inline episode slot, or a hover peek's plot node.
+let CURRENT_RENDER_TARGET = 'episodeInlineBody';
+
+function cockpitCtx() {
+    return COCKPIT_CTX || {
+        peek: false,
+        interactive: true,
+        glyph: CURRENT_GLYPH,
+        selectedId: NAV.decisionId || CURRENT_SELECTED_DECISION_ID,
+        expandedCluster: CURRENT_EXPANDED_CLUSTER,
+        episode: CURRENT_EPISODE_META,
+    };
+}
+
+function toggleGlyphCluster(clusterId) {
+    CURRENT_EXPANDED_CLUSTER = CURRENT_EXPANDED_CLUSTER === clusterId ? null : clusterId;
+    if (CURRENT_REGIONS && CURRENT_TURNS) renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION, { keepSpine: true });
+}
+
+function renderEpisodeCockpitPeek(payload) {
+    const regions = payload.regions || [];
+    const selected = regions[0] || null;
+    COCKPIT_CTX = {
+        peek: true,
+        interactive: false,
+        glyph: { id: null, key: 'overview', turn: null },
+        selectedId: selected?.decision_id || null,
+        expandedCluster: null,
+        episode: payload.episode,
+    };
+    try {
+        if (!selected) return '<p class="jitter-hint" style="margin:12px 16px;">No decisions in this episode.</p>';
+        return renderEpisodeCockpit(regions, payload.turns || [], selected);
+    } finally {
+        COCKPIT_CTX = null;
+    }
+}
 
 // --- PROMPTS & SCHEMAS ---
 const AUTO_DETECT_SCHEMA = {
@@ -2940,17 +3875,39 @@ async function runAnalysis() {
             turns: globalTurns,
             regions: { schema_version: CCQ_SCHEMA_VERSION, default_procedure: procName, decisions: regions }
         };
+        let savedId = null;
         try {
-            await fetch("/api/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+            const saveRes = await fetch("/api/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+            const saveJson = await saveRes.json().catch(() => ({}));
+            savedId = saveJson.id || null;
             logStatus("Saved successfully.");
         } catch (e) {
             console.warn("Backend save skipped:", e);
         }
 
         CURRENT_RUN_META = { default_procedure: procName };
+        closeRunPanel();
+        NAV.episodeAnchor = 'table';
+        NAV.episodeId = savedId ? `run_${savedId}` : 'new-run';
+        NAV.decisionId = regions[0]?.decision_id || null;
+        NAV.optionName = null;
+        CURRENT_EPISODE_META = { patient_label: files[0]?.name || 'New analysis', clinician_name: '', episode_id: NAV.episodeId };
+        cacheEpisodePayload({
+            episodeId: NAV.episodeId,
+            regions,
+            turns: globalTurns,
+            schemaVersion: CCQ_SCHEMA_VERSION,
+            episode: CURRENT_EPISODE_META
+        });
+        CURRENT_RENDER_TARGET = 'episodeInlineBody';
+        placeInlineEpisodeSlot();
+        const titleEl = document.getElementById('episodeInlineTitle');
+        if (titleEl) titleEl.textContent = CURRENT_EPISODE_META.patient_label;
         renderUI(regions, globalTurns, CCQ_SCHEMA_VERSION);
-        document.getElementById("btn-results").style.display = "inline-block";
-        switchTab("results");
+        renderGlobalBreadcrumb();
+        const slot = document.getElementById('episodeInlineDetail');
+        if (slot) slot.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        loadDepartmentOverview();
     } catch (error) {
         console.error(error);
         errBox.innerText = "Error: " + error.message;
@@ -3027,12 +3984,91 @@ function orderDecisionsHierarchical(regions) {
     return ordered;
 }
 
+const DECISION_TIER_LABELS = ['Treatment approach', 'Surgical timing', 'Procedure choice'];
+
+function inferDecisionTier(depth) {
+    return DECISION_TIER_LABELS[Math.min(depth, DECISION_TIER_LABELS.length - 1)];
+}
+
+function optionTradeoffLevel(opt, comm) {
+    const name = String(opt.option_name || '').toLowerCase();
+    const matches = (comm?.tradeoff_comparisons || []).filter(tc =>
+        String(tc.option_a || '').toLowerCase() === name || String(tc.option_b || '').toLowerCase() === name
+    );
+    if (matches.some(tc => tc.level === 'Meaningful comparison')) return 'Meaningful comparison';
+    if (matches.some(tc => tc.level === 'Limited comparison')) return 'Limited comparison';
+    return 'Not compared';
+}
+
+function renderDecisionOptionChips(r, opts = {}) {
+    const interactive = opts.interactive !== false;
+    const options = r.decision_overview?.options_considered || [];
+    if (!options.length) return '';
+    const comm = r.communication_analysis || {};
+    const chosenText = `${r.selected_option || ''} ${r.selected_intervention || ''}`.toLowerCase();
+    const chips = options.map(opt => {
+        const name = opt.option_name || '';
+        const level = optionTradeoffLevel(opt, comm);
+        const isChosen = name && chosenText.includes(name.toLowerCase());
+        const isFocus = interactive && NAV.optionName === name;
+        const click = interactive
+            ? `onclick="event.stopPropagation(); navGoTo('option','${escAttr(name)}')"`
+            : '';
+        return `<button type="button" class="decision-tree-option${isChosen ? ' is-chosen' : ''}${isFocus ? ' is-focus' : ''}" ${click}${interactive ? '' : ' disabled'}>
+            <span>${escHtml(name)}</span>
+            <span class="level-pill ${`level-${level.replace(/\s+/g, '-')}`}">${escHtml(level)}</span>
+        </button>`;
+    }).join('');
+    return `<div class="decision-tree-options">${chips}</div>`;
+}
+
+function renderDecisionSpine(regions, opts = {}) {
+    const interactive = opts.interactive !== false;
+    const compact = !!opts.compact;
+    const ordered = orderDecisionsHierarchical(regions || []);
+    const selectedId = interactive
+        ? (NAV.decisionId || CURRENT_SELECTED_DECISION_ID || ordered[0]?.r?.decision_id || null)
+        : (ordered[0]?.r?.decision_id || null);
+    const items = ordered.map(({ r, depth }) => {
+        const isSel = r.decision_id === selectedId;
+        const showOptions = compact || !interactive || isSel;
+        const chosenLabel = r.selected_option || r.selected_intervention || '';
+        const click = interactive ? `onclick="navGoTo('decision','${escAttr(r.decision_id)}')"` : '';
+        return `<li class="decision-tree-item" style="padding-left:${depth * 22}px;">
+            <div class="decision-tree-row${isSel ? ' is-selected' : ''}" data-decision-id="${escAttr(r.decision_id)}" ${click}>
+                <div class="decision-tree-kicker">${escHtml(inferDecisionTier(depth))}</div>
+                <div class="decision-tree-main">
+                    <strong class="decision-tree-label">${escHtml(r.decision_label)}</strong>
+                    <span class="status-${escAttr(r.status)}">${escHtml(r.status)}</span>
+                    <span class="decision-tree-chosen">${chosenLabel ? `→ ${escHtml(chosenLabel)}` : 'no path chosen yet'}</span>
+                </div>
+                ${showOptions ? renderDecisionOptionChips(r, { interactive }) : ''}
+            </div>
+        </li>`;
+    }).join('');
+    return `<div class="decision-spine decision-tree${compact ? ' is-compact' : ''}${interactive ? '' : ' is-readonly'}">
+        <h3>Decision map</h3>
+        ${compact ? '' : '<p class="spine-hint">Nested choices in this episode. Select a decision to inspect it below. Options sit under the active decision.</p>'}
+        <div class="spine-legend">
+            <span class="spine-legend-group">Decision</span>
+            <span class="spine-legend-item"><span class="status-Resolved">Resolved</span></span>
+            <span class="spine-legend-item"><span class="status-Deferred">Deferred</span></span>
+            <span class="spine-legend-item"><span class="status-Unresolved">Unresolved</span></span>
+            <span class="spine-legend-group">Options</span>
+            <span class="spine-legend-item"><span class="level-pill level-Meaningful-comparison">Meaningful</span></span>
+            <span class="spine-legend-item"><span class="level-pill level-Limited-comparison">Limited</span></span>
+            <span class="spine-legend-item"><span class="level-pill level-Not-compared">Not compared</span></span>
+        </div>
+        <ul class="decision-tree-list">${items}</ul>
+    </div>`;
+}
+
 function renderDecisionsList(regions, selectedId) {
     const ordered = orderDecisionsHierarchical(regions);
     let rows = ordered.map(({r, depth}) => {
         const sel = r.decision_id === selectedId ? "selected" : "";
         const opt = r.selected_option ? escHtml(r.selected_option) : "—";
-        return `<tr class="decision-row ${sel}" onclick="selectDecision('${escAttr(r.decision_id)}')">
+        return `<tr class="decision-row ${sel}" onclick="navGoTo('decision','${escAttr(r.decision_id)}')">
             <td style="padding-left:${12 + depth * 22}px;"><strong>${depth ? '↳ ' : ''}${escHtml(r.decision_label)}</strong></td>
             <td class="status-${r.status}">${r.status}</td>
             <td>${opt}</td>
@@ -3043,8 +4079,7 @@ function renderDecisionsList(regions, selectedId) {
 }
 
 function jumpToDecisionTurn(decisionId, turnIndex) {
-    selectDecision(decisionId);
-    if (turnIndex != null) scrollToTurn(turnIndex);
+    selectGlyph(decisionId, CURRENT_GLYPH.key === 'overview' ? 'overview' : CURRENT_GLYPH.key, turnIndex);
 }
 
 function renderDecisionTimeline(regions, turns) {
@@ -3087,12 +4122,12 @@ function renderDecisionTimeline(regions, turns) {
 // visual vocabulary of glyph shapes so the pattern (e.g. options introduced
 // early, tradeoffs compared only late, or never) is scannable at a glance.
 const TIMELINE_VOCAB = [
-    { key: 'option', label: 'Option considered', symbol: () => d3.symbolCircle, color: '#1769e0' },
-    { key: 'recommendation', label: 'Clinician recommendation', symbol: () => d3.symbolDiamond, color: '#06182b' },
-    { key: 'tradeoff', label: 'Tradeoff compared', symbol: () => d3.symbolTriangle, color: '#0f9e93' },
-    { key: 'preference', label: 'Patient preference / goal elicited', symbol: () => d3.symbolStar, color: '#9c5f10' },
-    { key: 'risk', label: 'Risk discussed', symbol: () => d3.symbolSquare, color: '#c6475a' },
-    { key: 'question', label: 'Patient question asked', symbol: () => d3.symbolCross, color: '#5968cf' },
+    { key: 'option', label: 'Option considered', short: 'Option', symbol: () => d3.symbolCircle, color: '#1769e0' },
+    { key: 'recommendation', label: 'Clinician recommendation', short: 'Recommendation', symbol: () => d3.symbolDiamond, color: '#06182b' },
+    { key: 'tradeoff', label: 'Tradeoff compared', short: 'Tradeoff', symbol: () => d3.symbolTriangle, color: '#0f9e93' },
+    { key: 'preference', label: 'Patient preference / goal elicited', short: 'Preference', symbol: () => d3.symbolStar, color: '#9c5f10' },
+    { key: 'risk', label: 'Risk discussed', short: 'Risk', symbol: () => d3.symbolSquare, color: '#c6475a' },
+    { key: 'question', label: 'Patient question asked', short: 'Question', symbol: () => d3.symbolCross, color: '#5968cf' },
 ];
 
 function firstTurnIndex(...fields) {
@@ -3102,32 +4137,208 @@ function firstTurnIndex(...fields) {
     return null;
 }
 
+const GLYPH_WORD_ALIASES = {
+    "physical therapy": "PT",
+    "pt": "PT",
+    "epidural injection": "Epidural",
+    "surgical management": "Surgery",
+    "nonsurgical management": "Nonsurg",
+    "watchful waiting": "Wait",
+    "proceed with surgery": "Surgery",
+    "proceed with lumbar decompression surgery": "Surgery",
+    "dural tear / csf leak": "Dural",
+    "dural tear": "Dural",
+    "nerve injury": "Nerve",
+    "failed back syndrome": "Failed",
+};
+const GLYPH_WORD_STOP = new Set([
+    "the","a","an","of","to","and","or","for","if","i","we","my","how","what","when",
+    "why","where","who","which","could","would","should","can","will","does","do","did",
+    "is","are","was","be","as","soon","possible","before","after","with","on","in","from",
+    "into","than","then","but","not","no","yes","try","prefer","return","like","rather",
+    "about","this","that","our","your","their","me","us","it","its","long","much","many",
+    "often","back","get","things",
+]);
+
+function shortGlyphWord(raw, kind) {
+    const text = String(raw || "").replace(/\?+$/, "").trim();
+    if (!text) return kind === "tradeoff" ? "vs" : "—";
+    const lower = text.toLowerCase();
+    if (GLYPH_WORD_ALIASES[lower]) return GLYPH_WORD_ALIASES[lower];
+    const clause = text.split("/")[0].trim();
+    if (GLYPH_WORD_ALIASES[clause.toLowerCase()]) return GLYPH_WORD_ALIASES[clause.toLowerCase()];
+    const tokens = clause.split(/[\s,;:\-—]+/).map(w => w.replace(/^[^\w]+|[^\w]+$/g, "")).filter(Boolean);
+    const kept = tokens.filter(w => w.length > 1 && !GLYPH_WORD_STOP.has(w.toLowerCase()));
+    let token = kept[0] || tokens[0] || clause;
+    if (token.length > 12) token = token.slice(0, 12);
+    if (token.toLowerCase() === "pt") return "PT";
+    return token.charAt(0).toUpperCase() + token.slice(1);
+}
+
+function placeTimelineLabels(events, maxTurn) {
+    const TRACK_W = 1000, TRACK_H = 84, GLYPH_Y = 32, GLYPH_R = 8;
+    const CHAR_W = 6.5, LABEL_H = 12, LABEL_PAD = 3, GLYPH_PAD = 4, LEADER_DIST = 14, EDGE = 6;
+    const items = events.map(event => ({
+        event,
+        word: event.word || '',
+        cx: Math.min(TRACK_W - 16, Math.max(16, (event.turn / Math.max(1, maxTurn)) * TRACK_W)),
+        cy: GLYPH_Y,
+        radius: GLYPH_R,
+        labelW: event.word ? Math.max(14, String(event.word).length * CHAR_W + 2) : 0,
+        labelH: LABEL_H,
+    }));
+    items.sort((a, b) => a.cx - b.cx);
+    const bounds = { left: 4, right: TRACK_W - 4, top: 3, bottom: TRACK_H - 3 };
+    const occupied = items.map(item => ({
+        x0: item.cx - item.radius - 1, y0: item.cy - item.radius - 1,
+        x1: item.cx + item.radius + 1, y1: item.cy + item.radius + 1,
+    }));
+    const boxesOverlap = (a, b) =>
+        a.x0 < b.x1 + LABEL_PAD && a.x1 > b.x0 - LABEL_PAD &&
+        a.y0 < b.y1 + LABEL_PAD && a.y1 > b.y0 - LABEL_PAD;
+    const boxHitsGlyph = (box, item) => {
+        const nx = Math.max(box.x0, Math.min(item.cx, box.x1));
+        const ny = Math.max(box.y0, Math.min(item.cy, box.y1));
+        const pad = item.radius + GLYPH_PAD;
+        return (nx - item.cx) ** 2 + (ny - item.cy) ** 2 < pad * pad;
+    };
+    const inBounds = box =>
+        box.x0 >= bounds.left && box.x1 <= bounds.right &&
+        box.y0 >= bounds.top && box.y1 <= bounds.bottom;
+    const makeBox = (item, side, nudge, extra) => {
+        const w = item.labelW, h = item.labelH, gap = EDGE + extra;
+        const { cx, cy, radius: rad } = item;
+        let x0, y0, anchor = 'middle', lx;
+        if (side === 's' || side === 'n') {
+            x0 = cx - w / 2 + nudge;
+            y0 = side === 'n' ? cy - rad - gap - h : cy + rad + gap;
+            lx = x0 + w / 2;
+        } else if (side === 'e') {
+            x0 = cx + rad + gap; y0 = cy - h / 2 + nudge; anchor = 'start'; lx = x0;
+        } else if (side === 'w') {
+            x0 = cx - rad - gap - w; y0 = cy - h / 2 + nudge; anchor = 'end'; lx = x0 + w;
+        } else if (side === 'se' || side === 'ne') {
+            x0 = cx + rad * 0.35 + extra;
+            y0 = side === 'ne' ? cy - rad - gap - h : cy + rad + gap;
+            anchor = 'start'; lx = x0;
+        } else {
+            x0 = cx - rad * 0.35 - extra - w;
+            y0 = side === 'nw' ? cy - rad - gap - h : cy + rad + gap;
+            anchor = 'end'; lx = x0 + w;
+        }
+        return { x0, y0, x1: x0 + w, y1: y0 + h, anchor, lx, ly: y0 + 10, side };
+    };
+    const southNudges = [0, -22, 22, -44, 44, -66, 66];
+    const sideNudges = [0, -12, 12, -24, 24];
+    const trials = [];
+    [0, 6, 14, 24].forEach(extra => {
+        southNudges.forEach(nudge => trials.push({ side: 's', nudge, extra }));
+        trials.push({ side: 'sw', nudge: 0, extra }, { side: 'se', nudge: 0, extra });
+        sideNudges.forEach(nudge => {
+            trials.push({ side: 'w', nudge, extra }, { side: 'e', nudge, extra });
+        });
+        southNudges.forEach(nudge => trials.push({ side: 'n', nudge, extra }));
+        trials.push({ side: 'nw', nudge: 0, extra }, { side: 'ne', nudge: 0, extra });
+    });
+    return items.map(item => {
+        if (!item.word) {
+            return {
+                ...item, lx: item.cx, ly: item.cy, anchor: 'middle',
+                leader: false, leaderX1: item.cx, leaderY1: item.cy, leaderX2: item.cx, leaderY2: item.cy,
+            };
+        }
+        const def = makeBox(item, 's', 0, 0);
+        let clear = null, fallback = null;
+        trials.forEach(trial => {
+            const box = makeBox(item, trial.side, trial.nudge, trial.extra);
+            if (!inBounds(box) || occupied.some(other => boxesOverlap(box, other))) return;
+            const hits = items.reduce((n, g) => n + (g === item ? 0 : boxHitsGlyph(box, g) ? 1 : 0), 0);
+            const dist = Math.hypot(box.lx - def.lx, box.ly - def.ly);
+            const score = trial.extra * 0.25 + Math.abs(trial.nudge) * 0.04 + dist * 0.05
+                + (trial.side === 's' ? 0 : trial.side === 'n' ? 5 : 3);
+            if (hits === 0 && !clear) clear = { ...box, score };
+            if (!fallback || score + hits * 40 < fallback.score) fallback = { ...box, score: score + hits * 40 };
+        });
+        const chosen = clear || fallback || def;
+        occupied.push(chosen);
+        const nx = Math.max(chosen.x0 + 2, Math.min(item.cx, chosen.x1 - 2));
+        const ny = Math.max(chosen.y0 + 2, Math.min(item.cy, chosen.y1 - 2));
+        let dx = nx - item.cx, dy = ny - item.cy;
+        const len = Math.hypot(dx, dy) || 1;
+        dx /= len; dy /= len;
+        const moveDist = Math.hypot(chosen.lx - def.lx, chosen.ly - def.ly);
+        const leaderX1 = item.cx + dx * (item.radius + 2);
+        const leaderY1 = item.cy + dy * (item.radius + 2);
+        const leaderLen = Math.hypot(nx - leaderX1, ny - leaderY1);
+        return {
+            ...item,
+            lx: chosen.lx, ly: chosen.ly, anchor: chosen.anchor,
+            leader: moveDist >= LEADER_DIST && leaderLen >= 8,
+            leaderX1, leaderY1, leaderX2: nx, leaderY2: ny,
+        };
+    });
+}
+
 function collectTimelineEvents(regions) {
     const events = [];
+    const pushEvent = (e) => {
+        const spec = e.riskName || e.optionName || (e.optionA ? `${e.optionA}::${e.optionB}` : '') || e.label || '';
+        e.id = `${e.decisionId}::${e.key}::${e.turn}::${spec}`;
+        events.push(e);
+    };
     (regions || []).forEach(r => {
         (r.decision_overview?.options_considered || []).forEach(opt => {
             const turn = firstTurnIndex(opt.what_it_involves, opt.benefits, opt.risks, opt.burdens);
-            if (turn != null) events.push({ key: 'option', turn, label: `Option considered: ${opt.option_name}`, decisionId: r.decision_id });
+            if (turn != null) pushEvent({
+                key: 'option', turn, decisionId: r.decision_id,
+                label: `Option considered: ${opt.option_name}`,
+                word: shortGlyphWord(opt.option_name, 'option'),
+                optionName: opt.option_name,
+            });
         });
         const rec = r.decision_overview?.clinician_recommendation;
         if (rec && (rec.turn_indices || []).length) {
-            events.push({ key: 'recommendation', turn: rec.turn_indices[0], label: `Recommended: ${rec.recommended_option || '\u2014'}`, decisionId: r.decision_id });
+            pushEvent({
+                key: 'recommendation', turn: rec.turn_indices[0], decisionId: r.decision_id,
+                label: `Recommended: ${rec.recommended_option || '\u2014'}`,
+                word: shortGlyphWord(rec.recommended_option, 'recommendation'),
+                optionName: rec.recommended_option,
+            });
         }
         (r.communication_analysis?.tradeoff_comparisons || []).forEach(tc => {
-            (tc.turn_indices || []).forEach(turn => events.push({ key: 'tradeoff', turn, label: `${tc.option_a} vs ${tc.option_b} \u2014 ${tc.level}`, decisionId: r.decision_id }));
+            (tc.turn_indices || []).forEach(turn => pushEvent({
+                key: 'tradeoff', turn, decisionId: r.decision_id,
+                label: `${tc.option_a} vs ${tc.option_b} \u2014 ${tc.level}`,
+                word: shortGlyphWord(tc.option_a, 'tradeoff'),
+                optionA: tc.option_a,
+                optionB: tc.option_b,
+            }));
         });
         const pc = r.decision_overview?.patient_considerations || {};
         [...(pc.goals_priorities || []), ...(pc.preferences || [])].forEach(item => {
-            (item.turn_indices || []).forEach(turn => events.push({ key: 'preference', turn, label: item.text, decisionId: r.decision_id }));
+            (item.turn_indices || []).forEach(turn => pushEvent({
+                key: 'preference', turn, decisionId: r.decision_id,
+                label: item.text,
+                word: shortGlyphWord(item.text, 'preference'),
+            }));
         });
         (pc.questions || []).forEach(q => {
-            (q.turn_indices || []).forEach(turn => events.push({ key: 'question', turn, label: q.question, decisionId: r.decision_id }));
+            (q.turn_indices || []).forEach(turn => pushEvent({
+                key: 'question', turn, decisionId: r.decision_id,
+                label: q.question,
+                word: shortGlyphWord(q.question, 'question'),
+            }));
         });
         chosenConsentInterventions(r).forEach(intv => {
             ['core_risks', 'relevant_risks', 'context_dependent_risks'].forEach(tier => {
                 (intv[tier] || []).forEach(risk => {
                     if (risk.detection_status !== 'Discussed') return;
-                    (risk.turn_indices || []).forEach(turn => events.push({ key: 'risk', turn, label: risk.risk_name, decisionId: r.decision_id }));
+                    (risk.turn_indices || []).forEach(turn => pushEvent({
+                        key: 'risk', turn, decisionId: r.decision_id,
+                        label: risk.risk_name,
+                        word: shortGlyphWord(risk.risk_name, 'risk'),
+                        riskName: risk.risk_name,
+                    }));
                 });
             });
         });
@@ -3157,31 +4368,46 @@ function renderDecisionEventTimeline(regions, turns) {
     const grouped = new Map();
     events.forEach(e => {
         const gkey = `${e.key}|${e.turn}`;
-        if (!grouped.has(gkey)) grouped.set(gkey, { turn: e.turn, key: e.key, decisionId: e.decisionId, labels: [] });
+        if (!grouped.has(gkey)) grouped.set(gkey, { turn: e.turn, key: e.key, decisionId: e.decisionId, labels: [], words: [] });
         grouped.get(gkey).labels.push(e.label);
+        grouped.get(gkey).words.push(e.word);
     });
     const groupedEvents = Array.from(grouped.values());
 
     const rows = TIMELINE_VOCAB.map(v => {
-        const rowEvents = groupedEvents.filter(g => g.key === v.key);
+        const rowEvents = groupedEvents.filter(g => g.key === v.key).sort((a, b) => a.turn - b.turn);
         if (!rowEvents.length) return '';
-        const glyphs = rowEvents.map(g => {
-            const leftPct = Math.min(99, Math.max(1, (g.turn / maxTurn) * 100));
-            const count = g.labels.length;
-            const tooltipText = count > 1 ? `${v.label} (${count}): ${g.labels.join('; ')} (turn ${g.turn})` : `${v.label}: ${g.labels[0]} (turn ${g.turn})`;
+        const placed = placeTimelineLabels(rowEvents.map(g => ({
+            turn: g.turn, word: g.words[0] || '', key: g.key, decisionId: g.decisionId, labels: g.labels,
+        })), maxTurn);
+        const glyphLayer = placed.map(p => {
+            const count = p.event.labels.length;
+            const tooltipText = count > 1
+                ? `${v.label} (${count}): ${p.event.labels.join('; ')} (turn ${p.event.turn})`
+                : `${v.label}: ${p.event.labels[0]} (turn ${p.event.turn})`;
             const badge = count > 1
                 ? `<circle cx="7" cy="-7" r="5.5" fill="#fff" stroke="${v.color}" stroke-width="1.2"></circle><text x="7" y="-6.6" text-anchor="middle" dominant-baseline="central" font-size="7" font-weight="800" fill="${v.color}">${count}</text>`
                 : '';
-            return `<svg class="timeline-event-glyph" style="position:absolute;left:${leftPct}%;top:50%;transform:translate(-50%,-50%);" width="20" height="20" viewBox="-10 -10 20 20"
-                    onclick="jumpToDecisionTurn('${escAttr(g.decisionId)}', ${g.turn})">
+            return `<g class="timeline-event-mark" transform="translate(${p.cx},${p.cy})"
+                    onclick="jumpToDecisionTurn('${escAttr(p.event.decisionId)}', ${p.event.turn})">
                 <title>${escAttr(tooltipText)}</title>
-                <path d="${d3.symbol().type(v.symbol()).size(90)()}" fill="${v.color}"></path>
+                <path d="${d3.symbol().type(v.symbol()).size(140)()}" fill="${v.color}" fill-opacity="0.68"></path>
                 ${badge}
-            </svg>`;
+            </g>`;
+        }).join('');
+        const labelLayer = placed.map(p => {
+            const leader = p.leader
+                ? `<line x1="${p.leaderX1}" y1="${p.leaderY1}" x2="${p.leaderX2}" y2="${p.leaderY2}" stroke="#9bb0c4" stroke-width="1" stroke-opacity="0.85"></line>`
+                : '';
+            return `${leader}<text x="${p.lx}" y="${p.ly}" text-anchor="${p.anchor}" fill="#0d2136" stroke="#fff" stroke-width="3" style="paint-order:stroke;font-size:10px;font-weight:700;pointer-events:none">${escHtml(p.word)}</text>`;
         }).join('');
         return `<div class="decision-timeline-row">
             <div class="decision-timeline-label">${escHtml(v.label)}</div>
-            <div class="decision-timeline-track timeline-event-track">${glyphs}</div>
+            <div class="decision-timeline-track timeline-event-track">
+                <svg viewBox="0 0 1000 64" style="width:100%;height:auto;display:block">
+                    ${glyphLayer}${labelLayer}
+                </svg>
+            </div>
         </div>`;
     }).join('');
 
@@ -3193,6 +4419,378 @@ function renderDecisionEventTimeline(regions, turns) {
         <div class="timeline-vocab-legend" style="grid-template-columns:repeat(${legendCols}, max-content);">${legend}</div>
         <div class="decision-timeline-rows">${rows}</div>
         <div class="decision-timeline-axis"><span>Turn 0</span><span>Turn ${maxTurn}</span></div>
+    </div>`;
+}
+
+function vocabFor(key) {
+    return TIMELINE_VOCAB.find(v => v.key === key) || TIMELINE_VOCAB[0];
+}
+
+function renderGlyphMark(key, color, opacity, cx, cy) {
+    const o = opacity == null ? 0.68 : opacity;
+    const x = cx || 0;
+    const y = cy || 0;
+    if (key === 'option') return `<circle cx="${x}" cy="${y}" r="8" fill="${color}" fill-opacity="${o}"></circle>`;
+    if (key === 'preference') return `<circle cx="${x}" cy="${y}" r="7.5" fill="none" stroke="${color}" stroke-width="2" stroke-opacity="${o}"></circle>`;
+    if (key === 'risk') return `<rect x="${x - 6.5}" y="${y - 6.5}" width="13" height="13" fill="${color}" fill-opacity="${o}"></rect>`;
+    if (key === 'tradeoff') return `<polygon points="${x},${y - 8} ${x + 7.5},${y + 4.5} ${x - 7.5},${y + 4.5}" fill="${color}" fill-opacity="${o}"></polygon>`;
+    if (key === 'recommendation') return `<polygon points="${x},${y - 8} ${x + 8},${y} ${x},${y + 8} ${x - 8},${y}" fill="${color}" fill-opacity="${o}"></polygon>`;
+    return `<g stroke="${color}" stroke-width="2.4" stroke-opacity="${o}" stroke-linecap="square">
+        <line x1="${x - 6}" y1="${y}" x2="${x + 6}" y2="${y}"></line>
+        <line x1="${x}" y1="${y - 6}" x2="${x}" y2="${y + 6}"></line>
+    </g>`;
+}
+
+function glyphAxisMax(turns) {
+    const dataMax = Math.max(1, ...(turns || []).map(t => t.index));
+    return Math.max(dataMax, 28);
+}
+
+function fieldDiscussed(field) {
+    return !!(field && String(field.text || '').trim());
+}
+
+function groupDecisionGlyphs(events) {
+    const grouped = new Map();
+    (events || []).forEach(e => {
+        const gkey = `${e.key}|${e.turn}`;
+        if (!grouped.has(gkey)) grouped.set(gkey, { ...e, labels: [e.label], words: [e.word] });
+        else {
+            grouped.get(gkey).labels.push(e.label);
+            grouped.get(gkey).words.push(e.word);
+        }
+    });
+    const list = Array.from(grouped.values()).sort((a, b) => a.turn - b.turn);
+    const seen = new Set();
+    list.forEach(g => {
+        const k = `${g.turn}|${g.word}`;
+        if (!g.word) return;
+        if (seen.has(k)) g.word = '';
+        else seen.add(k);
+    });
+    return list;
+}
+
+function glyphTurnX(turn, maxTurn) {
+    return Math.min(1000 - 24, Math.max(24, (turn / Math.max(1, maxTurn)) * 1000));
+}
+
+function clusterRowEvents(decisionId, events, maxTurn) {
+    const CLUSTER_PX = 22;
+    const CLUSTER_MIN = 3;
+    const GLYPH_Y = 50;
+    const sorted = [...(events || [])].sort((a, b) => a.turn - b.turn);
+    const groups = [];
+    sorted.forEach(e => {
+        const last = groups[groups.length - 1];
+        if (last && glyphTurnX(e.turn, maxTurn) - glyphTurnX(last[last.length - 1].turn, maxTurn) < CLUSTER_PX) last.push(e);
+        else groups.push([e]);
+    });
+    const singles = [];
+    const clusters = [];
+    groups.forEach(g => {
+        if (g.length < CLUSTER_MIN) {
+            singles.push(...g);
+            return;
+        }
+        const cx = g.reduce((sum, e) => sum + glyphTurnX(e.turn, maxTurn), 0) / g.length;
+        clusters.push({
+            id: `${decisionId}:${g[0].turn}`,
+            cx,
+            cy: GLYPH_Y,
+            events: g.map((event, i) => ({
+                event,
+                angle: -Math.PI / 2 + (i * 2 * Math.PI) / g.length,
+            })),
+        });
+    });
+    return { singles, clusters };
+}
+
+function renderClusterX(cx, cy, stroke, expanded) {
+    const arm = expanded ? 5 : 4;
+    return `<g>
+        <title>${expanded ? 'Collapse cluster' : 'Expand overlapping marks'}</title>
+        <circle cx="${cx}" cy="${cy}" r="10" fill="transparent"></circle>
+        <line x1="${cx - arm}" y1="${cy - arm}" x2="${cx + arm}" y2="${cy + arm}" stroke="${stroke}" stroke-width="1.1"></line>
+        <line x1="${cx + arm}" y1="${cy - arm}" x2="${cx - arm}" y2="${cy + arm}" stroke="${stroke}" stroke-width="1.1"></line>
+    </g>`;
+}
+
+function renderGlyphHit(event, cx, cy, opts) {
+    const { dimmed, clickable, decisionId } = opts;
+    const ctx = cockpitCtx();
+    const glyph = ctx.glyph;
+    const v = vocabFor(event.key);
+    const active = !!(glyph.id && glyph.id === event.id);
+    const opacity = active ? 0.95 : dimmed ? 0.22 : 0.72;
+    const inert = !clickable ? ' is-inert' : '';
+    const encodedId = encodeURIComponent(event.id || '');
+    const click = clickable
+        ? `onclick="selectGlyph('${escAttr(decisionId)}','${escAttr(event.key)}',${event.turn},'${escAttr(encodedId)}')"`
+        : '';
+    return `<g class="timeline-event-mark${inert}" ${click}>
+        <title>${escAttr(`${v.label}: ${event.label} (turn ${event.turn})`)}</title>
+        <circle cx="${cx}" cy="${cy}" r="12" fill="transparent"></circle>
+        ${renderGlyphMark(event.key, v.color, opacity, cx, cy)}
+    </g>`;
+}
+
+function renderGlyphTrackSvg(events, maxTurn, decisionId, selected, laneIndex) {
+    const ctx = cockpitCtx();
+    const { singles, clusters } = clusterRowEvents(decisionId, events, maxTurn);
+    const muted = ctx.expandedCluster != null;
+    const focusedId = ctx.glyph?.id || null;
+    const trackFill = selected ? '#dce8f4' : (laneIndex % 2 === 0 ? '#eef3f9' : '#e4edf6');
+    const trackStroke = selected ? '#7a93ab' : '#d4e2f0';
+    const xStroke = selected ? '#06182b' : '#7a93ab';
+    const singleMarks = singles.map(e => renderGlyphHit(e, glyphTurnX(e.turn, maxTurn), 50, {
+        dimmed: muted || (!!focusedId && e.id !== focusedId),
+        clickable: ctx.interactive && !muted,
+        decisionId,
+    })).join('');
+    const clusterMarks = clusters.map(c => {
+        const expanded = ctx.expandedCluster === c.id;
+        const ring = expanded ? 28 : 7;
+        const focusInCluster = expanded && focusedId && c.events.some(item => item.event.id === focusedId);
+        const glyphs = c.events.map(item => {
+            const px = c.cx + Math.cos(item.angle) * ring;
+            const py = c.cy + Math.sin(item.angle) * ring;
+            const isFocus = focusedId && item.event.id === focusedId;
+            return renderGlyphHit(item.event, px, py, {
+                dimmed: isFocus ? false : (muted && !expanded) || focusInCluster,
+                clickable: ctx.interactive && expanded,
+                decisionId,
+            });
+        }).join('');
+        const xClick = ctx.interactive
+            ? `onclick="event.stopPropagation(); toggleGlyphCluster('${escAttr(c.id)}')"`
+            : '';
+        return `<g>${glyphs}<g class="cluster-x" ${xClick}>${renderClusterX(c.cx, c.cy, expanded ? '#06182b' : xStroke, expanded)}</g></g>`;
+    }).join('');
+    return `<svg viewBox="0 0 1000 100" style="width:100%;height:auto;display:block;background:${trackFill};outline:1px solid ${trackStroke};overflow:visible">
+        ${singleMarks}${clusterMarks}
+    </svg>`;
+}
+
+function renderGlyphMap(regions, turns) {
+    const ctx = cockpitCtx();
+    const axisMax = glyphAxisMax(turns);
+    const allEvents = collectTimelineEvents(regions);
+    const selectedId = ctx.selectedId;
+    const legend = TIMELINE_VOCAB.map(v => `
+        <div class="timeline-vocab-item">
+            <svg class="timeline-vocab-glyph" viewBox="-10 -10 20 20">${renderGlyphMark(v.key, v.color, 1)}</svg>
+            ${escHtml(v.short)}
+        </div>`).join('');
+    const rows = orderDecisionsHierarchical(regions).map(({ r, depth }, index) => {
+        const selected = r.decision_id === selectedId;
+        const chosenLabel = r.selected_option || r.selected_intervention || '';
+        const events = allEvents.filter(e => e.decisionId === r.decision_id);
+        const firstTurn = events[0]?.turn ?? (r.relevant_turn_indices || [])[0] ?? 0;
+        const labelClick = ctx.interactive
+            ? `onclick="selectGlyph('${escAttr(r.decision_id)}','overview',${firstTurn})"`
+            : '';
+        return `<div class="glyph-map-row" style="margin-left:${depth * 16}px;">
+            <div class="glyph-map-label" ${labelClick}
+                 style="border-left:3px solid ${selected ? 'var(--secondary)' : 'transparent'};padding-left:8px;${ctx.interactive ? '' : 'cursor:default;'}">
+                <strong>${escHtml(r.decision_label)}</strong>
+                <span>${escHtml(r.status)}${chosenLabel ? ` → ${escHtml(chosenLabel)}` : ' · no path chosen'}</span>
+            </div>
+            <div class="glyph-map-track">${renderGlyphTrackSvg(events, axisMax, r.decision_id, selected, index)}</div>
+        </div>`;
+    }).join('');
+    return `<div class="glyph-map">
+        <div class="chart-heading-row" style="margin-bottom:8px;">
+            <h3 class="decision-list-title" style="margin:0;border:0;min-height:0;padding:0;">Map</h3>
+            <span class="info-icon" tabindex="0" data-tip="Each mark is a grounded moment on this decision. Isolated glyphs stay on the baseline. Three or more that pile up collapse around a bare × — click the × to fan them out, then click through the glyphs. The one you click keeps its color; the others fade. Click the × again to collapse.">i</span>
+        </div>
+        <div class="timeline-vocab-legend">${legend}</div>
+        ${rows}
+        <div class="glyph-map-axis"><span>Turn 0</span><span>Turn ${axisMax}</span></div>
+    </div>`;
+}
+
+function renderOptionMatrix(r) {
+    const options = r.decision_overview?.options_considered || [];
+    if (!options.length) return '<p style="color:#90a7bd;">No options extracted.</p>';
+    const comm = r.communication_analysis || {};
+    const chosenText = `${r.selected_option || ''} ${r.selected_intervention || ''}`.toLowerCase();
+    const glyph = cockpitCtx().glyph;
+    const rows = options.map(opt => {
+        const name = opt.option_name || '';
+        const chosen = name && chosenText.includes(name.toLowerCase());
+        const hit = (glyph.key === 'option' && glyph.optionName === name)
+            || (glyph.key === 'tradeoff' && (glyph.optionA === name || glyph.optionB === name));
+        const tone = hit ? 'is-glyph-hit' : chosen ? 'is-chosen-path' : '';
+        return `<tr class="${tone}">
+            <td>${escHtml(name)}${chosen ? ' (path)' : ''}</td>
+            <td>${fieldDiscussed(opt.benefits) ? 'Yes' : '—'}</td>
+            <td>${fieldDiscussed(opt.risks) ? 'Yes' : '—'}</td>
+            <td>${fieldDiscussed(opt.burdens) ? 'Yes' : '—'}</td>
+            <td>${escHtml(optionTradeoffLevel(opt, comm))}</td>
+        </tr>`;
+    }).join('');
+    return `<table class="risk-table"><thead><tr><th>Option</th><th>Benefits</th><th>Risks</th><th>Burdens</th><th>Compared</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderOptionProse(r) {
+    const glyph = cockpitCtx().glyph;
+    if (glyph.key !== 'option' && glyph.key !== 'tradeoff') return '';
+    const options = r.decision_overview?.options_considered || [];
+    let opt = options.find(o => o.option_name === glyph.optionName);
+    if (!opt && glyph.key === 'tradeoff') opt = options.find(o => o.option_name === glyph.optionA) || options[0];
+    if (!opt) return '';
+    return `<div class="option-prose">
+        <div><div class="field-label">What it involves</div>${renderTextField(opt.what_it_involves, 'Not discussed')}</div>
+        <div><div class="field-label">Benefits</div>${renderTextField(opt.benefits, 'Not discussed')}</div>
+        <div><div class="field-label">Risks</div>${renderTextField(opt.risks, 'Not discussed')}</div>
+        <div><div class="field-label">Burdens</div>${renderTextField(opt.burdens, 'Not discussed')}</div>
+    </div>`;
+}
+
+function renderCoreRisksDock(r) {
+    const intvs = chosenConsentInterventions(r);
+    const risks = intvs[0]?.core_risks || [];
+    if (!risks.length) return '';
+    const discussedCount = risks.filter(risk => risk.detection_status === 'Discussed').length;
+    const rows = risks.map(risk => {
+        const hit = cockpitCtx().glyph.key === 'risk' && cockpitCtx().glyph.riskName === risk.risk_name;
+        const discussed = risk.detection_status === 'Discussed';
+        const tone = hit ? 'is-glyph-hit' : discussed ? 'is-chosen-path' : 'is-gap';
+        const t = (risk.turn_indices || [])[0];
+        const glyphId = t == null ? '' : encodeURIComponent(`${r.decision_id}::risk::${t}::${risk.risk_name}`);
+        const click = t != null && cockpitCtx().interactive
+            ? `onclick="selectGlyph('${escAttr(r.decision_id)}','risk',${t},'${escAttr(glyphId)}')" style="cursor:pointer"`
+            : '';
+        return `<tr class="${tone}" ${click}>
+            <td>${escHtml(risk.risk_name)}</td>
+            <td>${escHtml(risk.detection_status)}</td>
+            <td>${t == null ? '—' : t}</td>
+        </tr>`;
+    }).join('');
+    return `<div>
+        <div class="chart-heading-row"><h3>Core risks</h3><span class="badge">${discussedCount} of ${risks.length} discussed</span></div>
+        <table class="risk-table"><thead><tr><th>Core risk</th><th>In conversation</th><th>Turn</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>`;
+}
+
+function renderEngagementDock(r) {
+    const pe = r.communication_analysis?.patient_engagement || {};
+    const yesNo = flag => flag ? 'Yes' : 'No';
+    return `<div>
+        <h3>Patient engagement</h3>
+        <table class="risk-table"><thead><tr><th>Signal</th><th>Elicited</th></tr></thead><tbody>
+            <tr><td>Goals / priorities</td><td>${yesNo(pe.goals_priorities_elicited)}</td></tr>
+            <tr><td>Preferences</td><td>${yesNo(pe.preferences_elicited)}</td></tr>
+            <tr><td>Questions invited</td><td>${yesNo(pe.questions_invited)}</td></tr>
+        </tbody></table>
+    </div>`;
+}
+
+function renderGlyphSlice(r) {
+    const glyph = cockpitCtx().glyph;
+    if (glyph.key === 'question') {
+        const questions = r.decision_overview?.patient_considerations?.questions || [];
+        const q = questions.find(item => glyph.label && item.question === glyph.label)
+            || questions.find(item => (item.turn_indices || []).includes(glyph.turn));
+        if (!q) return '';
+        return `<div class="callout"><div class="field-label">Question</div><div class="callout-value">${escHtml(q.question)}</div>
+            <div class="field-value" style="margin-top:8px;">${escHtml(q.response || '—')}</div>
+            <div style="margin-top:6px;">${escHtml(q.response_status || '')}</div></div>`;
+    }
+    if (glyph.key === 'recommendation') {
+        const rec = r.decision_overview?.clinician_recommendation || {};
+        return `<div class="callout"><div class="field-label">Recommendation</div><div class="callout-value">${escHtml(rec.recommended_option || 'None stated')}</div>
+            ${rec.rationale ? `<div class="field-value" style="margin-top:8px;">${escHtml(rec.rationale)}</div>` : ''}</div>`;
+    }
+    if (glyph.key === 'preference') {
+        const pc = r.decision_overview?.patient_considerations || {};
+        const items = [...(pc.goals_priorities || []), ...(pc.preferences || [])];
+        const item = items.find(entry => glyph.label && entry.text === glyph.label)
+            || items.find(entry => (entry.turn_indices || []).includes(glyph.turn));
+        if (!item) return '';
+        return `<div class="callout"><div class="field-label">Preference / goal</div><div class="callout-value">${escHtml(item.text)}</div></div>`;
+    }
+    return '';
+}
+
+function renderTranscriptStrip(turns, turn) {
+    if (turn == null || !(turns || []).length) return '';
+    const wanted = [turn - 2, turn, turn + 2];
+    let rows = wanted.map(i => turns.find(t => t.index === i)).filter(Boolean);
+    if (!rows.length) {
+        rows = [...turns].sort((a, b) => Math.abs(a.index - turn) - Math.abs(b.index - turn))
+            .slice(0, 3).sort((a, b) => a.index - b.index);
+    }
+    if (!rows.length) return '';
+    return `<div class="transcript-strip">
+        <div class="field-label">Transcript around turn ${turn}</div>
+        ${rows.map(t => `<div class="transcript-strip-row${t.index === turn ? ' is-playhead' : ''}">
+            <div class="transcript-strip-meta">[${t.index}] ${escHtml(t.speaker_line)}</div>
+            <div>${escHtml((t.text_lines || []).join(' '))}</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderCockpitStats(regions, selected) {
+    const s = computeSummaryStats(regions);
+    const framing = selected?.communication_analysis?.decision_framing || '—';
+    return `<div class="cockpit-stats">
+        <div class="cockpit-stat"><div class="cockpit-stat-value">${s.coreTotal ? `${s.coreDiscussed}/${s.coreTotal}` : 'N/A'}</div><div class="cockpit-stat-label">Core risks discussed</div></div>
+        <div class="cockpit-stat"><div class="cockpit-stat-value">${escHtml(framing)}</div><div class="cockpit-stat-label">Decision framing</div></div>
+        <div class="cockpit-stat"><div class="cockpit-stat-value">${s.questionsAnswered}/${s.questionsTotal}</div><div class="cockpit-stat-label">Questions answered</div></div>
+        <div class="cockpit-stat"><div class="cockpit-stat-value">${escHtml(selected?.status || '—')}</div><div class="cockpit-stat-label">Active decision</div></div>
+    </div>`;
+}
+
+function renderPatientBanner() {
+    const ep = cockpitCtx().episode;
+    if (!ep) return '';
+    return `<div class="map-options episode-patient-banner" style="background:#eaf2fa;border:0;border-left:3px solid #1769e0;">
+        <strong>${escHtml(ep.patient_label)}</strong> · ${escHtml(ep.clinician_name || '')} · Core risks ${ep.core_risk_pct == null ? 'N/A' : `${ep.core_risk_pct}%`} · ${escHtml(jitterCategory(ep) || 'N/A')}${ep.source === 'demo' ? ' · <em>demo episode</em>' : ' · <em>saved analysis</em>'}
+    </div>`;
+}
+
+function renderEpisodeDock(r, turns) {
+    const glyph = cockpitCtx().glyph;
+    const evLabel = glyph.key === 'overview' ? 'Decision' : glyph.key;
+    const risksDock = renderCoreRisksDock(r);
+    return `<div class="episode-dock" id="episodeDock">
+        <h3>Dock — ${escHtml(r.decision_label)}</h3>
+        <p class="episode-dock-kicker">${escHtml(evLabel)}${glyph.turn != null ? ` · turn ${glyph.turn}` : ''}</p>
+        <div class="episode-dock-grid">
+            <div>
+                <h3>Options</h3>
+                ${renderOptionMatrix(r)}
+                ${renderOptionProse(r)}
+            </div>
+            ${risksDock || renderEngagementDock(r)}
+        </div>
+        ${renderGlyphSlice(r)}
+    </div>`;
+}
+
+function renderEpisodeTranscript(regions, turns) {
+    if (cockpitCtx().peek) return '';
+    const glyph = cockpitCtx().glyph;
+    const strip = renderTranscriptStrip(turns, glyph.turn);
+    if (!(turns || []).length) return strip;
+    return `${strip}
+        <details class="detail-disclosure episode-transcript"${TRANSCRIPT_OPEN ? ' open' : ''} ontoggle="TRANSCRIPT_OPEN=this.open">
+            <summary>Full transcript</summary>
+            <div class="episode-transcript-body">${renderTranscriptHtml(regions, turns, glyph.turn)}</div>
+        </details>`;
+}
+
+function renderEpisodeCockpit(regions, turns, selected) {
+    const peekClass = cockpitCtx().peek ? ' is-peek' : '';
+    return `<div class="episode-cockpit${peekClass}">
+        ${renderPatientBanner()}
+        ${renderCockpitStats(regions, selected)}
+        ${renderGlyphMap(regions, turns)}
+        ${renderEpisodeDock(selected, turns)}
+        ${renderEpisodeTranscript(regions, turns)}
     </div>`;
 }
 
@@ -3261,9 +4859,11 @@ function renderDecisionDetail(r) {
         const isSelected = normalizedName && selectedOptionText.includes(normalizedName);
         const namedOnly = opt.named_only ? `<span class="badge" style="background:#95a5a6;color:#fff;">Named only</span>` : "";
         const selectedBadge = isSelected ? `<span class="badge risk-badge">Selected path</span>` : "";
-        const open = isSelected || (!selectedOptionText && index === 0) ? " open" : "";
-        return `<details class="option-card${isSelected ? " selected" : ""}"${open}>
-            <summary><h4>${escHtml(optionName)}</h4> ${selectedBadge}${namedOnly}</summary>
+        const focusedOption = NAV.optionName;
+        const isFocused = focusedOption ? optionName === focusedOption : (isSelected || (!selectedOptionText && index === 0));
+        const open = isFocused ? " open" : "";
+        return `<details class="option-card${isSelected ? " selected" : ""}${focusedOption && !isFocused ? " is-dimmed" : ""}" data-option-name="${escAttr(optionName)}"${open}>
+            <summary onclick="event.preventDefault(); navGoTo('option','${escAttr(optionName)}')"><h4>${escHtml(optionName)}</h4> ${selectedBadge}${namedOnly}</summary>
             <div class="option-facts">
                 <div class="option-fact"><div class="field-label">What it involves</div>${renderTextField(opt.what_it_involves, "Not discussed")}</div>
                 <div class="option-fact benefit"><div class="field-label">Benefits / expected outcomes</div>${renderTextField(opt.benefits, "Not discussed")}</div>
@@ -3380,13 +4980,57 @@ function renderLegacyRegion(node) {
 }
 
 function selectDecision(decisionId) {
+    if (CURRENT_SELECTED_DECISION_ID !== decisionId) NAV.optionName = null;
     CURRENT_SELECTED_DECISION_ID = decisionId;
-    if (CURRENT_REGIONS && CURRENT_TURNS) renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION);
+    NAV.decisionId = decisionId;
+    CURRENT_GLYPH = { key: 'overview', turn: null };
+    CURRENT_EXPANDED_CLUSTER = null;
+    if (CURRENT_REGIONS && CURRENT_TURNS) renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION, { keepSpine: true });
+    renderGlobalBreadcrumb();
+}
+
+function selectGlyph(decisionId, key, turn, glyphId) {
+    if (CURRENT_SELECTED_DECISION_ID !== decisionId) NAV.optionName = null;
+    CURRENT_SELECTED_DECISION_ID = decisionId;
+    NAV.decisionId = decisionId;
+    if (key === 'overview') CURRENT_EXPANDED_CLUSTER = null;
+    const events = collectTimelineEvents(CURRENT_REGIONS || []);
+    let id = glyphId || null;
+    if (id) {
+        try { id = decodeURIComponent(id); } catch (e) { /* keep raw */ }
+    }
+    const ev = (id && events.find(e => e.id === id))
+        || events.find(e => e.decisionId === decisionId && e.key === key && Number(e.turn) === Number(turn));
+    CURRENT_GLYPH = {
+        id: ev?.id || null,
+        key: key || 'overview',
+        turn: turn == null || turn === '' ? null : Number(turn),
+        optionName: ev?.optionName || null,
+        optionA: ev?.optionA || null,
+        optionB: ev?.optionB || null,
+        riskName: ev?.riskName || null,
+        label: ev?.label || null,
+    };
+    if (ev?.optionName) NAV.optionName = ev.optionName;
+    else if (key !== 'option') NAV.optionName = null;
+    if (CURRENT_REGIONS && CURRENT_TURNS) renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION, { keepSpine: true });
+    renderGlobalBreadcrumb();
+    if (TRANSCRIPT_OPEN && CURRENT_GLYPH.turn != null) {
+        requestAnimationFrame(() => scrollTranscriptToTurn(CURRENT_GLYPH.turn));
+    }
+}
+
+function scrollTranscriptToTurn(turnIndex) {
+    const el = document.getElementById(`turn-${turnIndex}`);
+    const body = el && el.closest('.episode-transcript-body');
+    if (!el || !body) return;
+    const top = el.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop - 12;
+    body.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
 }
 
 function collectTurnTagsForDecision(r, turnIndex, tags) {
     if (!r.relevant_turn_indices || !r.relevant_turn_indices.includes(turnIndex)) return;
-    tags.push({ text: r.decision_label, color: r.colorTheme.tag, title: "Decision" });
+    tags.push({ text: r.decision_label, color: r.colorTheme?.tag || '#7f8fa6', title: "Decision" });
     (r.decision_overview?.options_considered || []).forEach(opt => tags.push({ text: opt.option_name, color: "#7f8fa6", title: "Option" }));
     (r.communication_analysis?.tradeoff_comparisons || []).forEach(tc => {
         if ((tc.turn_indices || []).includes(turnIndex)) tags.push({ text: `Tradeoff: ${tc.option_a} vs ${tc.option_b}`, color: "#16a085", title: tc.level });
@@ -3402,7 +5046,37 @@ function collectTurnTagsForDecision(r, turnIndex, tags) {
     });
 }
 
-function renderUI(regions, turns, schemaVersion) {
+function renderCcqLayout(regions, selected) {
+    return `<div class="ccq-layout"><div class="ccq-sidebar">${renderDecisionsList(regions, selected.decision_id)}</div>` +
+        `<div class="ccq-detail">${renderDecisionDetail(selected)}</div></div>`;
+}
+
+function renderTranscriptHtml(regions, turns, playhead) {
+    let html = '';
+    turns.forEach(turn => {
+        const turnTags = [];
+        regions.forEach(r => collectTurnTagsForDecision(r, turn.index, turnTags));
+        const active = regions.filter(r => r.relevant_turn_indices && r.relevant_turn_indices.includes(turn.index));
+        let turnBg = "transparent", turnBorder = "transparent";
+        if (active.length && active[0].colorTheme) {
+            turnBg = active[0].colorTheme.bg;
+            turnBorder = active[0].colorTheme.border;
+        }
+        const tagsHtml = turnTags.map(t => `<span class="text-tag" style="background:${t.color};" title="${escAttr(t.title)}">${escHtml(t.text)}</span>`).join("");
+        const play = playhead != null && turn.index === playhead ? ' is-playhead' : '';
+        html += `<div id="turn-${turn.index}" class="turn-container${play}" style="background:${turnBg};border-left-color:${turnBorder};">
+            <div class="turn-meta"><div class="encounter-label" title="${escAttr(turn.encounter)}">${escHtml((turn.encounter || "").substring(0, 12))}...</div>
+            <div>[TURN ${turn.index}]</div><div style="color:#2f3640;">${escHtml(turn.speaker_line)}</div></div>
+            <div class="turn-content">${tagsHtml ? `<div class="turn-tags">${tagsHtml}</div>` : ""}${escHtml(turn.text_lines.join("\n"))}</div></div>`;
+    });
+    return html;
+}
+
+function renderEpisodeRest(regions, turns, selected) {
+    return renderEpisodeCockpit(regions, turns, selected);
+}
+
+function renderUI(regions, turns, schemaVersion, opts = {}) {
     CURRENT_REGIONS = regions;
     CURRENT_TURNS = turns;
     CURRENT_SCHEMA_VERSION = schemaVersion;
@@ -3417,35 +5091,24 @@ function renderUI(regions, turns, schemaVersion) {
     }
 
     if (!CURRENT_SELECTED_DECISION_ID && regions.length) CURRENT_SELECTED_DECISION_ID = regions[0].decision_id;
-    const selected = regions.find(r => r.decision_id === CURRENT_SELECTED_DECISION_ID) || regions[0];
+    if (!NAV.decisionId) NAV.decisionId = CURRENT_SELECTED_DECISION_ID;
+    const selected = regions.find(r => r.decision_id === (NAV.decisionId || CURRENT_SELECTED_DECISION_ID)) || regions[0];
+    if (!selected) {
+        results.innerHTML = renderGlyphMap(regions, turns) + `<p class="jitter-hint">No decisions detected in this episode.</p>`;
+        return;
+    }
+    CURRENT_SELECTED_DECISION_ID = selected?.decision_id || null;
+    NAV.decisionId = CURRENT_SELECTED_DECISION_ID;
 
-    // Decision Timeline leads the episode view — an overview of what kind of
-    // shared decision-making happened and when, before drilling into any one
-    // decision's details below (overview-first, per Shneiderman's mantra).
-    let html = renderDecisionEventTimeline(regions, turns);
-    html += `<h2>CCQ Analysis Results</h2>${renderSummaryBar(regions)}`;
-    html += `<div class="ccq-layout"><div class="ccq-sidebar">${renderDecisionsList(regions, selected.decision_id)}</div>`;
-    html += `<div class="ccq-detail">${renderDecisionDetail(selected)}</div></div>`;
-    html += renderDecisionTimeline(regions, turns);
-    html += `<h2>Patient Timeline (Merged Transcripts)</h2><div class="global-transcript">`;
-
-    turns.forEach(turn => {
-        const turnTags = [];
-        regions.forEach(r => collectTurnTagsForDecision(r, turn.index, turnTags));
-        const active = regions.filter(r => r.relevant_turn_indices && r.relevant_turn_indices.includes(turn.index));
-        let turnBg = "transparent", turnBorder = "transparent";
-        if (active.length) {
-            turnBg = active[0].colorTheme.bg;
-            turnBorder = active[0].colorTheme.border;
+    const cockpit = renderEpisodeCockpit(regions, turns, selected);
+    if (opts.keepSpine) {
+        const existing = results.querySelector('.episode-cockpit');
+        if (existing) {
+            existing.outerHTML = cockpit;
+            return;
         }
-        const tagsHtml = turnTags.map(t => `<span class="text-tag" style="background:${t.color};" title="${escAttr(t.title)}">${escHtml(t.text)}</span>`).join("");
-        html += `<div id="turn-${turn.index}" class="turn-container" style="background:${turnBg};border-left-color:${turnBorder};">
-            <div class="turn-meta"><div class="encounter-label" title="${escAttr(turn.encounter)}">${escHtml((turn.encounter || "").substring(0, 12))}...</div>
-            <div>[TURN ${turn.index}]</div><div style="color:#2f3640;">${escHtml(turn.speaker_line)}</div></div>
-            <div class="turn-content">${tagsHtml ? `<div class="turn-tags">${tagsHtml}</div>` : ""}${escHtml(turn.text_lines.join("\n"))}</div></div>`;
-    });
-    html += `</div>`;
-    results.innerHTML = html;
+    }
+    results.innerHTML = cockpit;
 }
 
 </script>
