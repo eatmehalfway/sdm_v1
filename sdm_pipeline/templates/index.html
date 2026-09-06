@@ -673,11 +673,11 @@
         }
         #spinePeek.is-visible { opacity:1; visibility:visible; }
         #spinePeek .episode-cockpit { margin:0; }
-        #spinePeek .glyph-map { padding:12px 14px 8px; }
+        #spinePeek .spine-map { padding:12px 14px 8px; }
         #spinePeek .episode-dock { padding:12px 14px 16px; }
         #spinePeek .cockpit-stat { padding:12px 14px; }
         #spinePeek .info-icon { display:none; }
-        #spinePeek .transcript-strip, #spinePeek .episode-transcript { display:none; }
+        #spinePeek .transcript-pane, #spinePeek .spine-collapse-all { display:none; }
 
         /* Wide viewports: overlay is a focus+context pane, not a modal over a dimmed map. */
         .container.is-detail {
@@ -808,17 +808,65 @@
         .cockpit-stat-value { font-size:1.15rem; font-weight:800; color:var(--navy); letter-spacing:-0.02em; line-height:1.2; }
         .cockpit-stat-label { margin-top:8px; font-size:0.62rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.12em; }
         .episode-patient-banner { margin:0 0 1px; }
-        .glyph-map { background:var(--surface); padding:16px 20px 12px; margin:0; }
-        .glyph-map h3 { margin:0 0 6px; }
-        .glyph-map-row {
-            display:grid; grid-template-columns:180px minmax(0, 1fr); gap:10px;
-            padding:6px 0; border-bottom:1px solid var(--border); align-items:center;
+        .spine-map { background:var(--surface); padding:16px 20px 12px; margin:0; --spine-pane-h:520px; --spine-rail-w:28px; }
+        .spine-map h3 { margin:0; }
+        .spine-map-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 10px; }
+        .spine-collapse-all {
+            padding:6px 10px; border:1px solid var(--border); background:var(--surface);
+            font-family:inherit; font-size:0.75rem; font-weight:700; color:var(--navy); cursor:pointer;
         }
-        .glyph-map-label { cursor:pointer; min-width:0; }
-        .glyph-map-label strong { display:block; font-size:0.88rem; color:var(--navy); }
-        .glyph-map-label span { display:block; margin-top:2px; font-size:0.72rem; color:var(--muted); }
-        .glyph-map-track svg { display:block; width:100%; height:auto; }
-        .glyph-map-axis { display:flex; justify-content:space-between; margin:6px 0 0 190px; font-size:0.6rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--muted); font-weight:800; }
+        .spine-collapse-all:disabled { opacity:0.4; cursor:default; }
+        .spine-legend-swatch { width:12px; height:3px; display:block; flex-shrink:0; }
+        .spine-map-body { display:flex; align-items:flex-start; gap:12px; overflow:auto; }
+        .spine-map-trees { display:flex; align-items:flex-start; flex-shrink:0; }
+        .spine-node { display:flex; align-items:flex-start; height:auto; }
+        .tick-grid {
+            flex-shrink:0; width:168px; height:auto;
+            display:flex; flex-direction:column; background:#eef3f9; outline:1px solid var(--border);
+        }
+        .tick-grid.is-selected { background:#dce8f4; outline-color:#7a93ab; }
+        .tick-grid-title { height:56px; padding:8px 10px 4px; overflow:hidden; cursor:pointer; }
+        .tick-grid-title strong { display:block; font-size:0.82rem; color:var(--navy); line-height:1.25; }
+        .tick-grid-title span { display:block; margin-top:2px; font-size:0.68rem; color:var(--muted); }
+        .tick-grid-cols { height:18px; display:flex; align-items:center; border-bottom:1px solid var(--border); }
+        .tick-grid-cols .tick-col-gutter {
+            width:36px; flex-shrink:0; padding-right:4px; box-sizing:border-box;
+            font-size:8px; font-weight:800; color:var(--muted); text-align:right;
+            line-height:18px; white-space:nowrap;
+        }
+        .tick-grid-cols .tick-col {
+            width:22px; text-align:center; font-size:9px; font-weight:800; line-height:1;
+        }
+        .tick-grid-body { flex:0 0 auto; overflow:hidden; }
+        .tick-grid-body svg { display:block; }
+        .nest-rail {
+            width:var(--spine-rail-w); flex-shrink:0;
+            overflow:hidden; position:relative; border:1px solid var(--border); background:#f4f8fc;
+        }
+        .nest-rail-inner {
+            position:absolute; top:0; left:var(--spine-rail-w);
+            height:var(--spine-rail-w);
+            transform:rotate(90deg); transform-origin:top left;
+            display:flex; white-space:nowrap; overflow:hidden;
+        }
+        .nest-rail-head, .nest-rail-row {
+            padding:0 8px; line-height:26px; border-right:1px solid var(--border); overflow:hidden;
+        }
+        .nest-rail-head { flex-shrink:0; font-size:11px; color:var(--muted); font-weight:700; }
+        .nest-rail-row {
+            flex:1; min-width:0; font-size:12px; font-weight:600; color:var(--navy); cursor:pointer;
+        }
+        .nest-rail.is-readonly .nest-rail-row { cursor:default; }
+        .transcript-pane {
+            min-width:280px; flex:1; height:var(--spine-pane-h);
+            border:1px solid var(--border); background:var(--surface); overflow:auto;
+        }
+        .transcript-pane-head { padding:8px 10px; border-bottom:1px solid var(--border); }
+        .transcript-pane-head strong { display:block; font-size:0.88rem; color:var(--navy); }
+        .transcript-pane-head span { display:block; margin-top:2px; font-size:0.72rem; color:var(--muted); }
+        .transcript-pane-row { padding:8px 10px; border-left:3px solid transparent; }
+        .transcript-pane-row.is-playhead { background:#eaf2fa; border-left-color:var(--secondary); }
+        .transcript-pane-meta { font-size:0.72rem; color:var(--muted); margin:0 0 4px; }
         .episode-dock { background:var(--surface); padding:20px 24px 28px; margin:0 0 1px; }
         .episode-dock-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px; align-items:start; }
         .episode-dock h3 { margin:0 0 8px; font-size:1rem; }
@@ -837,8 +885,8 @@
         .turn-container.is-playhead { background:#eaf2fa !important; border-left-color:var(--secondary) !important; }
         @media (max-width: 800px) {
             .cockpit-stats { grid-template-columns:1fr 1fr; }
-            .glyph-map-row { grid-template-columns:1fr; }
-            .glyph-map-axis { margin-left:0; }
+            .spine-map-body { flex-direction:column; }
+            .transcript-pane { min-width:0; height:360px; }
             .option-prose { grid-template-columns:1fr; }
         }
 
@@ -3072,6 +3120,7 @@ function mountInlineEpisode(payload, opts = {}) {
         CURRENT_SELECTED_DECISION_ID = null;
         CURRENT_GLYPH = { key: 'overview', turn: null };
         CURRENT_EXPANDED_CLUSTER = null;
+        CURRENT_EXPANDED_IDS = [];
         TRANSCRIPT_OPEN = false;
         NAV.decisionId = payload.regions[0]?.decision_id || null;
         NAV.optionName = null;
@@ -3138,6 +3187,7 @@ function closeEpisodeOverlay() {
     NAV.episodeAnchor = null;
     CURRENT_EPISODE_META = null;
     CURRENT_EXPANDED_CLUSTER = null;
+    CURRENT_EXPANDED_IDS = [];
     CURRENT_RENDER_TARGET = 'episodeInlineBody';
     renderGlobalBreadcrumb();
 }
@@ -3213,6 +3263,7 @@ let CURRENT_TURNS = null;
 let CURRENT_SELECTED_DECISION_ID = null;
 let CURRENT_GLYPH = { key: 'overview', turn: null };
 let CURRENT_EXPANDED_CLUSTER = null;
+let CURRENT_EXPANDED_IDS = [];
 let TRANSCRIPT_OPEN = false;
 let COCKPIT_CTX = null;
 let CURRENT_SCHEMA_VERSION = null;
@@ -3228,8 +3279,24 @@ function cockpitCtx() {
         glyph: CURRENT_GLYPH,
         selectedId: NAV.decisionId || CURRENT_SELECTED_DECISION_ID,
         expandedCluster: CURRENT_EXPANDED_CLUSTER,
+        expandedIds: CURRENT_EXPANDED_IDS,
         episode: CURRENT_EPISODE_META,
     };
+}
+
+function toggleSpineExpand(decisionId) {
+    const id = String(decisionId || '');
+    if (!id) return;
+    CURRENT_EXPANDED_IDS = CURRENT_EXPANDED_IDS.includes(id)
+        ? CURRENT_EXPANDED_IDS.filter(x => x !== id)
+        : CURRENT_EXPANDED_IDS.concat(id);
+    if (CURRENT_REGIONS && CURRENT_TURNS) renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION, { keepSpine: true });
+}
+
+function collapseAllSpine() {
+    if (!CURRENT_EXPANDED_IDS.length) return;
+    CURRENT_EXPANDED_IDS = [];
+    if (CURRENT_REGIONS && CURRENT_TURNS) renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION, { keepSpine: true });
 }
 
 function toggleGlyphCluster(clusterId) {
@@ -3245,7 +3312,7 @@ function renderEpisodeCockpitPeek(payload) {
         interactive: false,
         glyph: { id: null, key: 'overview', turn: null },
         selectedId: selected?.decision_id || null,
-        expandedCluster: null,
+        expandedIds: [],
         episode: payload.episode,
     };
     try {
@@ -3660,6 +3727,10 @@ function logStatus(msg) {
 function escAttr(str) {
     if (!str) return "";
     return String(str).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function jsStr(value) {
+    return escAttr(JSON.stringify(value == null ? '' : String(value)));
 }
 
 function escHtml(str) {
@@ -4130,6 +4201,26 @@ const TIMELINE_VOCAB = [
     { key: 'question', label: 'Patient question asked', short: 'Question', symbol: () => d3.symbolCross, color: '#5968cf' },
 ];
 
+const TICK_COLUMNS = [
+    { key: 'option', label: 'Option', short: 'Opt' },
+    { key: 'tradeoff', label: 'Tradeoff', short: 'Trd' },
+    { key: 'risk', label: 'Risk', short: 'Rsk' },
+    { key: 'recommendation', label: 'Recommendation', short: 'Rec' },
+    { key: 'preference', label: 'Preference', short: 'Prf' },
+    { key: 'question', label: 'Question', short: 'Qst' },
+];
+const SPINE_PANE_H = 520;
+const SPINE_PEEK_H = 320;
+const SPINE_MAP_MAX = 640;
+const SPINE_TITLE_H = 56;
+const SPINE_COL_LABEL_H = 18;
+const SPINE_BEH_WEIGHT = 10;
+const SPINE_BEH_H_MAX = 12;
+const SPINE_COL_W = 22;
+const SPINE_TICK_W = 12;
+const SPINE_TURN_LABEL_W = 36;
+const SPINE_TRACK_W = SPINE_TURN_LABEL_W + TICK_COLUMNS.length * SPINE_COL_W;
+
 function firstTurnIndex(...fields) {
     for (const field of fields) {
         if (field && (field.turn_indices || []).length) return field.turn_indices[0];
@@ -4441,173 +4532,242 @@ function renderGlyphMark(key, color, opacity, cx, cy) {
     </g>`;
 }
 
-function glyphAxisMax(turns) {
-    const dataMax = Math.max(1, ...(turns || []).map(t => t.index));
-    return Math.max(dataMax, 28);
-}
-
 function fieldDiscussed(field) {
     return !!(field && String(field.text || '').trim());
 }
 
-function groupDecisionGlyphs(events) {
-    const grouped = new Map();
+function spinePaneH() {
+    return cockpitCtx().peek ? SPINE_PEEK_H : SPINE_PANE_H;
+}
+
+function spineMapMax() {
+    return cockpitCtx().peek ? SPINE_PEEK_H : SPINE_MAP_MAX;
+}
+
+function spineBehaviorTurns(events) {
+    const set = new Set();
     (events || []).forEach(e => {
-        const gkey = `${e.key}|${e.turn}`;
-        if (!grouped.has(gkey)) grouped.set(gkey, { ...e, labels: [e.label], words: [e.word] });
-        else {
-            grouped.get(gkey).labels.push(e.label);
-            grouped.get(gkey).words.push(e.word);
-        }
+        const t = Number(e.turn);
+        if (!Number.isNaN(t)) set.add(t);
     });
-    const list = Array.from(grouped.values()).sort((a, b) => a.turn - b.turn);
-    const seen = new Set();
-    list.forEach(g => {
-        const k = `${g.turn}|${g.word}`;
-        if (!g.word) return;
-        if (seen.has(k)) g.word = '';
-        else seen.add(k);
-    });
-    return list;
+    return [...set].sort((a, b) => a - b);
 }
 
-function glyphTurnX(turn, maxTurn) {
-    return Math.min(1000 - 24, Math.max(24, (turn / Math.max(1, maxTurn)) * 1000));
+function spineGridMetrics(events) {
+    const behTurns = spineBehaviorTurns(events);
+    const hasBehavior = new Set(behTurns);
+    const header = SPINE_TITLE_H + SPINE_COL_LABEL_H;
+    if (!behTurns.length) {
+        return { turns: [], hasBehavior, hB: 0, hE: 0, bodyH: 0, gridH: header };
+    }
+    const lo = behTurns[0];
+    const hi = behTurns[behTurns.length - 1];
+    const turns = [];
+    for (let t = lo; t <= hi; t++) turns.push(t);
+    const nB = behTurns.length;
+    const nE = turns.length - nB;
+    const maxBody = Math.max(80, spineMapMax() - header);
+    const units = nB * SPINE_BEH_WEIGHT + nE;
+    const unit = Math.min(SPINE_BEH_H_MAX / SPINE_BEH_WEIGHT, maxBody / Math.max(units, 1));
+    const hB = SPINE_BEH_WEIGHT * unit;
+    const hE = unit;
+    const bodyH = nB * hB + nE * hE;
+    return { turns, hasBehavior, hB, hE, bodyH, gridH: header + bodyH };
 }
 
-function clusterRowEvents(decisionId, events, maxTurn) {
-    const CLUSTER_PX = 22;
-    const CLUSTER_MIN = 3;
-    const GLYPH_Y = 50;
-    const sorted = [...(events || [])].sort((a, b) => a.turn - b.turn);
-    const groups = [];
-    sorted.forEach(e => {
-        const last = groups[groups.length - 1];
-        if (last && glyphTurnX(e.turn, maxTurn) - glyphTurnX(last[last.length - 1].turn, maxTurn) < CLUSTER_PX) last.push(e);
-        else groups.push([e]);
-    });
-    const singles = [];
-    const clusters = [];
-    groups.forEach(g => {
-        if (g.length < CLUSTER_MIN) {
-            singles.push(...g);
-            return;
-        }
-        const cx = g.reduce((sum, e) => sum + glyphTurnX(e.turn, maxTurn), 0) / g.length;
-        clusters.push({
-            id: `${decisionId}:${g[0].turn}`,
-            cx,
-            cy: GLYPH_Y,
-            events: g.map((event, i) => ({
-                event,
-                angle: -Math.PI / 2 + (i * 2 * Math.PI) / g.length,
-            })),
-        });
-    });
-    return { singles, clusters };
+function spineChildrenOf(regions, id) {
+    return (regions || []).filter(r => r.parent_decision_id === id);
 }
 
-function renderClusterX(cx, cy, stroke, expanded) {
-    const arm = expanded ? 5 : 4;
-    return `<g>
-        <title>${expanded ? 'Collapse cluster' : 'Expand overlapping marks'}</title>
-        <circle cx="${cx}" cy="${cy}" r="10" fill="transparent"></circle>
-        <line x1="${cx - arm}" y1="${cy - arm}" x2="${cx + arm}" y2="${cy + arm}" stroke="${stroke}" stroke-width="1.1"></line>
-        <line x1="${cx + arm}" y1="${cy - arm}" x2="${cx - arm}" y2="${cy + arm}" stroke="${stroke}" stroke-width="1.1"></line>
-    </g>`;
+function spineRoots(regions) {
+    const ids = new Set((regions || []).map(r => r.decision_id));
+    const roots = (regions || []).filter(r => !r.parent_decision_id || !ids.has(r.parent_decision_id));
+    return roots.length ? roots : (regions || []).slice(0, 1);
 }
 
-function renderGlyphHit(event, cx, cy, opts) {
-    const { dimmed, clickable, decisionId } = opts;
+function spineDescendantCount(regions, id) {
+    return spineChildrenOf(regions, id).reduce((n, child) => n + 1 + spineDescendantCount(regions, child.decision_id), 0);
+}
+
+function spineSubtreeBehaviors(regions, allEvents, id) {
+    const self = (allEvents || []).filter(e => e.decisionId === id).length;
+    return self + spineChildrenOf(regions, id).reduce((n, child) => n + spineSubtreeBehaviors(regions, allEvents, child.decision_id), 0);
+}
+
+function spineHasParent(regions, r) {
+    return !!(r.parent_decision_id && (regions || []).some(x => x.decision_id === r.parent_decision_id));
+}
+
+function renderTickGrid(r, opts) {
+    const { interactive, gridH, turns, hasBehavior, hB, hE, bodyH } = opts;
     const ctx = cockpitCtx();
-    const glyph = ctx.glyph;
-    const v = vocabFor(event.key);
-    const active = !!(glyph.id && glyph.id === event.id);
-    const opacity = active ? 0.95 : dimmed ? 0.22 : 0.72;
-    const inert = !clickable ? ' is-inert' : '';
-    const encodedId = encodeURIComponent(event.id || '');
-    const click = clickable
-        ? `onclick="selectGlyph('${escAttr(decisionId)}','${escAttr(event.key)}',${event.turn},'${escAttr(encodedId)}')"`
+    const selected = r.decision_id === ctx.selectedId;
+    const events = (opts.allEvents || []).filter(e => e.decisionId === r.decision_id);
+    const byCell = new Map();
+    events.forEach(e => {
+        const k = `${e.key}:${e.turn}`;
+        if (!byCell.has(k)) byCell.set(k, { event: e, labels: [e.label] });
+        else byCell.get(k).labels.push(e.label);
+    });
+    const firstTurn = turns[0] ?? events[0]?.turn ?? (r.relevant_turn_indices || [])[0] ?? 0;
+    const lastTurn = turns.length ? turns[turns.length - 1] : firstTurn;
+    const rangeLabel = turns.length ? (firstTurn === lastTurn ? String(firstTurn) : `${firstTurn}–${lastTurn}`) : '';
+    const chosenLabel = r.selected_option || r.selected_intervention || '';
+    const canCollapse = interactive && spineHasParent(opts.regions, r);
+    const titleClick = interactive
+        ? `onclick="selectGlyph(${jsStr(r.decision_id)},${jsStr('overview')},${Number(firstTurn)})"`
         : '';
-    return `<g class="timeline-event-mark${inert}" ${click}>
-        <title>${escAttr(`${v.label}: ${event.label} (turn ${event.turn})`)}</title>
-        <circle cx="${cx}" cy="${cy}" r="12" fill="transparent"></circle>
-        ${renderGlyphMark(event.key, v.color, opacity, cx, cy)}
-    </g>`;
+    const collapseClick = canCollapse
+        ? `onclick="event.stopPropagation(); toggleSpineExpand(${jsStr(r.decision_id)})"`
+        : '';
+    const cols = TICK_COLUMNS.map(col => {
+        const color = vocabFor(col.key).color;
+        return `<span class="tick-col" style="color:${color}">${escHtml(col.short)}</span>`;
+    }).join('');
+    const endpointLabels = [];
+    if (turns.length && bodyH >= 22) {
+        endpointLabels.push(`<text x="${SPINE_TURN_LABEL_W - 4}" y="9" text-anchor="end"
+            fill="#5d7691" style="font-size:8px;font-weight:800">${firstTurn}</text>`);
+        if (lastTurn !== firstTurn) {
+            endpointLabels.push(`<text x="${SPINE_TURN_LABEL_W - 4}" y="${bodyH - 1}" text-anchor="end"
+                fill="#5d7691" style="font-size:8px;font-weight:800">${lastTurn}</text>`);
+        }
+    }
+    let yCursor = 0;
+    const rules = [];
+    const rows = turns.map(t => {
+        const hasBeh = hasBehavior && hasBehavior.has(t);
+        const rowH = hasBeh ? hB : hE;
+        const y0 = yCursor;
+        yCursor += rowH;
+        const playhead = selected && Number(ctx.glyph.turn) === t;
+        if (hasBeh && hasBehavior.has(t + 1)) {
+            TICK_COLUMNS.forEach((col, ci) => {
+                if (!byCell.has(`${col.key}:${t}`) || !byCell.has(`${col.key}:${t + 1}`)) return;
+                const cx = SPINE_TURN_LABEL_W + ci * SPINE_COL_W + SPINE_COL_W / 2;
+                rules.push(`<line x1="${cx - SPINE_TICK_W / 2}" y1="${yCursor}" x2="${cx + SPINE_TICK_W / 2}" y2="${yCursor}"
+                    stroke="#7a93ab" stroke-opacity="0.45" stroke-width="1" shape-rendering="crispEdges"></line>`);
+            });
+        }
+        const ticks = hasBeh ? TICK_COLUMNS.map((col, ci) => {
+            const cell = byCell.get(`${col.key}:${t}`);
+            if (!cell) return '';
+            const ev = cell.event;
+            const cx = SPINE_TURN_LABEL_W + ci * SPINE_COL_W + SPINE_COL_W / 2;
+            const active = selected && ctx.glyph.key === col.key && Number(ctx.glyph.turn) === t;
+            const faded = ctx.glyph.key !== 'overview' && !active;
+            const opacity = active ? 1 : faded ? 0.22 : 0.85;
+            const click = interactive
+                ? `onclick="event.stopPropagation(); selectGlyph(${jsStr(r.decision_id)},${jsStr(col.key)},${Number(t)},${jsStr(ev.id)})"`
+                : '';
+            const title = `${vocabFor(col.key).label}: ${cell.labels.join('; ')} · turn ${t}`;
+            return `<g class="timeline-event-mark${interactive ? '' : ' is-inert'}" ${click}>
+                <title>${escAttr(title)}</title>
+                <rect x="${cx - 10}" y="${y0}" width="20" height="${rowH}" fill="transparent"></rect>
+                <rect x="${cx - SPINE_TICK_W / 2}" y="${y0}" width="${SPINE_TICK_W}" height="${rowH}"
+                      fill="${vocabFor(col.key).color}" fill-opacity="${opacity}"></rect>
+            </g>`;
+        }).join('') : '';
+        return `<g>
+            <title>Turn ${t}${hasBeh ? '' : ' · no coded behavior'}</title>
+            <rect x="0" y="${y0}" width="${SPINE_TRACK_W}" height="${rowH}" fill="${playhead ? '#c5d8ea' : 'transparent'}"></rect>
+            ${ticks}
+        </g>`;
+    }).join('');
+    return `<div class="tick-grid${selected ? ' is-selected' : ''}" style="width:${SPINE_TRACK_W}px;height:${gridH}px">
+        <div class="tick-grid-title" ${titleClick} style="${interactive ? '' : 'cursor:default;'}">
+            <strong title="${escAttr(r.decision_label)}">${escHtml(r.decision_label)}</strong>
+            <span ${canCollapse ? collapseClick : ''}>${canCollapse ? '← collapse · ' : ''}${escHtml(r.status)}${chosenLabel ? ` → ${escHtml(chosenLabel)}` : ' · no path chosen'}</span>
+        </div>
+        <div class="tick-grid-cols"><span class="tick-col-gutter" title="${escAttr(rangeLabel ? `Turns ${rangeLabel}` : '')}">${escHtml(rangeLabel)}</span>${cols}</div>
+        <div class="tick-grid-body" style="height:${bodyH}px">
+            <svg viewBox="0 0 ${SPINE_TRACK_W} ${bodyH}" width="${SPINE_TRACK_W}" height="${bodyH}"
+                 ${interactive ? `onclick="clearGlyphSelection(${jsStr(r.decision_id)})" style="cursor:pointer"` : ''}>${rows}${rules.join('')}${endpointLabels.join('')}</svg>
+        </div>
+    </div>`;
 }
 
-function renderGlyphTrackSvg(events, maxTurn, decisionId, selected, laneIndex) {
-    const ctx = cockpitCtx();
-    const { singles, clusters } = clusterRowEvents(decisionId, events, maxTurn);
-    const muted = ctx.expandedCluster != null;
-    const focusedId = ctx.glyph?.id || null;
-    const trackFill = selected ? '#dce8f4' : (laneIndex % 2 === 0 ? '#eef3f9' : '#e4edf6');
-    const trackStroke = selected ? '#7a93ab' : '#d4e2f0';
-    const xStroke = selected ? '#06182b' : '#7a93ab';
-    const singleMarks = singles.map(e => renderGlyphHit(e, glyphTurnX(e.turn, maxTurn), 50, {
-        dimmed: muted || (!!focusedId && e.id !== focusedId),
-        clickable: ctx.interactive && !muted,
-        decisionId,
-    })).join('');
-    const clusterMarks = clusters.map(c => {
-        const expanded = ctx.expandedCluster === c.id;
-        const ring = expanded ? 28 : 7;
-        const focusInCluster = expanded && focusedId && c.events.some(item => item.event.id === focusedId);
-        const glyphs = c.events.map(item => {
-            const px = c.cx + Math.cos(item.angle) * ring;
-            const py = c.cy + Math.sin(item.angle) * ring;
-            const isFocus = focusedId && item.event.id === focusedId;
-            return renderGlyphHit(item.event, px, py, {
-                dimmed: isFocus ? false : (muted && !expanded) || focusInCluster,
-                clickable: ctx.interactive && expanded,
-                decisionId,
-            });
-        }).join('');
-        const xClick = ctx.interactive
-            ? `onclick="event.stopPropagation(); toggleGlyphCluster('${escAttr(c.id)}')"`
-            : '';
-        return `<g>${glyphs}<g class="cluster-x" ${xClick}>${renderClusterX(c.cx, c.cy, expanded ? '#06182b' : xStroke, expanded)}</g></g>`;
+function renderNestRail(kids, opts) {
+    const { regions, allEvents, interactive, gridH } = opts;
+    const totalBehaviors = kids.reduce((n, d) => n + spineSubtreeBehaviors(regions, allEvents, d.decision_id), 0);
+    const rows = kids.map(child => {
+        const nested = spineDescendantCount(regions, child.decision_id);
+        const behaviors = spineSubtreeBehaviors(regions, allEvents, child.decision_id);
+        const short = String(child.decision_label || '').split(/\s+/)[0] || child.decision_label;
+        const tip = `${child.decision_label} · ${behaviors} behaviors${nested ? ` · ${nested} nested` : ''}`;
+        const click = interactive ? `onclick="toggleSpineExpand(${jsStr(child.decision_id)})"` : '';
+        return `<div class="nest-rail-row" ${click} title="${escAttr(tip)}">${escHtml(short)} · ${behaviors}${nested ? ` · ${nested}` : ''} →</div>`;
     }).join('');
-    return `<svg viewBox="0 0 1000 100" style="width:100%;height:auto;display:block;background:${trackFill};outline:1px solid ${trackStroke};overflow:visible">
-        ${singleMarks}${clusterMarks}
-    </svg>`;
+    return `<div class="nest-rail${interactive ? '' : ' is-readonly'}" style="height:${gridH}px">
+        <div class="nest-rail-inner" style="width:${gridH}px">
+            <div class="nest-rail-head">${kids.length} nested · ${totalBehaviors} beh</div>
+            ${rows}
+        </div>
+    </div>`;
+}
+
+function renderSpineNode(r, opts) {
+    const events = (opts.allEvents || []).filter(e => e.decisionId === r.decision_id);
+    const metrics = spineGridMetrics(events);
+    const kids = spineChildrenOf(opts.regions, r.decision_id);
+    const expanded = opts.expandedIds || [];
+    const openKids = kids.filter(c => expanded.includes(c.decision_id));
+    const closedKids = kids.filter(c => !expanded.includes(c.decision_id));
+    const nodeOpts = { ...opts, ...metrics };
+    return `<div class="spine-node">
+        ${renderTickGrid(r, nodeOpts)}
+        ${closedKids.length ? renderNestRail(closedKids, nodeOpts) : ''}
+        ${openKids.map(child => renderSpineNode(child, opts)).join('')}
+    </div>`;
+}
+
+function renderTranscriptPane(turns, playhead) {
+    if (!(turns || []).length) return '';
+    const rows = turns.map(t => {
+        const text = (t.text_lines || []).join(' ');
+        return `<div class="transcript-pane-row${t.index === playhead ? ' is-playhead' : ''}" id="turn-${t.index}">
+            <div class="transcript-pane-meta">[${t.index}] ${escHtml(t.speaker_line)}</div>
+            <div>${escHtml(text)}</div>
+        </div>`;
+    }).join('');
+    return `<div class="transcript-pane">
+        <div class="transcript-pane-head">
+            <strong>Transcript</strong>
+            <span>Click a tick to jump to that turn</span>
+        </div>
+        ${rows}
+    </div>`;
 }
 
 function renderGlyphMap(regions, turns) {
     const ctx = cockpitCtx();
-    const axisMax = glyphAxisMax(turns);
+    const paneH = spinePaneH();
     const allEvents = collectTimelineEvents(regions);
-    const selectedId = ctx.selectedId;
-    const legend = TIMELINE_VOCAB.map(v => `
+    const expandedIds = ctx.expandedIds || [];
+    const opts = {
+        regions, allEvents, paneH,
+        interactive: ctx.interactive, expandedIds,
+    };
+    const legend = TICK_COLUMNS.map(col => `
         <div class="timeline-vocab-item">
-            <svg class="timeline-vocab-glyph" viewBox="-10 -10 20 20">${renderGlyphMark(v.key, v.color, 1)}</svg>
-            ${escHtml(v.short)}
+            <span class="spine-legend-swatch" style="background:${vocabFor(col.key).color}"></span>
+            ${escHtml(col.label)}
         </div>`).join('');
-    const rows = orderDecisionsHierarchical(regions).map(({ r, depth }, index) => {
-        const selected = r.decision_id === selectedId;
-        const chosenLabel = r.selected_option || r.selected_intervention || '';
-        const events = allEvents.filter(e => e.decisionId === r.decision_id);
-        const firstTurn = events[0]?.turn ?? (r.relevant_turn_indices || [])[0] ?? 0;
-        const labelClick = ctx.interactive
-            ? `onclick="selectGlyph('${escAttr(r.decision_id)}','overview',${firstTurn})"`
-            : '';
-        return `<div class="glyph-map-row" style="margin-left:${depth * 16}px;">
-            <div class="glyph-map-label" ${labelClick}
-                 style="border-left:3px solid ${selected ? 'var(--secondary)' : 'transparent'};padding-left:8px;${ctx.interactive ? '' : 'cursor:default;'}">
-                <strong>${escHtml(r.decision_label)}</strong>
-                <span>${escHtml(r.status)}${chosenLabel ? ` → ${escHtml(chosenLabel)}` : ' · no path chosen'}</span>
+    const trees = spineRoots(regions).map(r => renderSpineNode(r, opts)).join('');
+    const collapseDisabled = !expandedIds.length || !ctx.interactive;
+    return `<div class="spine-map" style="--spine-pane-h:${paneH}px">
+        <div class="spine-map-head">
+            <div class="chart-heading-row" style="margin:0;">
+                <h3 class="decision-list-title" style="margin:0;border:0;min-height:0;padding:0;">Map</h3>
+                <span class="info-icon" tabindex="0" data-tip="The grid covers the first through last coded turn on this decision. Turns with a behavior are taller; empty turns stay in the range as thin spacers (about 1/10 as tall), scaled so the whole span fits. A hairline appears only in a column where two ticks sit on consecutive turns. Nested decisions collapse to a thin count rail. Click a tick to cue that turn.">i</span>
             </div>
-            <div class="glyph-map-track">${renderGlyphTrackSvg(events, axisMax, r.decision_id, selected, index)}</div>
-        </div>`;
-    }).join('');
-    return `<div class="glyph-map">
-        <div class="chart-heading-row" style="margin-bottom:8px;">
-            <h3 class="decision-list-title" style="margin:0;border:0;min-height:0;padding:0;">Map</h3>
-            <span class="info-icon" tabindex="0" data-tip="Each mark is a grounded moment on this decision. Isolated glyphs stay on the baseline. Three or more that pile up collapse around a bare × — click the × to fan them out, then click through the glyphs. The one you click keeps its color; the others fade. Click the × again to collapse.">i</span>
+            <button type="button" class="spine-collapse-all" ${collapseDisabled ? 'disabled' : ''} onclick="collapseAllSpine()">Collapse all</button>
         </div>
         <div class="timeline-vocab-legend">${legend}</div>
-        ${rows}
-        <div class="glyph-map-axis"><span>Turn 0</span><span>Turn ${axisMax}</span></div>
+        <div class="spine-map-body">
+            <div class="spine-map-trees">${trees}</div>
+            ${ctx.peek ? '' : renderTranscriptPane(turns, ctx.glyph.turn)}
+        </div>
     </div>`;
 }
 
@@ -4659,9 +4819,9 @@ function renderCoreRisksDock(r) {
         const discussed = risk.detection_status === 'Discussed';
         const tone = hit ? 'is-glyph-hit' : discussed ? 'is-chosen-path' : 'is-gap';
         const t = (risk.turn_indices || [])[0];
-        const glyphId = t == null ? '' : encodeURIComponent(`${r.decision_id}::risk::${t}::${risk.risk_name}`);
+        const glyphId = t == null ? '' : `${r.decision_id}::risk::${t}::${risk.risk_name}`;
         const click = t != null && cockpitCtx().interactive
-            ? `onclick="selectGlyph('${escAttr(r.decision_id)}','risk',${t},'${escAttr(glyphId)}')" style="cursor:pointer"`
+            ? `onclick="selectGlyph(${jsStr(r.decision_id)},${jsStr('risk')},${Number(t)},${jsStr(glyphId)})" style="cursor:pointer"`
             : '';
         return `<tr class="${tone}" ${click}>
             <td>${escHtml(risk.risk_name)}</td>
@@ -4790,7 +4950,6 @@ function renderEpisodeCockpit(regions, turns, selected) {
         ${renderCockpitStats(regions, selected)}
         ${renderGlyphMap(regions, turns)}
         ${renderEpisodeDock(selected, turns)}
-        ${renderEpisodeTranscript(regions, turns)}
     </div>`;
 }
 
@@ -4990,21 +5149,31 @@ function selectDecision(decisionId) {
 }
 
 function selectGlyph(decisionId, key, turn, glyphId) {
+    const prevDecision = CURRENT_SELECTED_DECISION_ID;
     if (CURRENT_SELECTED_DECISION_ID !== decisionId) NAV.optionName = null;
     CURRENT_SELECTED_DECISION_ID = decisionId;
     NAV.decisionId = decisionId;
     if (key === 'overview') CURRENT_EXPANDED_CLUSTER = null;
     const events = collectTimelineEvents(CURRENT_REGIONS || []);
-    let id = glyphId || null;
-    if (id) {
-        try { id = decodeURIComponent(id); } catch (e) { /* keep raw */ }
+    const idCandidates = [];
+    if (glyphId) {
+        idCandidates.push(glyphId);
+        try { idCandidates.push(decodeURIComponent(glyphId)); } catch (e) { /* keep raw */ }
     }
-    const ev = (id && events.find(e => e.id === id))
+    const ev = (idCandidates.length && events.find(e => idCandidates.includes(e.id)))
         || events.find(e => e.decisionId === decisionId && e.key === key && Number(e.turn) === Number(turn));
+    const nextTurn = turn == null || turn === '' ? null : Number(turn);
+    const sameTick = key !== 'overview' && prevDecision === decisionId && CURRENT_GLYPH.key === key
+        && Number(CURRENT_GLYPH.turn) === nextTurn
+        && (!glyphId || !CURRENT_GLYPH.id || idCandidates.includes(CURRENT_GLYPH.id));
+    if (sameTick) {
+        clearGlyphSelection(decisionId);
+        return;
+    }
     CURRENT_GLYPH = {
         id: ev?.id || null,
         key: key || 'overview',
-        turn: turn == null || turn === '' ? null : Number(turn),
+        turn: nextTurn,
         optionName: ev?.optionName || null,
         optionA: ev?.optionA || null,
         optionB: ev?.optionB || null,
@@ -5013,17 +5182,45 @@ function selectGlyph(decisionId, key, turn, glyphId) {
     };
     if (ev?.optionName) NAV.optionName = ev.optionName;
     else if (key !== 'option') NAV.optionName = null;
-    if (CURRENT_REGIONS && CURRENT_TURNS) renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION, { keepSpine: true });
-    renderGlobalBreadcrumb();
-    if (TRANSCRIPT_OPEN && CURRENT_GLYPH.turn != null) {
-        requestAnimationFrame(() => scrollTranscriptToTurn(CURRENT_GLYPH.turn));
+    ensureSpineExpandedTo(decisionId);
+    if (CURRENT_REGIONS && CURRENT_TURNS) {
+        renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION, { keepSpine: true, scrollTurn: CURRENT_GLYPH.turn });
     }
+    renderGlobalBreadcrumb();
+}
+
+function clearGlyphSelection(decisionId) {
+    if (decisionId) {
+        CURRENT_SELECTED_DECISION_ID = decisionId;
+        NAV.decisionId = decisionId;
+    }
+    CURRENT_GLYPH = { key: 'overview', turn: null, id: null, optionName: null, optionA: null, optionB: null, riskName: null, label: null };
+    NAV.optionName = null;
+    if (CURRENT_REGIONS && CURRENT_TURNS) {
+        renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION, { keepSpine: true });
+    }
+    renderGlobalBreadcrumb();
+}
+
+function ensureSpineExpandedTo(decisionId) {
+    const byId = new Map((CURRENT_REGIONS || []).map(r => [r.decision_id, r]));
+    let node = byId.get(decisionId);
+    const needed = [];
+    while (node && node.parent_decision_id && byId.has(node.parent_decision_id)) {
+        needed.push(node.decision_id);
+        node = byId.get(node.parent_decision_id);
+    }
+    needed.forEach(id => {
+        if (!CURRENT_EXPANDED_IDS.includes(id)) CURRENT_EXPANDED_IDS = CURRENT_EXPANDED_IDS.concat(id);
+    });
 }
 
 function scrollTranscriptToTurn(turnIndex) {
-    const el = document.getElementById(`turn-${turnIndex}`);
-    const body = el && el.closest('.episode-transcript-body');
-    if (!el || !body) return;
+    const host = document.getElementById(CURRENT_RENDER_TARGET);
+    const body = host && host.querySelector('.transcript-pane');
+    if (!body) return;
+    const el = body.querySelector(`#turn-${CSS.escape(String(turnIndex))}`);
+    if (!el) return;
     const top = el.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop - 12;
     body.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
 }
@@ -5100,15 +5297,27 @@ function renderUI(regions, turns, schemaVersion, opts = {}) {
     CURRENT_SELECTED_DECISION_ID = selected?.decision_id || null;
     NAV.decisionId = CURRENT_SELECTED_DECISION_ID;
 
+    const savedScroll = results.querySelector('.transcript-pane')?.scrollTop || 0;
     const cockpit = renderEpisodeCockpit(regions, turns, selected);
     if (opts.keepSpine) {
         const existing = results.querySelector('.episode-cockpit');
         if (existing) {
             existing.outerHTML = cockpit;
+            afterSpineRender(results, opts, savedScroll);
             return;
         }
     }
     results.innerHTML = cockpit;
+    afterSpineRender(results, opts, savedScroll);
+}
+
+function afterSpineRender(results, opts, savedScroll) {
+    const pane = results && results.querySelector('.transcript-pane');
+    if (!pane) return;
+    pane.scrollTop = savedScroll;
+    if (opts.scrollTurn != null) {
+        requestAnimationFrame(() => scrollTranscriptToTurn(opts.scrollTurn));
+    }
 }
 
 </script>
