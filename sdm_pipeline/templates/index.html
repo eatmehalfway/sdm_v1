@@ -808,7 +808,7 @@
         .cockpit-stat-value { font-size:1.15rem; font-weight:800; color:var(--navy); letter-spacing:-0.02em; line-height:1.2; }
         .cockpit-stat-label { margin-top:8px; font-size:0.62rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.12em; }
         .episode-patient-banner { margin:0 0 1px; }
-        .spine-map { background:var(--surface); padding:16px 20px 12px; margin:0; --spine-pane-h:520px; --spine-rail-w:28px; }
+        .spine-map { background:var(--surface); padding:16px 20px 12px; margin:0; --spine-pane-h:520px; --spine-tree-w:280px; }
         .spine-map h3 { margin:0; }
         .spine-map-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 10px; }
         .spine-collapse-all {
@@ -822,9 +822,9 @@
         .spine-node { display:flex; align-items:flex-start; height:auto; }
         .tick-grid {
             flex-shrink:0; width:168px; height:auto;
-            display:flex; flex-direction:column; background:#eef3f9; outline:1px solid var(--border);
+            display:flex; flex-direction:column; background:var(--surface); outline:1px solid var(--border);
         }
-        .tick-grid.is-selected { background:#dce8f4; outline-color:#7a93ab; }
+        .tick-grid.is-selected { background:var(--surface); outline-color:var(--navy); }
         .tick-grid-title { height:56px; padding:8px 10px 4px; overflow:hidden; cursor:pointer; }
         .tick-grid-title strong { display:block; font-size:0.82rem; color:var(--navy); line-height:1.25; }
         .tick-grid-title span { display:block; margin-top:2px; font-size:0.68rem; color:var(--muted); }
@@ -839,33 +839,68 @@
         }
         .tick-grid-body { flex:0 0 auto; overflow:hidden; }
         .tick-grid-body svg { display:block; }
-        .nest-rail {
-            width:var(--spine-rail-w); flex-shrink:0;
-            overflow:hidden; position:relative; border:1px solid var(--border); background:#f4f8fc;
+        .decision-tree {
+            width:var(--spine-tree-w); flex-shrink:0; overflow:auto;
+            border:1px solid var(--border); background:var(--surface);
         }
-        .nest-rail-inner {
-            position:absolute; top:0; left:var(--spine-rail-w);
-            height:var(--spine-rail-w);
-            transform:rotate(90deg); transform-origin:top left;
-            display:flex; white-space:nowrap; overflow:hidden;
+        .decision-tree-head { padding:8px 10px; border-bottom:1px solid var(--border); }
+        .decision-tree-head strong { display:block; font-size:0.82rem; color:var(--navy); }
+        .decision-tree-head span { display:block; margin-top:2px; font-size:0.72rem; color:var(--muted); }
+        .tree-node { }
+        .tree-node.is-selected { background:#eaf2fa; outline:1px solid var(--border-strong); }
+        .tree-row { display:flex; align-items:center; gap:6px; padding:6px 8px; }
+        .tree-row-toggle {
+            width:18px; height:18px; padding:0; border:0; background:transparent;
+            color:var(--muted); font-size:11px; line-height:18px; cursor:pointer; flex-shrink:0;
         }
-        .nest-rail-head, .nest-rail-row {
-            padding:0 8px; line-height:26px; border-right:1px solid var(--border); overflow:hidden;
+        .tree-row-title {
+            flex:1; min-width:0; font-size:0.8rem; font-weight:700; color:var(--navy);
+            cursor:pointer; line-height:1.3;
         }
-        .nest-rail-head { flex-shrink:0; font-size:11px; color:var(--muted); font-weight:700; }
-        .nest-rail-row {
-            flex:1; min-width:0; font-size:12px; font-weight:600; color:var(--navy); cursor:pointer;
+        .tree-row-status {
+            flex-shrink:0; font-size:0.62rem; font-weight:700; color:var(--muted);
+            text-transform:uppercase; letter-spacing:0.04em;
         }
-        .nest-rail.is-readonly .nest-rail-row { cursor:default; }
+        .tree-body { padding:0 8px 10px 22px; }
+        .tree-detail { font-size:0.75rem; color:var(--text); margin:0 0 4px; line-height:1.35; }
+        .tree-muted { color:var(--muted); }
+        .tree-show-map {
+            margin-top:4px; padding:4px 8px; border:1px solid var(--border);
+            background:var(--surface); font-family:inherit; font-size:0.72rem;
+            font-weight:700; color:var(--navy); cursor:pointer;
+        }
+        .spine-right {
+            flex:1; min-width:280px; display:flex; flex-direction:column; gap:8px; min-height:0;
+        }
         .transcript-pane {
-            min-width:280px; flex:1; height:var(--spine-pane-h);
+            min-width:0; flex:1; min-height:0;
             border:1px solid var(--border); background:var(--surface); overflow:auto;
         }
         .transcript-pane-head { padding:8px 10px; border-bottom:1px solid var(--border); }
         .transcript-pane-head strong { display:block; font-size:0.88rem; color:var(--navy); }
         .transcript-pane-head span { display:block; margin-top:2px; font-size:0.72rem; color:var(--muted); }
-        .transcript-pane-row { padding:8px 10px; border-left:3px solid transparent; }
-        .transcript-pane-row.is-playhead { background:#eaf2fa; border-left-color:var(--secondary); }
+        .transcript-pane-row { padding:8px 10px; border-left:4px solid transparent; }
+        .transcript-pane-row.is-playhead {
+            background:#eaf2fa;
+            border-left-color:var(--playhead-color, var(--secondary));
+        }
+        .behavior-card { flex-shrink:0; border:1px solid var(--border); background:var(--surface); }
+        .behavior-card-head {
+            padding:8px 12px; border-bottom:1px solid var(--border);
+            font-size:0.82rem; font-weight:700; color:var(--navy);
+        }
+        .behavior-card-body { padding:10px 12px 12px; }
+        .behavior-card .callout { margin:0; padding:0; background:transparent; border:0; }
+        .behavior-card .option-prose { margin-top:0; }
+        .generative-layer { background:var(--surface); padding:16px 20px 14px; margin:0 0 1px; }
+        .generative-layer h3 { margin:0 0 8px; }
+        .generative-layer p { margin:0; font-size:0.92rem; line-height:1.45; }
+        .generative-trace { display:block; margin-top:6px; font-size:0.72rem; color:var(--muted); }
+        .comm-opportunity {
+            margin-top:14px; padding:12px 14px;
+            border-left:4px solid var(--secondary); background:#f6faff;
+        }
+        .comm-opportunity strong { display:block; margin-bottom:6px; font-size:0.78rem; color:var(--navy); }
         .transcript-pane-meta { font-size:0.72rem; color:var(--muted); margin:0 0 4px; }
         .episode-dock { background:var(--surface); padding:20px 24px 28px; margin:0 0 1px; }
         .episode-dock-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px; align-items:start; }
@@ -886,7 +921,8 @@
         @media (max-width: 800px) {
             .cockpit-stats { grid-template-columns:1fr 1fr; }
             .spine-map-body { flex-direction:column; }
-            .transcript-pane { min-width:0; height:360px; }
+            .decision-tree, .spine-right { width:100%; height:auto !important; }
+            .transcript-pane { min-width:0; min-height:280px; }
             .option-prose { grid-template-columns:1fr; }
         }
 
@@ -3120,7 +3156,7 @@ function mountInlineEpisode(payload, opts = {}) {
         CURRENT_SELECTED_DECISION_ID = null;
         CURRENT_GLYPH = { key: 'overview', turn: null };
         CURRENT_EXPANDED_CLUSTER = null;
-        CURRENT_EXPANDED_IDS = [];
+        CURRENT_EXPANDED_IDS = spineRoots(payload.regions || []).map(r => r.decision_id);
         TRANSCRIPT_OPEN = false;
         NAV.decisionId = payload.regions[0]?.decision_id || null;
         NAV.optionName = null;
@@ -3625,6 +3661,50 @@ For clinician_recommendation, preserve evidence that lets a reviewer determine w
 List linked_interventions for surgical procedures discussed in this decision, including candidates that were not chosen. This list supports ontology matching; it does not imply that risks should be aggregated across procedures.`;
 }
 
+const GENERATIVE_LAYER_SCHEMA = {
+    type: "object",
+    properties: {
+        decision_summary: { type: "string" },
+        communication_opportunity: {
+            type: "object",
+            properties: {
+                eligible: { type: "boolean" },
+                text: { type: "string" },
+                source_decision_label: { type: "string" },
+                source_field: { type: "string" }
+            },
+            required: ["eligible", "text", "source_decision_label", "source_field"]
+        }
+    },
+    required: ["decision_summary", "communication_opportunity"]
+};
+
+const GENERATIVE_LAYER_SYSTEM = "You synthesize structured CCQ extraction findings into a short narrative. Use only the JSON you are given. Do not use a transcript. Do not add medical knowledge. Do not infer missing facts, patient understanding, consent adequacy, or standard of care.";
+
+function getGenerativeLayerPrompt() {
+    return `Write the generative layer for this clinical decision from structured CCQ findings only.
+
+Decision Summary: one neutral paragraph, 2–4 sentences, covering
+1) the decision and options discussed;
+2) the clinician recommendation and why, if present;
+3) option differences that were actually compared, with the recorded comparison level;
+4) relevant patient goals, preferences, or questions if present;
+5) final status or selected option.
+
+Communication Opportunity: at most one observational sentence about a patient-raised question, concern, worry, or uncertainty that was not fully addressed (response_status is one of: Not addressed, Acknowledged, Acknowledged but not answered, Acknowledged but not substantively addressed, Partially answered, Partially addressed). If none of those statuses exist, set eligible false and text to an empty string. Do not invent an opportunity.
+
+Guardrails:
+- preserve qualifiers exactly (Named only, Limited comparison, May, etc.);
+- preserve the difference between mentioned, discussed, compared, recommended, and selected;
+- do not use evaluative language such as "failed to", "should have", "adequate", "inadequate", or "appropriate";
+- describe what happened, not what should have happened;
+- do not recommend treatment or clinician behavior;
+- every material claim must be traceable to a field in the JSON.
+
+Structured findings:
+`;
+}
+
 function getInformedConsentPrompt(interventionName, ontologyText) {
     return `Informed consent analysis for intervention: "${interventionName}".
 Compare risks discussed in the transcript against this reference framework. Describe what was and was not detected — do not conclude consent was legally sufficient.
@@ -3938,6 +4018,9 @@ async function runAnalysis() {
                 informed_consent_analysis: informedConsent
             });
         }
+
+        logStatus("Pass D: Generative layer from CCQ findings...");
+        await generateGenerativeLayers(apiKey, regions);
 
         logStatus("Saving to database...");
         const payload = {
@@ -4613,12 +4696,8 @@ function renderTickGrid(r, opts) {
     const lastTurn = turns.length ? turns[turns.length - 1] : firstTurn;
     const rangeLabel = turns.length ? (firstTurn === lastTurn ? String(firstTurn) : `${firstTurn}–${lastTurn}`) : '';
     const chosenLabel = r.selected_option || r.selected_intervention || '';
-    const canCollapse = interactive && spineHasParent(opts.regions, r);
     const titleClick = interactive
         ? `onclick="selectGlyph(${jsStr(r.decision_id)},${jsStr('overview')},${Number(firstTurn)})"`
-        : '';
-    const collapseClick = canCollapse
-        ? `onclick="event.stopPropagation(); toggleSpineExpand(${jsStr(r.decision_id)})"`
         : '';
     const cols = TICK_COLUMNS.map(col => {
         const color = vocabFor(col.key).color;
@@ -4677,7 +4756,7 @@ function renderTickGrid(r, opts) {
     return `<div class="tick-grid${selected ? ' is-selected' : ''}" style="width:${SPINE_TRACK_W}px;height:${gridH}px">
         <div class="tick-grid-title" ${titleClick} style="${interactive ? '' : 'cursor:default;'}">
             <strong title="${escAttr(r.decision_label)}">${escHtml(r.decision_label)}</strong>
-            <span ${canCollapse ? collapseClick : ''}>${canCollapse ? '← collapse · ' : ''}${escHtml(r.status)}${chosenLabel ? ` → ${escHtml(chosenLabel)}` : ' · no path chosen'}</span>
+            <span>${escHtml(r.status)}${chosenLabel ? ` → ${escHtml(chosenLabel)}` : ' · no path chosen'}</span>
         </div>
         <div class="tick-grid-cols"><span class="tick-col-gutter" title="${escAttr(rangeLabel ? `Turns ${rangeLabel}` : '')}">${escHtml(rangeLabel)}</span>${cols}</div>
         <div class="tick-grid-body" style="height:${bodyH}px">
@@ -4687,45 +4766,78 @@ function renderTickGrid(r, opts) {
     </div>`;
 }
 
-function renderNestRail(kids, opts) {
-    const { regions, allEvents, interactive, gridH } = opts;
-    const totalBehaviors = kids.reduce((n, d) => n + spineSubtreeBehaviors(regions, allEvents, d.decision_id), 0);
-    const rows = kids.map(child => {
-        const nested = spineDescendantCount(regions, child.decision_id);
-        const behaviors = spineSubtreeBehaviors(regions, allEvents, child.decision_id);
-        const short = String(child.decision_label || '').split(/\s+/)[0] || child.decision_label;
-        const tip = `${child.decision_label} · ${behaviors} behaviors${nested ? ` · ${nested} nested` : ''}`;
-        const click = interactive ? `onclick="toggleSpineExpand(${jsStr(child.decision_id)})"` : '';
-        return `<div class="nest-rail-row" ${click} title="${escAttr(tip)}">${escHtml(short)} · ${behaviors}${nested ? ` · ${nested}` : ''} →</div>`;
-    }).join('');
-    return `<div class="nest-rail${interactive ? '' : ' is-readonly'}" style="height:${gridH}px">
-        <div class="nest-rail-inner" style="width:${gridH}px">
-            <div class="nest-rail-head">${kids.length} nested · ${totalBehaviors} beh</div>
-            ${rows}
-        </div>
-    </div>`;
+function spineEventMix(events) {
+    const counts = {};
+    (events || []).forEach(e => { counts[e.key] = (counts[e.key] || 0) + 1; });
+    return TICK_COLUMNS.filter(col => counts[col.key]).map(col => `${col.short} ${counts[col.key]}`).join(' · ');
 }
 
-function renderSpineNode(r, opts) {
-    const events = (opts.allEvents || []).filter(e => e.decisionId === r.decision_id);
-    const metrics = spineGridMetrics(events);
+function spineDescendantsInOrder(regions, id) {
+    const out = [];
+    spineChildrenOf(regions, id).forEach(child => {
+        out.push(child);
+        out.push(...spineDescendantsInOrder(regions, child.decision_id));
+    });
+    return out;
+}
+
+function renderDecisionTreeNode(r, opts, depth) {
     const kids = spineChildrenOf(opts.regions, r.decision_id);
-    const expanded = opts.expandedIds || [];
-    const openKids = kids.filter(c => expanded.includes(c.decision_id));
-    const closedKids = kids.filter(c => !expanded.includes(c.decision_id));
-    const nodeOpts = { ...opts, ...metrics };
-    return `<div class="spine-node">
-        ${renderTickGrid(r, nodeOpts)}
-        ${closedKids.length ? renderNestRail(closedKids, nodeOpts) : ''}
-        ${openKids.map(child => renderSpineNode(child, opts)).join('')}
+    const open = (opts.expandedIds || []).includes(r.decision_id);
+    const selected = r.decision_id === opts.selectedId;
+    const events = (opts.allEvents || []).filter(e => e.decisionId === r.decision_id);
+    const nested = spineDescendantCount(opts.regions, r.decision_id);
+    const hover = `${events.length} behaviors${nested ? ` · ${nested} nested` : ''}`;
+    const ov = r.decision_overview || {};
+    const rec = ov.clinician_recommendation || {};
+    const optionNames = (ov.options_considered || []).map(o => o.option_name).filter(Boolean).join(' · ');
+    const mix = spineEventMix(events);
+    const toggle = opts.interactive
+        ? `onclick="event.stopPropagation(); toggleSpineExpand(${jsStr(r.decision_id)})"`
+        : '';
+    const select = opts.interactive
+        ? `onclick="selectDecision(${jsStr(r.decision_id)})"`
+        : '';
+    const details = !open ? '' : `<div class="tree-body">
+        ${r.selected_option ? `<div class="tree-detail">Selected: ${escHtml(r.selected_option)}</div>` : ''}
+        ${rec.recommended_option ? `<div class="tree-detail">Recommended: ${escHtml(rec.recommended_option)}</div>` : ''}
+        ${optionNames ? `<div class="tree-detail tree-muted">${escHtml(optionNames)}</div>` : ''}
+        ${mix ? `<div class="tree-detail tree-muted">${escHtml(mix)}</div>` : ''}
+        ${opts.interactive && !selected
+            ? `<button type="button" class="tree-show-map" onclick="selectDecision(${jsStr(r.decision_id)})">Show on map</button>`
+            : (selected ? '<div class="tree-detail tree-muted">Showing on map</div>' : '')}
+        ${kids.map(child => renderDecisionTreeNode(child, opts, depth + 1)).join('')}
+    </div>`;
+    return `<div class="tree-node${selected ? ' is-selected' : ''}" title="${escAttr(hover)}" style="padding-left:${depth * 12}px">
+        <div class="tree-row">
+            <button type="button" class="tree-row-toggle" ${toggle} aria-expanded="${open}">${open ? '▾' : '▸'}</button>
+            <span class="tree-row-title" ${select}>${escHtml(r.decision_label)}</span>
+            <span class="tree-row-status">${escHtml(r.status || '')}</span>
+        </div>
+        ${details}
     </div>`;
 }
 
-function renderTranscriptPane(turns, playhead) {
+function renderDecisionTree(regions, opts) {
+    const roots = spineRoots(regions);
+    return `<div class="decision-tree" style="height:${opts.height}px">
+        <div class="decision-tree-head">
+            <strong>Decisions</strong>
+            <span>Expand a row for details. Hover for behavior counts.</span>
+        </div>
+        ${roots.map(r => renderDecisionTreeNode(r, opts, 0)).join('')}
+    </div>`;
+}
+
+function renderTranscriptPane(turns, glyph) {
     if (!(turns || []).length) return '';
+    const playhead = glyph && glyph.turn;
+    const cueKey = glyph && glyph.key && glyph.key !== 'overview' ? glyph.key : null;
+    const cueColor = cueKey ? vocabFor(cueKey).color : '';
     const rows = turns.map(t => {
+        const active = playhead != null && t.index === playhead && cueColor;
         const text = (t.text_lines || []).join(' ');
-        return `<div class="transcript-pane-row${t.index === playhead ? ' is-playhead' : ''}" id="turn-${t.index}">
+        return `<div class="transcript-pane-row${active ? ' is-playhead' : ''}" id="turn-${t.index}"${active ? ` style="--playhead-color:${escAttr(cueColor)}"` : ''}>
             <div class="transcript-pane-meta">[${t.index}] ${escHtml(t.speaker_line)}</div>
             <div>${escHtml(text)}</div>
         </div>`;
@@ -4733,9 +4845,36 @@ function renderTranscriptPane(turns, playhead) {
     return `<div class="transcript-pane">
         <div class="transcript-pane-head">
             <strong>Transcript</strong>
-            <span>Click a tick to jump to that turn</span>
+            <span>A selected tick colors this turn. Same-turn codes use different colors.</span>
         </div>
         ${rows}
+    </div>`;
+}
+
+function sliceTitle(key) {
+    if (key === 'preference') return 'Preference / goal';
+    if (key === 'option') return 'Option';
+    if (key === 'tradeoff') return 'Tradeoff';
+    if (key === 'risk') return 'Risk';
+    if (key === 'recommendation') return 'Recommendation';
+    if (key === 'question') return 'Question';
+    return 'Decision';
+}
+
+function renderBehaviorCard(r) {
+    const glyph = cockpitCtx().glyph || {};
+    if (!glyph.key || glyph.key === 'overview' || glyph.turn == null) return '';
+    let body = '';
+    if (glyph.key === 'option' || glyph.key === 'tradeoff') body = renderOptionProse(r);
+    else if (glyph.key === 'risk') {
+        body = glyph.riskName
+            ? `<div class="callout-value">${escHtml(glyph.riskName)}</div>`
+            : renderGlyphSlice(r);
+    } else body = renderGlyphSlice(r);
+    if (!body) return '';
+    return `<div class="behavior-card">
+        <div class="behavior-card-head">${escHtml(sliceTitle(glyph.key))}</div>
+        <div class="behavior-card-body">${body}</div>
     </div>`;
 }
 
@@ -4744,29 +4883,40 @@ function renderGlyphMap(regions, turns) {
     const paneH = spinePaneH();
     const allEvents = collectTimelineEvents(regions);
     const expandedIds = ctx.expandedIds || [];
+    const selected = regions.find(r => r.decision_id === ctx.selectedId) || spineRoots(regions)[0] || regions[0];
+    const selectedEvents = selected ? allEvents.filter(e => e.decisionId === selected.decision_id) : [];
+    const metrics = spineGridMetrics(selectedEvents);
+    const workspaceH = Math.max(paneH, metrics.gridH);
     const opts = {
-        regions, allEvents, paneH,
+        regions, allEvents, paneH, ...metrics,
         interactive: ctx.interactive, expandedIds,
+        selectedId: ctx.selectedId, height: workspaceH,
     };
     const legend = TICK_COLUMNS.map(col => `
         <div class="timeline-vocab-item">
             <span class="spine-legend-swatch" style="background:${vocabFor(col.key).color}"></span>
             ${escHtml(col.label)}
         </div>`).join('');
-    const trees = spineRoots(regions).map(r => renderSpineNode(r, opts)).join('');
+    const tree = renderDecisionTree(regions, opts);
+    const map = selected ? renderTickGrid(selected, opts) : '';
+    const right = ctx.peek ? '' : `<div class="spine-right" style="height:${workspaceH}px">
+        ${renderTranscriptPane(turns, ctx.glyph)}
+        ${selected ? renderBehaviorCard(selected) : ''}
+    </div>`;
     const collapseDisabled = !expandedIds.length || !ctx.interactive;
     return `<div class="spine-map" style="--spine-pane-h:${paneH}px">
         <div class="spine-map-head">
             <div class="chart-heading-row" style="margin:0;">
                 <h3 class="decision-list-title" style="margin:0;border:0;min-height:0;padding:0;">Map</h3>
-                <span class="info-icon" tabindex="0" data-tip="The grid covers the first through last coded turn on this decision. Turns with a behavior are taller; empty turns stay in the range as thin spacers (about 1/10 as tall), scaled so the whole span fits. A hairline appears only in a column where two ticks sit on consecutive turns. Nested decisions collapse to a thin count rail. Click a tick to cue that turn.">i</span>
+                <span class="info-icon" tabindex="0" data-tip="The tree lists nested decisions with counts on hover. Expand a row for extracted details; Show on map loads that tick grid. The grid covers the first through last coded turn. Empty turns stay as thin spacers. Click a tick to color that transcript turn and open the extracted card under it.">i</span>
             </div>
             <button type="button" class="spine-collapse-all" ${collapseDisabled ? 'disabled' : ''} onclick="collapseAllSpine()">Collapse all</button>
         </div>
         <div class="timeline-vocab-legend">${legend}</div>
         <div class="spine-map-body">
-            <div class="spine-map-trees">${trees}</div>
-            ${ctx.peek ? '' : renderTranscriptPane(turns, ctx.glyph.turn)}
+            ${tree}
+            <div class="spine-map-trees">${map}</div>
+            ${right}
         </div>
     </div>`;
 }
@@ -4801,11 +4951,15 @@ function renderOptionProse(r) {
     let opt = options.find(o => o.option_name === glyph.optionName);
     if (!opt && glyph.key === 'tradeoff') opt = options.find(o => o.option_name === glyph.optionA) || options[0];
     if (!opt) return '';
+    const level = glyph.key === 'tradeoff'
+        ? `<div><div class="field-label">Comparison</div><div>${escHtml(glyph.label || '')}</div></div>`
+        : '';
     return `<div class="option-prose">
         <div><div class="field-label">What it involves</div>${renderTextField(opt.what_it_involves, 'Not discussed')}</div>
         <div><div class="field-label">Benefits</div>${renderTextField(opt.benefits, 'Not discussed')}</div>
         <div><div class="field-label">Risks</div>${renderTextField(opt.risks, 'Not discussed')}</div>
         <div><div class="field-label">Burdens</div>${renderTextField(opt.burdens, 'Not discussed')}</div>
+        ${level}
     </div>`;
 }
 
@@ -4893,6 +5047,235 @@ function renderTranscriptStrip(turns, turn) {
     </div>`;
 }
 
+function considerationTexts(items) {
+    return (items || []).map(item => (typeof item === 'string' ? item : (item && item.text) || '')).filter(Boolean);
+}
+
+function uncap(s) {
+    const t = String(s || '').trim();
+    if (!t) return t;
+    return t.charAt(0).toLowerCase() + t.slice(1);
+}
+
+function joinAnd(items) {
+    if (items.length === 1) return items[0];
+    if (items.length === 2) return `${items[0]} and ${items[1]}`;
+    return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`;
+}
+
+const BANNED_GENERATIVE = /\b(failed to|should have|adequate|inadequate|appropriate)\b/gi;
+const OPEN_QUESTION_STATUSES = [
+    'Not addressed',
+    'Acknowledged',
+    'Acknowledged but not answered',
+    'Acknowledged but not substantively addressed',
+    'Partially answered',
+    'Partially addressed',
+];
+
+function validateGenerated(text, fallback) {
+    const cleaned = String(text || '').replace(BANNED_GENERATIVE, '').replace(/\s+/g, ' ').replace(/\s+\./g, '.').trim();
+    return cleaned || fallback;
+}
+
+function summarizeDecision(r) {
+    const ov = r.decision_overview || {};
+    const rec = ov.clinician_recommendation || {};
+    const names = (ov.options_considered || []).map(o => o.option_name).filter(Boolean);
+    const comps = (r.communication_analysis || {}).tradeoff_comparisons || [];
+    const pc = ov.patient_considerations || {};
+    const patientBits = [...considerationTexts(pc.goals_priorities), ...considerationTexts(pc.preferences)];
+    const traces = [];
+    const sentences = [];
+    if (names.length) {
+        sentences.push(`The clinician and patient discussed ${joinAnd(names)} for ${r.decision_label}.`);
+        traces.push('decision_overview.options_considered');
+    } else {
+        sentences.push(`The clinician and patient discussed ${r.decision_label}.`);
+    }
+    if (rec.recommended_option) {
+        let line = `${rec.recommended_option} was recommended`;
+        if (rec.rationale) line += ` because ${uncap(rec.rationale)}`;
+        if (rec.qualification) line += `, although the clinician noted that ${uncap(rec.qualification)}`;
+        sentences.push(`${line}.`);
+        traces.push('decision_overview.clinician_recommendation');
+    }
+    if (patientBits.length && sentences.length < 3) {
+        sentences.push(`The patient identified ${joinAnd(patientBits)} as a consideration.`);
+        traces.push('decision_overview.patient_considerations');
+    } else if (comps[0] && sentences.length < 3) {
+        sentences.push(`The difference between ${comps[0].option_a} and ${comps[0].option_b} was recorded as ${comps[0].level}.`);
+        traces.push('communication_analysis.tradeoff_comparisons');
+    }
+    if (r.status === 'Resolved' && r.selected_option) {
+        sentences.push(`The decision is ${r.status} and the selected option is ${r.selected_option}.`);
+    } else {
+        sentences.push(`The decision is ${r.status || 'unspecified'}.`);
+    }
+    traces.push('status');
+    const fallback = `${r.decision_label} is ${r.status || 'unspecified'}.`;
+    return { text: validateGenerated(sentences.join(' '), fallback), traces };
+}
+
+function communicationOpportunity(start, regions) {
+    const order = [start, ...spineDescendantsInOrder(regions, start.decision_id)];
+    for (const r of order) {
+        const questions = r.decision_overview?.patient_considerations?.questions || [];
+        const hit = questions.find(q => OPEN_QUESTION_STATUSES.includes(q.response_status));
+        if (!hit) continue;
+        let text = `The patient raised a question: ${hit.question}`;
+        if (hit.response) text += ` The recorded response is ${hit.response}, with status ${hit.response_status}.`;
+        else text += ` The recorded response status is ${hit.response_status}.`;
+        return {
+            text: validateGenerated(text, hit.question),
+            trace: "decision_overview.patient_considerations.questions",
+            decisionLabel: r.decision_label,
+        };
+    }
+    return null;
+}
+
+function ccqFieldBrief(field) {
+    if (!field) return null;
+    if (typeof field === "string") {
+        const text = field.trim();
+        return text ? { text, qualifying_language: [] } : null;
+    }
+    const text = String(field.text || "").trim();
+    if (!text) return null;
+    return { text, qualifying_language: field.qualifying_language || [] };
+}
+
+function structuredCcqForGeneration(r, regions) {
+    const ov = r.decision_overview || {};
+    const rec = ov.clinician_recommendation || {};
+    const pc = ov.patient_considerations || {};
+    const questions = [];
+    const order = [r, ...spineDescendantsInOrder(regions, r.decision_id)];
+    order.forEach(node => {
+        ((node.decision_overview || {}).patient_considerations || {}).questions?.forEach(q => {
+            questions.push({
+                decision_label: node.decision_label,
+                question: q.question,
+                response: q.response || "",
+                response_status: q.response_status,
+            });
+        });
+    });
+    return {
+        decision_id: r.decision_id,
+        decision_label: r.decision_label,
+        status: r.status,
+        selected_option: r.selected_option || "",
+        options_considered: (ov.options_considered || []).map(o => ({
+            option_name: o.option_name,
+            named_only: !!o.named_only,
+            benefits: ccqFieldBrief(o.benefits),
+            risks: ccqFieldBrief(o.risks),
+            burdens: ccqFieldBrief(o.burdens),
+        })),
+        clinician_recommendation: {
+            recommended_option: rec.recommended_option || "",
+            rationale: rec.rationale || "",
+            qualification: rec.qualification || "",
+        },
+        patient_goals: considerationTexts(pc.goals_priorities),
+        patient_preferences: considerationTexts(pc.preferences),
+        tradeoff_comparisons: ((r.communication_analysis || {}).tradeoff_comparisons || []).map(tc => ({
+            option_a: tc.option_a,
+            option_b: tc.option_b,
+            level: tc.level,
+        })),
+        questions,
+    };
+}
+
+function templateGenerativeLayer(r, regions) {
+    const summary = summarizeDecision(r);
+    const opportunity = communicationOpportunity(r, regions);
+    return {
+        source: "template",
+        decision_summary: summary.text,
+        traces: summary.traces,
+        communication_opportunity: opportunity
+            ? { eligible: true, text: opportunity.text, source_decision_label: opportunity.decisionLabel, source_field: opportunity.trace }
+            : { eligible: false, text: "", source_decision_label: "", source_field: "" },
+    };
+}
+
+function normalizeGenerativeLayerFromModel(raw, r, regions) {
+    const fallback = templateGenerativeLayer(r, regions);
+    const payload = structuredCcqForGeneration(r, regions);
+    const eligibleQs = (payload.questions || []).filter(q => OPEN_QUESTION_STATUSES.includes(q.response_status));
+    const summary = validateGenerated(raw?.decision_summary, fallback.decision_summary);
+    const oppIn = raw?.communication_opportunity || {};
+    let opportunity = {
+        eligible: false,
+        text: "",
+        source_decision_label: "",
+        source_field: "decision_overview.patient_considerations.questions",
+    };
+    if (oppIn.eligible && eligibleQs.length) {
+        const text = validateGenerated(oppIn.text, "");
+        if (text) {
+            opportunity = {
+                eligible: true,
+                text,
+                source_decision_label: oppIn.source_decision_label || eligibleQs[0].decision_label,
+                source_field: "decision_overview.patient_considerations.questions",
+            };
+        }
+    }
+    return {
+        source: "llm",
+        decision_summary: summary,
+        traces: ["generative_layer.llm", ...fallback.traces],
+        communication_opportunity: opportunity,
+    };
+}
+
+async function generateGenerativeLayers(apiKey, regions) {
+    for (const r of regions || []) {
+        try {
+            logStatus(`Pass D: Narrative for "${r.decision_label}"...`);
+            const facts = structuredCcqForGeneration(r, regions);
+            const raw = await callGemini(
+                apiKey,
+                GENERATIVE_LAYER_SYSTEM,
+                GENERATIVE_LAYER_SCHEMA,
+                `${getGenerativeLayerPrompt()}\n${JSON.stringify(facts, null, 2)}`
+            );
+            r.generative_layer = normalizeGenerativeLayerFromModel(raw, r, regions);
+        } catch (err) {
+            logStatus(`Pass D fell back to structured synthesis for "${r.decision_label}": ${err.message}`);
+            r.generative_layer = templateGenerativeLayer(r, regions);
+        }
+    }
+}
+
+function renderGenerativeLayer(selected, regions) {
+    if (!selected) return '';
+    const stored = selected.generative_layer;
+    const summary = stored?.decision_summary
+        ? { text: stored.decision_summary, traces: stored.traces || ["generative_layer"] }
+        : summarizeDecision(selected);
+    const storedOpp = stored?.communication_opportunity?.eligible ? stored.communication_opportunity : null;
+    const opportunity = storedOpp
+        ? { text: storedOpp.text, trace: storedOpp.source_field, decisionLabel: storedOpp.source_decision_label }
+        : communicationOpportunity(selected, regions);
+    const opp = opportunity ? `<div class="comm-opportunity">
+        <strong>Communication Opportunity</strong>
+        <p>${escHtml(opportunity.text)}</p>
+        <span class="generative-trace">source: ${escHtml(opportunity.trace)} · ${escHtml(opportunity.decisionLabel)}</span>
+    </div>` : '';
+    return `<div class="generative-layer">
+        <h3>Decision Summary</h3>
+        <p>${escHtml(summary.text)}</p>
+        <span class="generative-trace">source: ${escHtml(summary.traces.join(' · '))}</span>
+        ${opp}
+    </div>`;
+}
+
 function renderCockpitStats(regions, selected) {
     const s = computeSummaryStats(regions);
     const framing = selected?.communication_analysis?.decision_framing || '—';
@@ -4923,11 +5306,9 @@ function renderEpisodeDock(r, turns) {
             <div>
                 <h3>Options</h3>
                 ${renderOptionMatrix(r)}
-                ${renderOptionProse(r)}
             </div>
             ${risksDock || renderEngagementDock(r)}
         </div>
-        ${renderGlyphSlice(r)}
     </div>`;
 }
 
@@ -4948,6 +5329,7 @@ function renderEpisodeCockpit(regions, turns, selected) {
     return `<div class="episode-cockpit${peekClass}">
         ${renderPatientBanner()}
         ${renderCockpitStats(regions, selected)}
+        ${cockpitCtx().peek ? '' : renderGenerativeLayer(selected, regions)}
         ${renderGlyphMap(regions, turns)}
         ${renderEpisodeDock(selected, turns)}
     </div>`;
@@ -5144,6 +5526,7 @@ function selectDecision(decisionId) {
     NAV.decisionId = decisionId;
     CURRENT_GLYPH = { key: 'overview', turn: null };
     CURRENT_EXPANDED_CLUSTER = null;
+    ensureSpineExpandedTo(decisionId);
     if (CURRENT_REGIONS && CURRENT_TURNS) renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION, { keepSpine: true });
     renderGlobalBreadcrumb();
 }
@@ -5206,8 +5589,9 @@ function ensureSpineExpandedTo(decisionId) {
     const byId = new Map((CURRENT_REGIONS || []).map(r => [r.decision_id, r]));
     let node = byId.get(decisionId);
     const needed = [];
-    while (node && node.parent_decision_id && byId.has(node.parent_decision_id)) {
+    while (node) {
         needed.push(node.decision_id);
+        if (!node.parent_decision_id || !byId.has(node.parent_decision_id)) break;
         node = byId.get(node.parent_decision_id);
     }
     needed.forEach(id => {

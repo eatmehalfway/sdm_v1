@@ -246,6 +246,18 @@ def _mock_turns(episode_id: str, clinician_name: str) -> list[dict]:
             "speaker_line": "DOCTOR",
             "text_lines": ["What questions do you have about these options?"],
         },
+        {
+            "index": 5,
+            "encounter": f"{episode_id}_consult.txt",
+            "speaker_line": "PATIENT",
+            "text_lines": ["Would the smaller incision get me back to a desk any sooner?"],
+        },
+        {
+            "index": 6,
+            "encounter": f"{episode_id}_consult.txt",
+            "speaker_line": "DOCTOR",
+            "text_lines": ["Recovery is usually a matter of weeks; we would talk through the details as we get closer."],
+        },
     ]
 
 
@@ -588,6 +600,17 @@ def get_demo_episode_detail(episode_id: str) -> dict[str, Any] | None:
     treatment_parent["option_names"] = ["Nonsurgical management", "Surgical management"]
     treatment_parent["linked_interventions"] = []
     treatment_parent["informed_consent_analysis"] = None
+    parent_questions = list(
+        ((treatment_parent.get("decision_overview") or {}).get("patient_considerations") or {}).get("questions") or []
+    )
+    parent_questions.append({
+        "question": "Would the smaller incision get me back to a desk any sooner?",
+        "response": "Recovery was discussed generally",
+        "response_status": "Partially answered",
+        "turn_indices": [5],
+    })
+    treatment_parent.setdefault("decision_overview", {}).setdefault("patient_considerations", {})["questions"] = parent_questions
+    treatment_parent["relevant_turn_indices"] = sorted(set((treatment_parent.get("relevant_turn_indices") or []) + [5]))
     if not meta.get("has_index_decision"):
         region["decision_label"] = meta["decision_label"]
         region["selected_intervention"] = None
