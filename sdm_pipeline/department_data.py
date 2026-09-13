@@ -231,7 +231,7 @@ def _mock_turns(episode_id: str, clinician_name: str) -> list[dict]:
             "encounter": f"{episode_id}_consult.txt",
             "speaker_line": "DOCTOR",
             "text_lines": [
-                "Surgery may provide more durable relief, but recovery is usually longer than an injection."
+                "Surgery may provide more durable relief, but recovery is usually longer than an injection. There is a small risk of nerve injury."
             ],
         },
         {
@@ -258,15 +258,34 @@ def _mock_turns(episode_id: str, clinician_name: str) -> list[dict]:
             "speaker_line": "DOCTOR",
             "text_lines": ["Recovery is usually a matter of weeks; we would talk through the details as we get closer."],
         },
+        {
+            "index": 7,
+            "encounter": f"{episode_id}_consult.txt",
+            "speaker_line": "DOCTOR",
+            "text_lines": ["Surgical management is the more reliable path given how far you have to walk."],
+        },
+        {
+            "index": 8,
+            "encounter": f"{episode_id}_consult.txt",
+            "speaker_line": "DOCTOR",
+            "text_lines": ["Nerve injury remains the main operative risk if we operate."],
+        },
     ]
 
 
-def _grounded_text(text: str, qualifiers: list[str] | None = None, turn: int | None = 2) -> dict[str, Any]:
+def _grounded_text(
+    text: str,
+    qualifiers: list[str] | None = None,
+    turn: int | None = 2,
+    quote: str | None = None,
+    turns: list[int] | None = None,
+) -> dict[str, Any]:
+    indices = turns if turns is not None else ([turn] if text and turn is not None else [])
     return {
         "text": text,
         "qualifying_language": qualifiers or [],
-        "quote": text if text else "",
-        "turn_indices": [turn] if text and turn is not None else [],
+        "quote": quote if quote is not None else (text if text else ""),
+        "turn_indices": indices,
     }
 
 
@@ -301,7 +320,7 @@ def _mock_region(
         "selected_intervention": selected_intervention,
         "option_names": ["Proceed with surgery", "Watchful waiting"],
         "encounter_ids": [f"{episode_id}_consult.txt"],
-        "relevant_turn_indices": [0, 1, 2, 3, 4],
+        "relevant_turn_indices": [0, 1, 2, 3, 4, 7, 8],
         "colorTheme": _COLOR_THEMES[0],
         "linked_interventions": [procedure],
         "decision_overview": {
@@ -410,8 +429,10 @@ def _mock_core_risks(core_risk_items: list[dict[str, Any]] | None, core_discusse
         rows = []
         for item in core_risk_items:
             discussed = item.get("detection_status") == "Discussed"
+            name = item.get("risk_name") or "Unnamed risk"
+            nerve = discussed and any(token in name.lower() for token in ("nerve", "neuro"))
             rows.append({
-                "risk_name": item.get("risk_name") or "Unnamed risk",
+                "risk_name": name,
                 "detection_status": "Discussed" if discussed else "Not detected",
                 "details_communicated": {
                     "likelihood": "Discussed with the patient" if discussed else "",
@@ -419,8 +440,8 @@ def _mock_core_risks(core_risk_items: list[dict[str, Any]] | None, core_discusse
                     "patient_specific_relevance": "",
                     "management_or_response": "",
                 },
-                "quote": f"{item.get('risk_name')} was discussed as part of informed consent." if discussed else "",
-                "turn_indices": [2] if discussed else [],
+                "quote": "small risk of nerve injury" if nerve else ("Surgery may provide more durable relief" if discussed else ""),
+                "turn_indices": [2, 8] if nerve else ([2] if discussed else []),
             })
         return rows
     return [
@@ -433,8 +454,8 @@ def _mock_core_risks(core_risk_items: list[dict[str, Any]] | None, core_discusse
                 "patient_specific_relevance": "",
                 "management_or_response": "",
             },
-            "quote": "Dural tear can happen" if core_discussed else "",
-            "turn_indices": [2] if core_discussed else [],
+            "quote": "small risk of nerve injury" if core_discussed else "",
+            "turn_indices": [2, 8] if core_discussed else [],
         },
     ]
 
@@ -600,6 +621,62 @@ def get_demo_episode_detail(episode_id: str) -> dict[str, Any] | None:
     treatment_parent["option_names"] = ["Nonsurgical management", "Surgical management"]
     treatment_parent["linked_interventions"] = []
     treatment_parent["informed_consent_analysis"] = None
+    treatment_parent.setdefault("decision_overview", {})["options_considered"] = [
+        {
+            "option_name": "Surgical management",
+            "named_only": False,
+            "what_it_involves": _grounded_text(
+                "Decompression if imaging confirms stenosis",
+                turn=0,
+                quote="consider surgery",
+                turns=[0, 7],
+            ),
+            "benefits": _grounded_text(
+                "More reliable relief of walking-limiting claudication",
+                turn=2,
+                quote="Surgery may provide more durable relief",
+            ),
+            "risks": _grounded_text(
+                "Nerve injury if we operate",
+                turn=2,
+                quote="small risk of nerve injury",
+            ),
+            "burdens": _grounded_text("Not discussed here", turn=None, quote=""),
+        },
+        {
+            "option_name": "Nonsurgical management",
+            "named_only": False,
+            "conservative": True,
+            "what_it_involves": _grounded_text(
+                "Stay with conservative care for now and delay an operation",
+                turn=0,
+                quote="continue therapy",
+            ),
+            "benefits": _grounded_text("Avoids operative risk", turn=0, quote="continue therapy"),
+            "risks": _grounded_text("Symptoms may progress", turn=None, quote=""),
+            "burdens": _grounded_text(
+                "Ongoing visits, time, and activity limits",
+                turn=2,
+                quote="recovery is usually longer than an injection",
+            ),
+        },
+    ]
+    treatment_parent["decision_overview"]["clinician_recommendation"] = {
+        "recommended_option": "Surgical management",
+        "rationale": "symptoms had persisted despite prior treatment",
+        "qualification": "",
+        "quote": "Surgical management is the more reliable path given how far you have to walk.",
+        "turn_indices": [7],
+    }
+    treatment_parent.setdefault("communication_analysis", {})["tradeoff_comparisons"] = [
+        {
+            "option_a": "Surgical management",
+            "option_b": "Nonsurgical management",
+            "level": "Meaningful comparison",
+            "evidence_quote": "Surgery may provide more durable relief, but recovery is usually longer than an injection",
+            "turn_indices": [2],
+        }
+    ]
     parent_questions = list(
         ((treatment_parent.get("decision_overview") or {}).get("patient_considerations") or {}).get("questions") or []
     )
@@ -607,10 +684,13 @@ def get_demo_episode_detail(episode_id: str) -> dict[str, Any] | None:
         "question": "Would the smaller incision get me back to a desk any sooner?",
         "response": "Recovery was discussed generally",
         "response_status": "Partially answered",
+        "quote": "Would the smaller incision get me back to a desk any sooner?",
         "turn_indices": [5],
     })
     treatment_parent.setdefault("decision_overview", {}).setdefault("patient_considerations", {})["questions"] = parent_questions
-    treatment_parent["relevant_turn_indices"] = sorted(set((treatment_parent.get("relevant_turn_indices") or []) + [5]))
+    treatment_parent["relevant_turn_indices"] = sorted(
+        set((treatment_parent.get("relevant_turn_indices") or []) + [5, 7, 8])
+    )
     if not meta.get("has_index_decision"):
         region["decision_label"] = meta["decision_label"]
         region["selected_intervention"] = None

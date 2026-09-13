@@ -884,6 +884,23 @@
             background:#eaf2fa;
             border-left-color:var(--playhead-color, var(--secondary));
         }
+        .transcript-pane-row.is-related {
+            background:#f3f7fb;
+            border-left-color:var(--playhead-color, var(--secondary));
+        }
+        .quote-hit { font-weight:600; }
+        .turn-chips { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:8px; }
+        .turn-chip {
+            padding:2px 8px; border:1px solid var(--border); background:var(--surface);
+            font-family:inherit; font-size:0.72rem; font-weight:700; color:var(--navy); cursor:pointer;
+        }
+        .turn-chip.is-active { border-color:var(--navy); background:#eaf2fa; }
+        .card-title-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:8px; }
+        .card-title-row strong { font-size:0.92rem; }
+        .condensed-pill {
+            display:inline-block; padding:1px 7px; border:1px solid var(--border);
+            font-size:0.68rem; font-weight:700; color:var(--navy); text-transform:none;
+        }
         .behavior-card { flex-shrink:0; border:1px solid var(--border); background:var(--surface); }
         .behavior-card-head {
             padding:8px 12px; border-bottom:1px solid var(--border);
@@ -3655,6 +3672,8 @@ Extract decision overview (options with benefits/risks/burdens and qualifying la
 If an option is named without further detail, set named_only true and omit empty detail fields.
 Fold important limitations into the most relevant field (e.g., temporary relief under benefits).
 For tradeoff_comparisons, assess relevant pairs of options separately (Not compared / Limited comparison / Meaningful comparison).
+Meaningful comparison (conservative vs procedure) requires all four: conservative path has burden/inconvenience AND timing or urgency; procedural path has benefit AND risk. Limited if some of those four are present. Not compared if the pair is only named. Keep qualifiers verbatim (May, Named only).
+For clinician_recommendation, record an explicit clinician recommendation only. Do not treat “either would be reasonable”, “second opinion is reasonable”, or option-listing as a recommendation. Leave recommended_option empty unless the clinician actually recommended a path.
 For understanding_verification, only flag whether the clinician actively checked understanding — never conclude the patient understood.
 Ground every option detail, clinician recommendation, patient goal, and preference with an exact quote and global turn_indices. Use empty quote/turn_indices only when the field is absent.
 For clinician_recommendation, preserve evidence that lets a reviewer determine whether it occurred before or after alternatives were discussed.
@@ -3682,16 +3701,16 @@ const GENERATIVE_LAYER_SCHEMA = {
 const GENERATIVE_LAYER_SYSTEM = "You synthesize structured CCQ extraction findings into a short narrative. Use only the JSON you are given. Do not use a transcript. Do not add medical knowledge. Do not infer missing facts, patient understanding, consent adequacy, or standard of care.";
 
 function getGenerativeLayerPrompt() {
-    return `Write the generative layer for this clinical decision from structured CCQ findings only.
+    return `Write the generative layer for THIS clinical decision only from structured CCQ findings. Do not blend parent or child decisions.
 
-Decision Summary: one neutral paragraph, 2–4 sentences, covering
+Decision Summary: one neutral paragraph, 3–5 sentences, in conversation order when the fields support it
 1) the decision and options discussed;
-2) the clinician recommendation and why, if present;
+2) the clinician recommendation and why, if an explicit recommendation is present (not “either would be reasonable” or “second opinion is reasonable”);
 3) option differences that were actually compared, with the recorded comparison level;
-4) relevant patient goals, preferences, or questions if present;
+4) relevant patient goals or preferences if present;
 5) final status or selected option.
 
-Communication Opportunity: at most one observational sentence about a patient-raised question, concern, worry, or uncertainty that was not fully addressed (response_status is one of: Not addressed, Acknowledged, Acknowledged but not answered, Acknowledged but not substantively addressed, Partially answered, Partially addressed). If none of those statuses exist, set eligible false and text to an empty string. Do not invent an opportunity.
+Communication Opportunity: at most one observational sentence about a patient-raised question, concern, worry, or uncertainty on THIS decision that was not fully addressed (response_status is one of: Not addressed, Acknowledged, Acknowledged but not answered, Acknowledged but not substantively addressed, Partially answered, Partially addressed). If none of those statuses exist on this decision, set eligible false and text to an empty string. Do not invent an opportunity. Do not use a question from another decision.
 
 Guardrails:
 - preserve qualifiers exactly (Named only, Limited comparison, May, etc.);
@@ -4144,7 +4163,65 @@ function inferDecisionTier(depth) {
     return DECISION_TIER_LABELS[Math.min(depth, DECISION_TIER_LABELS.length - 1)];
 }
 
-function optionTradeoffLevel(opt, comm) {
+function fieldPlainText(field) {
+    if (!field) return '';
+    if (typeof field === 'string') return field.trim();
+    return String(field.text || '').trim();
+}
+
+function fieldDiscussedText(value) {
+    const t = String(value || '').trim();
+    if (!t || t === 'Not discussed' || t === 'Named only' || t === 'Not discussed here') return false;
+    if (/^named(\s+as|\s+only)/i.test(t)) return false;
+    return true;
+}
+
+function optionSignalsFromCcq(opt) {
+    const involves = fieldPlainText(opt.what_it_involves);
+    const benefits = fieldPlainText(opt.benefits);
+    const risks = fieldPlainText(opt.risks);
+    const burdens = fieldPlainText(opt.burdens);
+    const name = opt.option_name || '';
+    const blob = `${involves} ${benefits} ${risks} ${burdens}`.toLowerCase();
+    return {
+        conservative: !!opt.conservative || /nonsurgical|conservative|watchful|physical therapy|injection|waiting|epidural|structured pt/i.test(name),
+        procedural: /surg|decompress|fusion|operat|laminect/i.test(`${name} ${involves}`),
+        burden: fieldDiscussedText(burdens) && /burden|visit|time|inconvenien|limit|hospital|recovery|stay|activity/i.test(burdens),
+        timing: /now|sooner|delay|wait|timing|urgent|week|for now|current/i.test(`${involves} ${burdens} ${benefits}`),
+        benefit: fieldDiscussedText(benefits),
+        risk: fieldDiscussedText(risks),
+        namedOnly: /named only/.test(blob) && !fieldDiscussedText(benefits) && !fieldDiscussedText(risks) && !fieldDiscussedText(burdens),
+    };
+}
+
+function comparisonLevelFromOptions(optA, optB) {
+    const a = optionSignalsFromCcq(optA);
+    const b = optionSignalsFromCcq(optB);
+    const cons = a.conservative ? a : b.conservative ? b : null;
+    const proc = a.procedural ? a : b.procedural ? b : null;
+    if (cons && proc) {
+        const n = [cons.burden, cons.timing, proc.benefit, proc.risk].filter(Boolean).length;
+        if (n === 4) return 'Meaningful comparison';
+        if (n === 0) return 'Not compared';
+        return 'Limited comparison';
+    }
+    const n = [a.benefit, a.risk, a.burden, a.timing, b.benefit, b.risk, b.burden, b.timing].filter(Boolean).length;
+    if (n === 0 || (a.namedOnly && b.namedOnly)) return 'Not compared';
+    return n >= 4 ? 'Meaningful comparison' : 'Limited comparison';
+}
+
+function optionComparisonLevel(r, name) {
+    const options = r.decision_overview?.options_considered || [];
+    const comps = (r.communication_analysis || {}).tradeoff_comparisons || [];
+    const pair = comps.find(tc => tc.option_a === name || tc.option_b === name);
+    const a = options.find(o => o.option_name === (pair?.option_a || name));
+    const b = options.find(o => o.option_name === (pair?.option_b || options.find(o => o.option_name !== name)?.option_name));
+    if (!a || !b) return 'Not compared';
+    return comparisonLevelFromOptions(a, b);
+}
+
+function optionTradeoffLevel(opt, comm, r) {
+    if (r) return optionComparisonLevel(r, opt.option_name);
     const name = String(opt.option_name || '').toLowerCase();
     const matches = (comm?.tradeoff_comparisons || []).filter(tc =>
         String(tc.option_a || '').toLowerCase() === name || String(tc.option_b || '').toLowerCase() === name
@@ -4152,6 +4229,73 @@ function optionTradeoffLevel(opt, comm) {
     if (matches.some(tc => tc.level === 'Meaningful comparison')) return 'Meaningful comparison';
     if (matches.some(tc => tc.level === 'Limited comparison')) return 'Limited comparison';
     return 'Not compared';
+}
+
+const HEDGE_REC = /either would be reasonable|second opinion is reasonable|both (are|would be) (reasonable|options)|is reasonable if you/i;
+
+function isExplicitRecommendation(rec) {
+    if (!rec || !rec.recommended_option) return false;
+    const blob = `${rec.recommended_option} ${rec.rationale || ''} ${rec.qualification || ''}`;
+    if (HEDGE_REC.test(blob) && !rec.rationale) return false;
+    if (HEDGE_REC.test(rec.qualification || '') && !rec.rationale) return false;
+    return true;
+}
+
+function optionIsConservative(name) {
+    return /nonsurgical|conservative|watchful|physical therapy|injection|waiting|epidural|structured pt/i.test(name || '');
+}
+
+function optionIsChosen(r, name) {
+    const chosen = `${r.selected_option || ''} ${r.selected_intervention || ''}`.toLowerCase();
+    return !!(name && chosen.includes(String(name).toLowerCase()));
+}
+
+function allTurnIndices(...fields) {
+    const out = [];
+    fields.forEach(field => {
+        (field?.turn_indices || []).forEach(t => {
+            if (t != null && !out.includes(t)) out.push(t);
+        });
+    });
+    return out.sort((a, b) => a - b);
+}
+
+function firstQuote(...fields) {
+    for (const field of fields) {
+        const q = String(field?.quote || field?.evidence_quote || '').trim();
+        if (q) return q;
+    }
+    return '';
+}
+
+function quoteAtTurn(fields, turn) {
+    for (const field of fields) {
+        if ((field?.turn_indices || []).includes(turn)) {
+            const q = String(field?.quote || field?.evidence_quote || '').trim();
+            if (q) return q;
+        }
+    }
+    return firstQuote(...fields);
+}
+
+function eventGroupId(e) {
+    if (e.key === 'option') return `option:${e.optionName || e.label}`;
+    if (e.key === 'risk') return `risk:${e.riskName || e.label}`;
+    return `${e.key}:${e.turn}:${e.label}`;
+}
+
+function primaryTimelineEvents(events) {
+    const seen = new Set();
+    const out = [];
+    [...events].sort((a, b) => a.turn - b.turn).forEach(e => {
+        if (e.key === 'option' || e.key === 'risk') {
+            const gid = eventGroupId(e);
+            if (seen.has(gid)) return;
+            seen.add(gid);
+        }
+        out.push(e);
+    });
+    return out;
 }
 
 function renderDecisionOptionChips(r, opts = {}) {
@@ -4162,7 +4306,7 @@ function renderDecisionOptionChips(r, opts = {}) {
     const chosenText = `${r.selected_option || ''} ${r.selected_intervention || ''}`.toLowerCase();
     const chips = options.map(opt => {
         const name = opt.option_name || '';
-        const level = optionTradeoffLevel(opt, comm);
+        const level = optionTradeoffLevel(opt, comm, r);
         const isChosen = name && chosenText.includes(name.toLowerCase());
         const isFocus = interactive && NAV.optionName === name;
         const click = interactive
@@ -4462,56 +4606,78 @@ function collectTimelineEvents(regions) {
     };
     (regions || []).forEach(r => {
         (r.decision_overview?.options_considered || []).forEach(opt => {
-            const turn = firstTurnIndex(opt.what_it_involves, opt.benefits, opt.risks, opt.burdens);
-            if (turn != null) pushEvent({
+            const fields = [opt.what_it_involves, opt.benefits, opt.risks, opt.burdens];
+            const turns = allTurnIndices(...fields);
+            turns.forEach(turn => pushEvent({
                 key: 'option', turn, decisionId: r.decision_id,
                 label: `Option considered: ${opt.option_name}`,
                 word: shortGlyphWord(opt.option_name, 'option'),
                 optionName: opt.option_name,
-            });
+                turns,
+                quote: quoteAtTurn(fields, turn),
+                conservative: optionIsConservative(opt.option_name),
+                chosen: optionIsChosen(r, opt.option_name),
+            }));
         });
         const rec = r.decision_overview?.clinician_recommendation;
-        if (rec && (rec.turn_indices || []).length) {
+        if (isExplicitRecommendation(rec) && (rec.turn_indices || []).length) {
             pushEvent({
                 key: 'recommendation', turn: rec.turn_indices[0], decisionId: r.decision_id,
                 label: `Recommended: ${rec.recommended_option || '\u2014'}`,
                 word: shortGlyphWord(rec.recommended_option, 'recommendation'),
                 optionName: rec.recommended_option,
+                turns: rec.turn_indices,
+                quote: rec.quote || '',
             });
         }
         (r.communication_analysis?.tradeoff_comparisons || []).forEach(tc => {
-            (tc.turn_indices || []).forEach(turn => pushEvent({
-                key: 'tradeoff', turn, decisionId: r.decision_id,
+            const turns = tc.turn_indices || [];
+            const first = turns[0];
+            if (first == null) return;
+            pushEvent({
+                key: 'tradeoff', turn: first, decisionId: r.decision_id,
                 label: `${tc.option_a} vs ${tc.option_b} \u2014 ${tc.level}`,
                 word: shortGlyphWord(tc.option_a, 'tradeoff'),
                 optionA: tc.option_a,
                 optionB: tc.option_b,
-            }));
+                turns,
+                quote: tc.evidence_quote || tc.quote || '',
+                qualifier: tc.qualifier || '',
+            });
         });
         const pc = r.decision_overview?.patient_considerations || {};
         [...(pc.goals_priorities || []), ...(pc.preferences || [])].forEach(item => {
-            (item.turn_indices || []).forEach(turn => pushEvent({
+            const turns = item.turn_indices || [];
+            turns.forEach(turn => pushEvent({
                 key: 'preference', turn, decisionId: r.decision_id,
                 label: item.text,
                 word: shortGlyphWord(item.text, 'preference'),
+                turns,
+                quote: item.quote || '',
             }));
         });
         (pc.questions || []).forEach(q => {
-            (q.turn_indices || []).forEach(turn => pushEvent({
+            const turns = q.turn_indices || [];
+            turns.forEach(turn => pushEvent({
                 key: 'question', turn, decisionId: r.decision_id,
                 label: q.question,
                 word: shortGlyphWord(q.question, 'question'),
+                turns,
+                quote: q.quote || q.question || '',
             }));
         });
         chosenConsentInterventions(r).forEach(intv => {
             ['core_risks', 'relevant_risks', 'context_dependent_risks'].forEach(tier => {
                 (intv[tier] || []).forEach(risk => {
                     if (risk.detection_status !== 'Discussed') return;
-                    (risk.turn_indices || []).forEach(turn => pushEvent({
+                    const turns = risk.turn_indices || [];
+                    turns.forEach(turn => pushEvent({
                         key: 'risk', turn, decisionId: r.decision_id,
                         label: risk.risk_name,
                         word: shortGlyphWord(risk.risk_name, 'risk'),
                         riskName: risk.risk_name,
+                        turns,
+                        quote: risk.quote || '',
                     }));
                 });
             });
@@ -4686,12 +4852,30 @@ function renderTickGrid(r, opts) {
     const ctx = cockpitCtx();
     const selected = r.decision_id === ctx.selectedId;
     const events = (opts.allEvents || []).filter(e => e.decisionId === r.decision_id);
+    const primaries = primaryTimelineEvents(events);
+    const glyph = ctx.glyph || {};
+    const selectedEv = events.find(e => e.key === glyph.key && Number(e.turn) === Number(glyph.turn))
+        || events.find(e => e.key === glyph.key && (e.turns || []).includes(Number(glyph.turn)));
+    const selectedGid = selected && selectedEv && (glyph.key === 'option' || glyph.key === 'risk')
+        ? eventGroupId(selectedEv) : null;
+    const earliestSelected = selectedGid
+        ? Math.min(...events.filter(e => eventGroupId(e) === selectedGid).map(e => e.turn))
+        : null;
     const byCell = new Map();
-    events.forEach(e => {
+    const ghostCells = new Set();
+    primaries.forEach(e => {
         const k = `${e.key}:${e.turn}`;
         if (!byCell.has(k)) byCell.set(k, { event: e, labels: [e.label] });
         else byCell.get(k).labels.push(e.label);
     });
+    if (selectedGid != null) {
+        events.forEach(e => {
+            if (eventGroupId(e) !== selectedGid) return;
+            const k = `${e.key}:${e.turn}`;
+            if (!byCell.has(k)) byCell.set(k, { event: e, labels: [e.label] });
+            if (e.turn !== earliestSelected) ghostCells.add(k);
+        });
+    }
     const firstTurn = turns[0] ?? events[0]?.turn ?? (r.relevant_turn_indices || [])[0] ?? 0;
     const lastTurn = turns.length ? turns[turns.length - 1] : firstTurn;
     const rangeLabel = turns.length ? (firstTurn === lastTurn ? String(firstTurn) : `${firstTurn}–${lastTurn}`) : '';
@@ -4729,22 +4913,28 @@ function renderTickGrid(r, opts) {
             });
         }
         const ticks = hasBeh ? TICK_COLUMNS.map((col, ci) => {
-            const cell = byCell.get(`${col.key}:${t}`);
+            const cellKey = `${col.key}:${t}`;
+            const cell = byCell.get(cellKey);
             if (!cell) return '';
             const ev = cell.event;
             const cx = SPINE_TURN_LABEL_W + ci * SPINE_COL_W + SPINE_COL_W / 2;
             const active = selected && ctx.glyph.key === col.key && Number(ctx.glyph.turn) === t;
-            const faded = ctx.glyph.key !== 'overview' && !active;
-            const opacity = active ? 1 : faded ? 0.22 : 0.85;
+            const ghost = ghostCells.has(cellKey);
+            const faded = ctx.glyph.key !== 'overview' && !active && !ghost;
+            const opacity = ghost ? 0.28 : active ? 1 : faded ? 0.22 : 0.85;
+            const hatch = ev.key === 'option' && (ev.conservative || optionIsConservative(ev.optionName));
+            const boxed = ev.key === 'option' && (ev.chosen || optionIsChosen(r, ev.optionName));
             const click = interactive
                 ? `onclick="event.stopPropagation(); selectGlyph(${jsStr(r.decision_id)},${jsStr(col.key)},${Number(t)},${jsStr(ev.id)})"`
                 : '';
-            const title = `${vocabFor(col.key).label}: ${cell.labels.join('; ')} · turn ${t}`;
+            const title = `${vocabFor(col.key).label}: ${cell.labels.join('; ')} · turn ${t}${ghost ? ' · later mention' : ''}`;
             return `<g class="timeline-event-mark${interactive ? '' : ' is-inert'}" ${click}>
                 <title>${escAttr(title)}</title>
                 <rect x="${cx - 10}" y="${y0}" width="20" height="${rowH}" fill="transparent"></rect>
                 <rect x="${cx - SPINE_TICK_W / 2}" y="${y0}" width="${SPINE_TICK_W}" height="${rowH}"
                       fill="${vocabFor(col.key).color}" fill-opacity="${opacity}"></rect>
+                ${hatch ? `<rect x="${cx - SPINE_TICK_W / 2}" y="${y0}" width="${SPINE_TICK_W}" height="${rowH}" fill="url(#conservative-hatch)"></rect>` : ''}
+                ${boxed ? `<rect x="${cx - SPINE_TICK_W / 2}" y="${y0}" width="${SPINE_TICK_W}" height="${rowH}" fill="none" stroke="#0d2136" stroke-width="1.5"></rect>` : ''}
             </g>`;
         }).join('') : '';
         return `<g>
@@ -4761,7 +4951,13 @@ function renderTickGrid(r, opts) {
         <div class="tick-grid-cols"><span class="tick-col-gutter" title="${escAttr(rangeLabel ? `Turns ${rangeLabel}` : '')}">${escHtml(rangeLabel)}</span>${cols}</div>
         <div class="tick-grid-body" style="height:${bodyH}px">
             <svg viewBox="0 0 ${SPINE_TRACK_W} ${bodyH}" width="${SPINE_TRACK_W}" height="${bodyH}"
-                 ${interactive ? `onclick="clearGlyphSelection(${jsStr(r.decision_id)})" style="cursor:pointer"` : ''}>${rows}${rules.join('')}${endpointLabels.join('')}</svg>
+                 ${interactive ? `onclick="clearGlyphSelection(${jsStr(r.decision_id)})" style="cursor:pointer"` : ''}>
+                <defs>
+                    <pattern id="conservative-hatch" patternUnits="userSpaceOnUse" width="4" height="4">
+                        <path d="M0,4 L4,0" stroke="#7a93ab" stroke-width="1"></path>
+                    </pattern>
+                </defs>
+                ${rows}${rules.join('')}${endpointLabels.join('')}</svg>
         </div>
     </div>`;
 }
@@ -4800,7 +4996,7 @@ function renderDecisionTreeNode(r, opts, depth) {
         : '';
     const details = !open ? '' : `<div class="tree-body">
         ${r.selected_option ? `<div class="tree-detail">Selected: ${escHtml(r.selected_option)}</div>` : ''}
-        ${rec.recommended_option ? `<div class="tree-detail">Recommended: ${escHtml(rec.recommended_option)}</div>` : ''}
+        ${isExplicitRecommendation(rec) ? `<div class="tree-detail">Recommended: ${escHtml(rec.recommended_option)}</div>` : ''}
         ${optionNames ? `<div class="tree-detail tree-muted">${escHtml(optionNames)}</div>` : ''}
         ${mix ? `<div class="tree-detail tree-muted">${escHtml(mix)}</div>` : ''}
         ${opts.interactive && !selected
@@ -4829,23 +5025,38 @@ function renderDecisionTree(regions, opts) {
     </div>`;
 }
 
+function highlightQuoteHtml(text, quote, color) {
+    const raw = String(text || '');
+    const q = String(quote || '').trim();
+    if (!q) return escHtml(raw);
+    const idx = raw.toLowerCase().indexOf(q.toLowerCase());
+    if (idx < 0) return escHtml(raw);
+    return `${escHtml(raw.slice(0, idx))}<span class="quote-hit" style="background:${escAttr(color)}">${escHtml(raw.slice(idx, idx + q.length))}</span>${escHtml(raw.slice(idx + q.length))}`;
+}
+
 function renderTranscriptPane(turns, glyph) {
     if (!(turns || []).length) return '';
     const playhead = glyph && glyph.turn;
     const cueKey = glyph && glyph.key && glyph.key !== 'overview' ? glyph.key : null;
     const cueColor = cueKey ? vocabFor(cueKey).color : '';
+    const related = new Set((glyph && glyph.turns) || []);
+    const quote = (glyph && glyph.quote) || '';
     const rows = turns.map(t => {
         const active = playhead != null && t.index === playhead && cueColor;
+        const isRelated = !active && cueColor && related.has(t.index);
         const text = (t.text_lines || []).join(' ');
-        return `<div class="transcript-pane-row${active ? ' is-playhead' : ''}" id="turn-${t.index}"${active ? ` style="--playhead-color:${escAttr(cueColor)}"` : ''}>
+        const cls = active ? ' is-playhead' : isRelated ? ' is-related' : '';
+        const style = (active || isRelated) ? ` style="--playhead-color:${escAttr(cueColor)}"` : '';
+        const body = (active || isRelated) ? highlightQuoteHtml(text, quote, cueColor) : escHtml(text);
+        return `<div class="transcript-pane-row${cls}" id="turn-${t.index}"${style}>
             <div class="transcript-pane-meta">[${t.index}] ${escHtml(t.speaker_line)}</div>
-            <div>${escHtml(text)}</div>
+            <div>${body}</div>
         </div>`;
     }).join('');
     return `<div class="transcript-pane">
         <div class="transcript-pane-head">
             <strong>Transcript</strong>
-            <span>A selected tick colors this turn. Same-turn codes use different colors.</span>
+            <span>A selected tick colors this turn. Related mentions get a lighter wash.</span>
         </div>
         ${rows}
     </div>`;
@@ -4861,14 +5072,23 @@ function sliceTitle(key) {
     return 'Decision';
 }
 
+function renderTurnChips(turns, active) {
+    const list = [...new Set((turns || []).filter(t => t != null))].sort((a, b) => a - b);
+    if (!list.length) return '';
+    return `<div class="turn-chips"><span class="field-label">Turns</span>${list.map(t =>
+        `<button type="button" class="turn-chip${Number(t) === Number(active) ? ' is-active' : ''}" onclick="cueGlyphTurn(${Number(t)})">${t}</button>`
+    ).join('')}</div>`;
+}
+
 function renderBehaviorCard(r) {
     const glyph = cockpitCtx().glyph || {};
     if (!glyph.key || glyph.key === 'overview' || glyph.turn == null) return '';
     let body = '';
-    if (glyph.key === 'option' || glyph.key === 'tradeoff') body = renderOptionProse(r);
+    if (glyph.key === 'option') body = renderOptionCard(r);
+    else if (glyph.key === 'tradeoff') body = renderTradeoffCard(r);
     else if (glyph.key === 'risk') {
         body = glyph.riskName
-            ? `<div class="callout-value">${escHtml(glyph.riskName)}</div>`
+            ? `<div class="callout-value">${escHtml(glyph.riskName)}</div>${renderTurnChips(glyph.turns || [glyph.turn], glyph.turn)}`
             : renderGlyphSlice(r);
     } else body = renderGlyphSlice(r);
     if (!body) return '';
@@ -4908,7 +5128,7 @@ function renderGlyphMap(regions, turns) {
         <div class="spine-map-head">
             <div class="chart-heading-row" style="margin:0;">
                 <h3 class="decision-list-title" style="margin:0;border:0;min-height:0;padding:0;">Map</h3>
-                <span class="info-icon" tabindex="0" data-tip="The tree lists nested decisions with counts on hover. Expand a row for extracted details; Show on map loads that tick grid. The grid covers the first through last coded turn. Empty turns stay as thin spacers. Click a tick to color that transcript turn and open the extracted card under it.">i</span>
+                <span class="info-icon" tabindex="0" data-tip="The tree lists nested decisions with counts on hover. Show on map loads that tick grid. Option and risk ticks plot the first mention; later mentions appear as ghosts when selected. Conservative options are hatched; the chosen path is boxed. Click a tick to color that transcript turn and open the extracted card under it.">i</span>
             </div>
             <button type="button" class="spine-collapse-all" ${collapseDisabled ? 'disabled' : ''} onclick="collapseAllSpine()">Collapse all</button>
         </div>
@@ -4938,28 +5158,54 @@ function renderOptionMatrix(r) {
             <td>${fieldDiscussed(opt.benefits) ? 'Yes' : '—'}</td>
             <td>${fieldDiscussed(opt.risks) ? 'Yes' : '—'}</td>
             <td>${fieldDiscussed(opt.burdens) ? 'Yes' : '—'}</td>
-            <td>${escHtml(optionTradeoffLevel(opt, comm))}</td>
+            <td>${escHtml(optionTradeoffLevel(opt, comm, r))}</td>
         </tr>`;
     }).join('');
     return `<table class="risk-table"><thead><tr><th>Option</th><th>Benefits</th><th>Risks</th><th>Burdens</th><th>Compared</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
-function renderOptionProse(r) {
+function renderOptionCard(r) {
     const glyph = cockpitCtx().glyph;
-    if (glyph.key !== 'option' && glyph.key !== 'tradeoff') return '';
     const options = r.decision_overview?.options_considered || [];
-    let opt = options.find(o => o.option_name === glyph.optionName);
-    if (!opt && glyph.key === 'tradeoff') opt = options.find(o => o.option_name === glyph.optionA) || options[0];
+    const opt = options.find(o => o.option_name === glyph.optionName) || options[0];
     if (!opt) return '';
-    const level = glyph.key === 'tradeoff'
-        ? `<div><div class="field-label">Comparison</div><div>${escHtml(glyph.label || '')}</div></div>`
-        : '';
-    return `<div class="option-prose">
-        <div><div class="field-label">What it involves</div>${renderTextField(opt.what_it_involves, 'Not discussed')}</div>
-        <div><div class="field-label">Benefits</div>${renderTextField(opt.benefits, 'Not discussed')}</div>
-        <div><div class="field-label">Risks</div>${renderTextField(opt.risks, 'Not discussed')}</div>
-        <div><div class="field-label">Burdens</div>${renderTextField(opt.burdens, 'Not discussed')}</div>
-        ${level}
+    const level = optionComparisonLevel(r, opt.option_name);
+    const pills = [
+        optionIsChosen(r, opt.option_name) ? '<span class="condensed-pill">Chosen path</span>' : '',
+        optionIsConservative(opt.option_name) ? '<span class="condensed-pill">Conservative</span>' : '',
+        `<span class="condensed-pill">${escHtml(level)}</span>`,
+    ].join('');
+    const turns = glyph.turns || allTurnIndices(opt.what_it_involves, opt.benefits, opt.risks, opt.burdens);
+    return `<div>
+        <div class="card-title-row"><strong>${escHtml(opt.option_name)}</strong>${pills}</div>
+        <div class="option-prose">
+            <div><div class="field-label">What it involves</div><div>${escHtml(fieldPlainText(opt.what_it_involves) || 'Not discussed')}</div></div>
+            <div><div class="field-label">Benefits</div><div>${escHtml(fieldPlainText(opt.benefits) || 'Not discussed')}</div></div>
+            <div><div class="field-label">Risks</div><div>${escHtml(fieldPlainText(opt.risks) || 'Not discussed')}</div></div>
+            <div><div class="field-label">Burdens</div><div>${escHtml(fieldPlainText(opt.burdens) || 'Not discussed')}</div></div>
+        </div>
+        ${renderTurnChips(turns, glyph.turn)}
+    </div>`;
+}
+
+function renderTradeoffCard(r) {
+    const glyph = cockpitCtx().glyph;
+    const options = r.decision_overview?.options_considered || [];
+    const a = options.find(o => o.option_name === glyph.optionA);
+    const b = options.find(o => o.option_name === glyph.optionB);
+    const level = a && b ? comparisonLevelFromOptions(a, b) : (glyph.label || 'Not compared');
+    const pair = ((r.communication_analysis || {}).tradeoff_comparisons || []).find(
+        tc => tc.option_a === glyph.optionA && tc.option_b === glyph.optionB
+    );
+    const qualifier = glyph.qualifier || pair?.qualifier || '';
+    const turns = glyph.turns || pair?.turn_indices || (glyph.turn != null ? [glyph.turn] : []);
+    return `<div>
+        <div class="card-title-row">
+            <strong>${escHtml(glyph.optionA || '')} vs ${escHtml(glyph.optionB || '')}</strong>
+            <span class="condensed-pill">${escHtml(level)}</span>
+        </div>
+        ${qualifier ? `<div class="field-value">${escHtml(qualifier)}</div>` : ''}
+        ${renderTurnChips(turns, glyph.turn)}
     </div>`;
 }
 
@@ -5011,12 +5257,14 @@ function renderGlyphSlice(r) {
         if (!q) return '';
         return `<div class="callout"><div class="field-label">Question</div><div class="callout-value">${escHtml(q.question)}</div>
             <div class="field-value" style="margin-top:8px;">${escHtml(q.response || '—')}</div>
-            <div style="margin-top:6px;">${escHtml(q.response_status || '')}</div></div>`;
+            <div style="margin-top:6px;">${escHtml(q.response_status || '')}</div>
+            ${renderTurnChips(glyph.turns || q.turn_indices || [glyph.turn], glyph.turn)}</div>`;
     }
     if (glyph.key === 'recommendation') {
         const rec = r.decision_overview?.clinician_recommendation || {};
         return `<div class="callout"><div class="field-label">Recommendation</div><div class="callout-value">${escHtml(rec.recommended_option || 'None stated')}</div>
-            ${rec.rationale ? `<div class="field-value" style="margin-top:8px;">${escHtml(rec.rationale)}</div>` : ''}</div>`;
+            ${rec.rationale ? `<div class="field-value" style="margin-top:8px;">${escHtml(rec.rationale)}</div>` : ''}
+            ${renderTurnChips(glyph.turns || rec.turn_indices || [glyph.turn], glyph.turn)}</div>`;
     }
     if (glyph.key === 'preference') {
         const pc = r.decision_overview?.patient_considerations || {};
@@ -5024,7 +5272,8 @@ function renderGlyphSlice(r) {
         const item = items.find(entry => glyph.label && entry.text === glyph.label)
             || items.find(entry => (entry.turn_indices || []).includes(glyph.turn));
         if (!item) return '';
-        return `<div class="callout"><div class="field-label">Preference / goal</div><div class="callout-value">${escHtml(item.text)}</div></div>`;
+        return `<div class="callout"><div class="field-label">Preference / goal</div><div class="callout-value">${escHtml(item.text)}</div>
+            ${renderTurnChips(glyph.turns || item.turn_indices || [glyph.turn], glyph.turn)}</div>`;
     }
     return '';
 }
@@ -5082,9 +5331,10 @@ function summarizeDecision(r) {
     const ov = r.decision_overview || {};
     const rec = ov.clinician_recommendation || {};
     const names = (ov.options_considered || []).map(o => o.option_name).filter(Boolean);
-    const comps = (r.communication_analysis || {}).tradeoff_comparisons || [];
+    const options = ov.options_considered || [];
     const pc = ov.patient_considerations || {};
     const patientBits = [...considerationTexts(pc.goals_priorities), ...considerationTexts(pc.preferences)];
+    const questions = pc.questions || [];
     const traces = [];
     const sentences = [];
     if (names.length) {
@@ -5093,46 +5343,48 @@ function summarizeDecision(r) {
     } else {
         sentences.push(`The clinician and patient discussed ${r.decision_label}.`);
     }
-    if (rec.recommended_option) {
-        let line = `${rec.recommended_option} was recommended`;
+    if (isExplicitRecommendation(rec)) {
+        let line = `The clinician recommended ${rec.recommended_option}`;
         if (rec.rationale) line += ` because ${uncap(rec.rationale)}`;
-        if (rec.qualification) line += `, although the clinician noted that ${uncap(rec.qualification)}`;
         sentences.push(`${line}.`);
         traces.push('decision_overview.clinician_recommendation');
     }
-    if (patientBits.length && sentences.length < 3) {
+    if (patientBits.length) {
         sentences.push(`The patient identified ${joinAnd(patientBits)} as a consideration.`);
         traces.push('decision_overview.patient_considerations');
-    } else if (comps[0] && sentences.length < 3) {
-        sentences.push(`The difference between ${comps[0].option_a} and ${comps[0].option_b} was recorded as ${comps[0].level}.`);
+    }
+    if (options.length >= 2 && sentences.length < 5) {
+        const level = comparisonLevelFromOptions(options[0], options[1]);
+        sentences.push(`The recorded comparison between ${options[0].option_name} and ${options[1].option_name} is ${level}.`);
         traces.push('communication_analysis.tradeoff_comparisons');
+    }
+    const openQ = questions.find(q => OPEN_QUESTION_STATUSES.includes(q.response_status));
+    if (openQ && sentences.length < 4) {
+        sentences.push(`The patient then asked: ${openQ.question}`);
+        traces.push('decision_overview.patient_considerations.questions');
     }
     if (r.status === 'Resolved' && r.selected_option) {
         sentences.push(`The decision is ${r.status} and the selected option is ${r.selected_option}.`);
-    } else {
+    } else if (sentences.length < 5) {
         sentences.push(`The decision is ${r.status || 'unspecified'}.`);
     }
     traces.push('status');
     const fallback = `${r.decision_label} is ${r.status || 'unspecified'}.`;
-    return { text: validateGenerated(sentences.join(' '), fallback), traces };
+    return { text: validateGenerated(sentences.slice(0, 5).join(' '), fallback), traces };
 }
 
-function communicationOpportunity(start, regions) {
-    const order = [start, ...spineDescendantsInOrder(regions, start.decision_id)];
-    for (const r of order) {
-        const questions = r.decision_overview?.patient_considerations?.questions || [];
-        const hit = questions.find(q => OPEN_QUESTION_STATUSES.includes(q.response_status));
-        if (!hit) continue;
-        let text = `The patient raised a question: ${hit.question}`;
-        if (hit.response) text += ` The recorded response is ${hit.response}, with status ${hit.response_status}.`;
-        else text += ` The recorded response status is ${hit.response_status}.`;
-        return {
-            text: validateGenerated(text, hit.question),
-            trace: "decision_overview.patient_considerations.questions",
-            decisionLabel: r.decision_label,
-        };
-    }
-    return null;
+function communicationOpportunity(start) {
+    const questions = start?.decision_overview?.patient_considerations?.questions || [];
+    const hit = questions.find(q => OPEN_QUESTION_STATUSES.includes(q.response_status));
+    if (!hit) return null;
+    let text = `The patient raised a question: ${hit.question}`;
+    if (hit.response) text += ` The recorded response is ${hit.response}, with status ${hit.response_status}.`;
+    else text += ` The recorded response status is ${hit.response_status}.`;
+    return {
+        text: validateGenerated(text, hit.question),
+        trace: "decision_overview.patient_considerations.questions",
+        decisionLabel: start.decision_label,
+    };
 }
 
 function ccqFieldBrief(field) {
@@ -5150,18 +5402,12 @@ function structuredCcqForGeneration(r, regions) {
     const ov = r.decision_overview || {};
     const rec = ov.clinician_recommendation || {};
     const pc = ov.patient_considerations || {};
-    const questions = [];
-    const order = [r, ...spineDescendantsInOrder(regions, r.decision_id)];
-    order.forEach(node => {
-        ((node.decision_overview || {}).patient_considerations || {}).questions?.forEach(q => {
-            questions.push({
-                decision_label: node.decision_label,
-                question: q.question,
-                response: q.response || "",
-                response_status: q.response_status,
-            });
-        });
-    });
+    const questions = (pc.questions || []).map(q => ({
+        decision_label: r.decision_label,
+        question: q.question,
+        response: q.response || "",
+        response_status: q.response_status,
+    }));
     return {
         decision_id: r.decision_id,
         decision_label: r.decision_label,
@@ -5192,7 +5438,7 @@ function structuredCcqForGeneration(r, regions) {
 
 function templateGenerativeLayer(r, regions) {
     const summary = summarizeDecision(r);
-    const opportunity = communicationOpportunity(r, regions);
+    const opportunity = communicationOpportunity(r);
     return {
         source: "template",
         decision_summary: summary.text,
@@ -5259,10 +5505,11 @@ function renderGenerativeLayer(selected, regions) {
     const summary = stored?.decision_summary
         ? { text: stored.decision_summary, traces: stored.traces || ["generative_layer"] }
         : summarizeDecision(selected);
+    const liveOpp = communicationOpportunity(selected);
     const storedOpp = stored?.communication_opportunity?.eligible ? stored.communication_opportunity : null;
     const opportunity = storedOpp
         ? { text: storedOpp.text, trace: storedOpp.source_field, decisionLabel: storedOpp.source_decision_label }
-        : communicationOpportunity(selected, regions);
+        : liveOpp;
     const opp = opportunity ? `<div class="comm-opportunity">
         <strong>Communication Opportunity</strong>
         <p>${escHtml(opportunity.text)}</p>
@@ -5544,7 +5791,8 @@ function selectGlyph(decisionId, key, turn, glyphId) {
         try { idCandidates.push(decodeURIComponent(glyphId)); } catch (e) { /* keep raw */ }
     }
     const ev = (idCandidates.length && events.find(e => idCandidates.includes(e.id)))
-        || events.find(e => e.decisionId === decisionId && e.key === key && Number(e.turn) === Number(turn));
+        || events.find(e => e.decisionId === decisionId && e.key === key && Number(e.turn) === Number(turn))
+        || events.find(e => e.decisionId === decisionId && e.key === key && (e.turns || []).includes(Number(turn)));
     const nextTurn = turn == null || turn === '' ? null : Number(turn);
     const sameTick = key !== 'overview' && prevDecision === decisionId && CURRENT_GLYPH.key === key
         && Number(CURRENT_GLYPH.turn) === nextTurn
@@ -5562,6 +5810,9 @@ function selectGlyph(decisionId, key, turn, glyphId) {
         optionB: ev?.optionB || null,
         riskName: ev?.riskName || null,
         label: ev?.label || null,
+        turns: ev?.turns || (nextTurn != null ? [nextTurn] : []),
+        quote: ev?.quote || '',
+        qualifier: ev?.qualifier || '',
     };
     if (ev?.optionName) NAV.optionName = ev.optionName;
     else if (key !== 'option') NAV.optionName = null;
@@ -5577,7 +5828,7 @@ function clearGlyphSelection(decisionId) {
         CURRENT_SELECTED_DECISION_ID = decisionId;
         NAV.decisionId = decisionId;
     }
-    CURRENT_GLYPH = { key: 'overview', turn: null, id: null, optionName: null, optionA: null, optionB: null, riskName: null, label: null };
+    CURRENT_GLYPH = { key: 'overview', turn: null, id: null, optionName: null, optionA: null, optionB: null, riskName: null, label: null, turns: [], quote: '', qualifier: '' };
     NAV.optionName = null;
     if (CURRENT_REGIONS && CURRENT_TURNS) {
         renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION, { keepSpine: true });
@@ -5597,6 +5848,12 @@ function ensureSpineExpandedTo(decisionId) {
     needed.forEach(id => {
         if (!CURRENT_EXPANDED_IDS.includes(id)) CURRENT_EXPANDED_IDS = CURRENT_EXPANDED_IDS.concat(id);
     });
+}
+
+function cueGlyphTurn(turn) {
+    const g = cockpitCtx().glyph || {};
+    if (!g.key || g.key === 'overview' || turn == null) return;
+    selectGlyph(CURRENT_SELECTED_DECISION_ID, g.key, Number(turn));
 }
 
 function scrollTranscriptToTurn(turnIndex) {
