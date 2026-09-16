@@ -3440,6 +3440,7 @@ A clinical decision is a choice between meaningful paths. For treatment conversa
 3. Beneath surgical timing, an optional procedure-choice decision when distinct operations are compared.
 Watchful waiting is a timing sub-decision under surgical management, never a sibling treatment alongside surgery.
 Group options under one decision unless they are genuinely distinct clinical forks. Do not invent hierarchy levels that were not discussed.
+Do not create a nested timing or procedure-choice decision unless that fork occupies a substantially distinct turn span (not nearly the same start and end as the parent). In a single short encounter where surgery vs nonoperative care and procedure details are interleaved in the same stretch of conversation, emit ONE treatment-approach decision. Nested forks are for later, separable discussions (when to operate, which operation, where, pain control).
 For each decision provide:
 - decision_label (e.g., "Management of lumbar stenosis")
 - option_names (short labels for paths discussed)
@@ -3479,6 +3480,7 @@ For each merged decision, resolve status, selected_option, and selected_interven
 Preserve this hierarchy when supported: treatment approach → surgical timing (proceed now vs watchful waiting) → optional procedure choice.
 Watchful waiting must remain nested under surgical management. Set selected_intervention only when a specific surgery was ultimately chosen; leave it empty for watchful waiting, deferred, unresolved, and nonsurgical choices.
 Preserve parent_decision_id when a decision is a genuinely distinct nested sub-decision.
+If a nested node’s turn span is nearly identical to its parent (same encounter, almost the same start/end), fold it into the parent instead of keeping two decisions.
 Output unified global turn indices and encounter file names involved.`;
 
 const DECISION_MERGE_SCHEMA = {
@@ -3761,10 +3763,13 @@ Transcript:
 ${transcript}`;
 }
 
-function getCcqAnalysisPrompt(decisionLabel) {
+function getCcqAnalysisPrompt(decisionLabel, optionNames) {
+    const names = (optionNames || []).map(s => String(s || "").trim()).filter(Boolean);
+    const nameLine = names.length ? `Pass A option_names: ${names.join("; ")}. Prefer these labels when they refer to the same path.` : "";
     return `Analyze the clinical decision: "${decisionLabel}".
 Extract decision overview (options with benefits/risks/burdens and qualifying language), clinician recommendation, patient considerations, and communication analysis per CCQ spec.
-If an option is named without further detail, set named_only true and omit empty detail fields.
+If an option is named without further detail, set named_only true and omit empty detail fields. Do not set named_only true when that option has a quote or turn_indices on what_it_involves, benefits, risks, or burdens. Use the decision’s option_names as option_name when they refer to the same path (e.g. “Surgery” not only the procedure string).
+${nameLine}
 Fold important limitations into the most relevant field (e.g., temporary relief under benefits).
 For tradeoff_comparisons, assess relevant pairs of options separately (Not compared / Limited comparison / Meaningful comparison).
 Meaningful comparison (conservative vs procedure) requires all four: conservative path has burden/inconvenience AND timing or urgency; procedural path has benefit AND risk. Limited if some of those four are present. Not compared if the pair is only named. Keep qualifiers verbatim (May, Named only).
@@ -3921,7 +3926,7 @@ const NESTED_NON_CONSENT_RE = /\b(timing|location|pain management|postoperative 
 
 function consentChoiceTarget(regions, defaultProcedure) {
     const list = regions || [];
-    let target = selectIndexDecision(list, defaultProcedure) || indexConsentDecision(list);
+    let target = selectIndexDecision(list, defaultProcedure) || indexConsentDecision(list) || pickStructuralConsentDecision(list, defaultProcedure);
     if (!target) return null;
     const byId = Object.fromEntries(list.filter(r => r.decision_id).map(r => [r.decision_id, r]));
     while (target && NESTED_NON_CONSENT_RE.test(target.decision_label || "") && target.parent_decision_id) {
@@ -3932,20 +3937,236 @@ function consentChoiceTarget(regions, defaultProcedure) {
     return target;
 }
 
+function labelsOverlap(a, b) {
+    const x = String(a || '').toLowerCase().trim();
+    const y = String(b || '').toLowerCase().trim();
+    if (!x || !y) return false;
+    return x === y || x.includes(y) || y.includes(x);
+}
+
+function decisionTurnSet(r) {
+    return new Set((r?.relevant_turn_indices || r?.turn_indices || []).map(Number).filter(n => Number.isInteger(n)));
+}
+
+function nestedWindowsOverlap(parent, child, threshold = 0.9) {
+    const A = decisionTurnSet(parent);
+    const B = decisionTurnSet(child);
+    if (!A.size || !B.size) return false;
+    let inter = 0;
+    B.forEach(x => { if (A.has(x)) inter++; });
+    const jaccard = inter / (A.size + B.size - inter);
+    const parentCoverage = inter / A.size;
+    return jaccard >= threshold || parentCoverage >= threshold;
+}
+
+function optionHasEvidence(opt) {
+    if (!opt) return false;
+    if (allTurnIndices(opt.what_it_involves, opt.benefits, opt.risks, opt.burdens).length) return true;
+    return [opt.what_it_involves, opt.benefits, opt.risks, opt.burdens].some(f => fieldDiscussedText(fieldPlainText(f)));
+}
+
+function mergeUniqueByKey(a, b, keyFn) {
+    const out = [];
+    const seen = new Set();
+    [...(a || []), ...(b || [])].forEach(item => {
+        const k = String(keyFn(item) || '').toLowerCase().trim();
+        if (!k || seen.has(k)) return;
+        seen.add(k);
+        out.push(item);
+    });
+    return out;
+}
+
+function mergeChildDecisionIntoParent(parent, child) {
+    parent.decision_overview = parent.decision_overview || {};
+    const pOpts = parent.decision_overview.options_considered || [];
+    (child.decision_overview?.options_considered || []).forEach(co => {
+        const hit = pOpts.find(po => labelsOverlap(po.option_name, co.option_name));
+        if (!hit) {
+            pOpts.push(co);
+            return;
+        }
+        if (!optionHasEvidence(hit) && optionHasEvidence(co)) {
+            const name = hit.option_name;
+            Object.assign(hit, co);
+            if (name && !optionHasEvidence({ option_name: name })) hit.option_name = name;
+        }
+        if (hit.named_only && optionHasEvidence(hit)) hit.named_only = false;
+    });
+    parent.decision_overview.options_considered = pOpts;
+    const pRec = parent.decision_overview.clinician_recommendation;
+    const cRec = child.decision_overview?.clinician_recommendation;
+    if (!isExplicitRecommendation(pRec) && isExplicitRecommendation(cRec)) {
+        parent.decision_overview.clinician_recommendation = cRec;
+    }
+    const ppc = parent.decision_overview.patient_considerations || {};
+    const cpc = child.decision_overview?.patient_considerations || {};
+    ppc.questions = mergeUniqueByKey(ppc.questions, cpc.questions, q => q.question);
+    ppc.preferences = mergeUniqueByKey(ppc.preferences, cpc.preferences, p => p.text);
+    ppc.goals_priorities = mergeUniqueByKey(ppc.goals_priorities, cpc.goals_priorities, p => p.text);
+    parent.decision_overview.patient_considerations = ppc;
+    const pComm = parent.communication_analysis || {};
+    const cComm = child.communication_analysis || {};
+    const pResp = pComm.clinician_response || {};
+    const cResp = cComm.clinician_response || {};
+    parent.communication_analysis = {
+        ...pComm,
+        decision_framing: pComm.decision_framing || cComm.decision_framing,
+        tradeoff_comparisons: [...(pComm.tradeoff_comparisons || []), ...(cComm.tradeoff_comparisons || [])],
+        patient_engagement: pComm.patient_engagement || cComm.patient_engagement,
+        clinician_response: {
+            ...pResp,
+            questions_answered_count: Math.max(pResp.questions_answered_count || 0, cResp.questions_answered_count || 0),
+            questions_total_count: Math.max(pResp.questions_total_count || 0, cResp.questions_total_count || 0),
+            recommendation_explained: pResp.recommendation_explained === 'Explained' || cResp.recommendation_explained === 'Explained'
+                ? 'Explained'
+                : (pResp.recommendation_explained || cResp.recommendation_explained),
+        },
+        understanding_verification: pComm.understanding_verification || cComm.understanding_verification,
+    };
+    const genericIntervention = s => /^(surgery|surgical management|operative management|operation)$/i.test(String(s || "").trim());
+    if (child.selected_intervention && (!parent.selected_intervention || genericIntervention(parent.selected_intervention))) {
+        parent.selected_intervention = child.selected_intervention;
+    }
+    if (parent.status !== "Resolved" && child.status === "Resolved") {
+        parent.status = child.status;
+        parent.selected_option = parent.selected_option || child.selected_option;
+    }
+    parent.option_names = [...new Set([...(parent.option_names || []), ...(child.option_names || [])])];
+    parent.linked_interventions = [...new Set([...(parent.linked_interventions || []), ...(child.linked_interventions || [])])];
+    parent.turn_indices = [...new Set([...(parent.turn_indices || []), ...(child.turn_indices || [])])]
+        .map(Number).filter(n => Number.isInteger(n)).sort((a, b) => a - b);
+    parent.relevant_turn_indices = [...new Set([...(parent.relevant_turn_indices || parent.turn_indices || []), ...(child.relevant_turn_indices || child.turn_indices || [])])]
+        .map(Number).filter(n => Number.isInteger(n)).sort((a, b) => a - b);
+    parent.encounter_files = [...new Set([...(parent.encounter_files || []), ...(child.encounter_files || [])])];
+    parent.encounter_ids = [...new Set([...(parent.encounter_ids || []), ...(child.encounter_ids || [])])];
+}
+
+function regionId(r) {
+    return r?.decision_id || r?.id || null;
+}
+
+function collapseOverlappingNestedDecisions(regions) {
+    const list = regions || [];
+    const byId = Object.fromEntries(list.filter(r => regionId(r)).map(r => [regionId(r), r]));
+    const drop = new Set();
+    list.forEach(child => {
+        const childId = regionId(child);
+        if (!child.parent_decision_id || !childId || drop.has(childId)) return;
+        const parent = byId[child.parent_decision_id];
+        if (!parent || drop.has(regionId(parent))) return;
+        if (!nestedWindowsOverlap(parent, child)) return;
+        mergeChildDecisionIntoParent(parent, child);
+        drop.add(childId);
+        list.forEach(g => {
+            if (g.parent_decision_id === childId) g.parent_decision_id = regionId(parent);
+        });
+        logStatus(`Collapsed nested "${child.decision_label}" into "${parent.decision_label}" (overlapping turn window).`);
+    });
+    return list.filter(r => !drop.has(regionId(r)));
+}
+
+function alignDecisionOptions(r) {
+    const overview = r.decision_overview;
+    if (!overview) return;
+    const considered = overview.options_considered || [];
+    considered.forEach(opt => {
+        if (opt.named_only && optionHasEvidence(opt)) opt.named_only = false;
+    });
+    (r.option_names || []).forEach(label => {
+        const hit = considered.find(opt =>
+            labelsOverlap(opt.option_name, label)
+            || (labelsOverlap(label, r.selected_option) && labelsOverlap(opt.option_name, r.selected_intervention))
+        );
+        if (hit) {
+            if (labelsOverlap(label, r.selected_option) && labelsOverlap(hit.option_name, r.selected_intervention)) {
+                hit.option_name = label;
+            }
+            return;
+        }
+        considered.push({ option_name: label, named_only: true });
+    });
+    overview.options_considered = considered;
+}
+
+function pickStructuralConsentDecision(regions, defaultProcedure) {
+    const list = regions || [];
+    const byId = Object.fromEntries(list.filter(r => r.decision_id).map(r => [r.decision_id, r]));
+    const hasSurgery = r => !!(r && r.status === 'Resolved' && (r.selected_intervention || selectedInterventionName(r)));
+    let candidates = list.filter(r => hasSurgery(r) && !NESTED_NON_CONSENT_RE.test(r.decision_label || ''));
+    if (!candidates.length) candidates = list.filter(hasSurgery);
+    const lifted = candidates.map(r => {
+        let t = r;
+        while (t.parent_decision_id && byId[t.parent_decision_id] && hasSurgery(byId[t.parent_decision_id])) {
+            t = byId[t.parent_decision_id];
+        }
+        return t;
+    });
+    const uniq = [...new Map(lifted.map(r => [r.decision_id, r])).values()];
+    if (!uniq.length) return null;
+    if (uniq.length === 1) return uniq[0];
+    const needle = String(defaultProcedure || '').toLowerCase();
+    const matching = needle
+        ? uniq.filter(r => String(r.selected_intervention || '').toLowerCase().includes(needle) || needle.includes(String(r.selected_intervention || '').toLowerCase()))
+        : [];
+    const pool = matching.length ? matching : uniq;
+    const roots = pool.filter(r => !r.parent_decision_id || !byId[r.parent_decision_id]);
+    const pool2 = roots.length ? roots : pool;
+    const span = r => (r.relevant_turn_indices || []).length;
+    return pool2.reduce((best, r) => span(r) > span(best) ? r : best);
+}
+
+async function attachInformedConsent(apiKey, regions, globalTurns, defaultProcedure) {
+    const target = pickStructuralConsentDecision(regions, defaultProcedure) || consentChoiceTarget(regions, defaultProcedure);
+    if (!target || target.status !== 'Resolved') return;
+    const selectedIntervention = target.selected_intervention || normalizeSelectedIntervention(selectedInterventionName(target));
+    if (!selectedIntervention) return;
+    const ontKey = findOntologyKey(selectedIntervention);
+    const ontText = ontKey ? buildOntologyTextForIntervention(ontKey) : '';
+    if (!ontText) {
+        logStatus(`No ontology match for chosen surgery "${selectedIntervention}"; core-risk score will be N/A.`);
+        return;
+    }
+    logStatus(`Pass C: Informed consent for chosen surgery: ${selectedIntervention} (${target.decision_label})...`);
+    const filtered = target.relevant_turn_indices || [];
+    if (!filtered.length) return;
+    const lo = Math.min(...filtered);
+    const hi = Math.max(...filtered);
+    const span = expandTurnRange(globalTurns, lo, hi);
+    const filteredText = buildTranscriptChunk(globalTurns, span.length ? span : filtered);
+    const consentChunk = await callGemini(
+        apiKey,
+        CCQ_SYSTEM_INSTRUCTION,
+        INFORMED_CONSENT_SCHEMA,
+        `${getInformedConsentPrompt(ontKey, ontText)}\n\nTranscript:\n${filteredText}`
+    );
+    const consentInterventions = consentChunk.interventions || [];
+    if (consentInterventions.length) target.informed_consent_analysis = { interventions: consentInterventions };
+}
+
 function turnBlob(turnObj) {
     if (!turnObj) return "";
     return `${turnObj.speaker_line || ""} ${(turnObj.text_lines || []).join(" ")}`;
+}
+
+function foldChoiceText(s) {
+    return String(s || '')
+        .toLowerCase()
+        .replace(/[\u2018\u2019\u201A\u2032]/g, "'")
+        .replace(/[\u201C\u201D\u201E\u2033]/g, '"')
+        .replace(/\s+/g, ' ')
+        .trim();
 }
 
 function normalizeChoiceMade(raw, decision, globalTurns) {
     if (!raw || !raw.choice_detected) return null;
     const turnIndex = Number(raw.turn_index);
     if (!Number.isInteger(turnIndex) || turnIndex < 0) return null;
-    const turnObj = (globalTurns || []).find(t => t.index === turnIndex);
+    const turnObj = (globalTurns || []).find(t => Number(t.index) === turnIndex);
     if (!turnObj) return null;
     const quote = String(raw.quote || "").trim();
-    const hay = turnBlob(turnObj).toLowerCase();
-    if (quote && !hay.includes(quote.toLowerCase())) return null;
+    const hay = foldChoiceText(turnBlob(turnObj));
+    if (quote && !hay.includes(foldChoiceText(quote))) return null;
     const options = [...(decision.option_names || []), decision.selected_option].filter(Boolean);
     const rawName = String(raw.option_name || "").trim();
     const matched = options.find(n => String(n).toLowerCase() === rawName.toLowerCase())
@@ -4185,7 +4406,11 @@ async function runAnalysis() {
         logStatus("Pass A: Merging decisions across encounters...");
         const mergeInput = JSON.stringify(rawDetections, null, 2);
         const mergeData = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, DECISION_MERGE_SCHEMA, `${DECISION_MERGE_PROMPT}\n\nDetected decisions:\n${mergeInput}`);
-        const merged = mergeData.merged_decisions || [];
+        let merged = (mergeData.merged_decisions || []).map(md => ({
+            ...md,
+            relevant_turn_indices: md.turn_indices || []
+        }));
+        merged = collapseOverlappingNestedDecisions(merged);
 
         const regions = [];
         for (let i = 0; i < merged.length; i++) {
@@ -4193,31 +4418,17 @@ async function runAnalysis() {
             const colorTheme = REGION_COLORS[i % REGION_COLORS.length];
             logStatus(`Pass B: CCQ analysis for "${md.decision_label}"...`);
 
-            let chunkIndices = md.turn_indices || [];
+            let chunkIndices = md.turn_indices || md.relevant_turn_indices || [];
             const chunkText = buildTranscriptChunk(globalTurns, chunkIndices);
             const filterData = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, RELEVANCE_FILTERING_SCHEMA, `${RELEVANCE_FILTERING_PROMPT}\n\nDecision: ${md.decision_label}\n\n${chunkText}`);
             const filtered = (filterData.relevant_turn_indices || chunkIndices).sort((a, b) => a - b);
             const filteredText = buildTranscriptChunk(globalTurns, filtered);
 
-            const ccqData = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, CCQ_ANALYSIS_SCHEMA, `${getCcqAnalysisPrompt(md.decision_label)}\n\n${filteredText}`);
+            const ccqData = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, CCQ_ANALYSIS_SCHEMA, `${getCcqAnalysisPrompt(md.decision_label, md.option_names)}\n\n${filteredText}`);
 
-            let informedConsent = null;
             const interventions = (ccqData.linked_interventions || []).map(s => findOntologyKey(s) || s).filter(Boolean);
             const uniqueInterventions = [...new Set(interventions)];
             const selectedIntervention = md.status === "Resolved" ? normalizeSelectedIntervention(md.selected_intervention) : null;
-            if (selectedIntervention) {
-                logStatus(`Pass C: Informed consent for chosen surgery: ${selectedIntervention}...`);
-                const consentInterventions = [];
-                const ontKey = findOntologyKey(selectedIntervention);
-                const ontText = ontKey ? buildOntologyTextForIntervention(ontKey) : "";
-                if (ontText) {
-                    const consentChunk = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, INFORMED_CONSENT_SCHEMA, `${getInformedConsentPrompt(ontKey, ontText)}\n\nTranscript:\n${filteredText}`);
-                    (consentChunk.interventions || []).forEach(intv => consentInterventions.push(intv));
-                } else {
-                    logStatus(`No ontology match for chosen surgery "${selectedIntervention}"; core-risk score will be N/A.`);
-                }
-                if (consentInterventions.length) informedConsent = { interventions: consentInterventions };
-            }
 
             regions.push({
                 decision_id: md.decision_id || `d${i + 1}`,
@@ -4233,9 +4444,16 @@ async function runAnalysis() {
                 linked_interventions: uniqueInterventions,
                 decision_overview: ccqData.decision_overview,
                 communication_analysis: ccqData.communication_analysis,
-                informed_consent_analysis: informedConsent
+                informed_consent_analysis: null
             });
         }
+
+        const collapsedRegions = collapseOverlappingNestedDecisions(regions);
+        regions.length = 0;
+        regions.push(...collapsedRegions);
+        regions.forEach(alignDecisionOptions);
+
+        await attachInformedConsent(apiKey, regions, globalTurns, procName);
 
         logStatus("Pass C2: Choice turn for the informed-consent decision...");
         await attachConsentChoiceMade(apiKey, regions, globalTurns, procName);
@@ -5100,15 +5318,25 @@ function spineBehaviorTurns(events) {
     return [...set].sort((a, b) => a - b);
 }
 
-function spineGridMetrics(events) {
+function choiceMapExtraTurns(r) {
+    const c = Number(r?.choice_made?.turn_index);
+    if (!Number.isInteger(c) || c < 0) return [];
+    const extra = [c, c + 1];
+    const rel = (r.relevant_turn_indices || []).map(Number).filter(n => Number.isInteger(n));
+    if (rel.length) extra.push(Math.min(...rel), Math.max(...rel));
+    return extra;
+}
+
+function spineGridMetrics(events, extraTurns) {
     const behTurns = spineBehaviorTurns(events);
     const hasBehavior = new Set(behTurns);
     const header = SPINE_TITLE_H + SPINE_COL_LABEL_H;
-    if (!behTurns.length) {
+    const span = behTurns.concat((extraTurns || []).map(Number).filter(t => Number.isInteger(t)));
+    if (!span.length) {
         return { turns: [], hasBehavior, hB: 0, hE: 0, bodyH: 0, gridH: header };
     }
-    const lo = behTurns[0];
-    const hi = behTurns[behTurns.length - 1];
+    const lo = Math.min(...span);
+    const hi = Math.max(...span);
     const turns = [];
     for (let t = lo; t <= hi; t++) turns.push(t);
     const nB = behTurns.length;
@@ -5277,6 +5505,18 @@ function renderTickGrid(r, opts) {
         return `<line x1="0" y1="${y}" x2="${SPINE_TRACK_W}" y2="${y}"
             stroke="#7a93ab" stroke-opacity="0.28" stroke-width="1" shape-rendering="crispEdges"></line>`;
     }).join('');
+    const choiceTurn = Number(r.choice_made?.turn_index);
+    const choiceRow = Number.isInteger(choiceTurn) ? rowMeta.find(row => row.t === choiceTurn) : null;
+    const choiceLineY = choiceRow ? choiceRow.y0 + choiceRow.rowH : null;
+    const choiceFillH = choiceLineY != null ? Math.max(0, bodyH - choiceLineY) : 0;
+    const choiceFill = choiceLineY != null && choiceFillH > 0
+        ? `<rect x="0" y="${choiceLineY}" width="${SPINE_TRACK_W}" height="${choiceFillH}" fill="#eef2f6"></rect>`
+        : '';
+    const choiceLine = choiceLineY == null ? '' : `<g>
+            <title>${escAttr(`Choice made · turn ${choiceTurn}${r.choice_made?.option_name ? ` · ${r.choice_made.option_name}` : ''}`)}</title>
+            <line x1="0" y1="${choiceLineY}" x2="${SPINE_TRACK_W}" y2="${choiceLineY}"
+                stroke="#0d2136" stroke-opacity="0.7" stroke-width="1.5" shape-rendering="crispEdges"></line>
+        </g>`;
     return `<div class="tick-grid${selected ? ' is-selected' : ''}" style="width:${SPINE_TRACK_W}px;height:${gridH}px">
         <div class="tick-grid-title" ${titleClick} style="${interactive ? '' : 'cursor:default;'}">
             <strong title="${escAttr(r.decision_label)}">${escHtml(r.decision_label)}</strong>
@@ -5291,7 +5531,7 @@ function renderTickGrid(r, opts) {
                         <path d="M-1,4 L1,6 M0,0 L5,5 M4,-1 L6,1" stroke="#0d2136" stroke-width="1.6"></path>
                     </pattern>
                 </defs>
-                ${rows}${rules.join('')}${centuryLines}${endpointLabels.join('')}</svg>
+                ${choiceFill}${rows}${rules.join('')}${centuryLines}${choiceLine}${endpointLabels.join('')}</svg>
         </div>
     </div>`;
 }
@@ -5465,7 +5705,7 @@ function renderGlyphMap(regions, turns) {
         if (glyph.key !== 'question') return false;
         return (glyph.label && e.label === glyph.label) || Number(e.askedTurn) === Number(glyph.askedTurn);
     });
-    const metrics = spineGridMetrics(metricEvents);
+    const metrics = spineGridMetrics(metricEvents, choiceMapExtraTurns(selected));
     const workspaceH = Math.max(paneH, metrics.gridH);
     const opts = {
         regions, allEvents, paneH, ...metrics,
