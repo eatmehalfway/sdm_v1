@@ -25,7 +25,13 @@
     "clinician_response": { "questions_answered_count": 0, "questions_total_count": 0, "recommendation_explained": "Explained" },
     "understanding_verification": "No active understanding check detected"
   },
-  "informed_consent_analysis": null
+  "informed_consent_analysis": null,
+  "choice_made": {
+    "turn_index": 13,
+    "option_name": "Surgical management",
+    "quote": "I've decided I want to proceed with lumbar decompression surgery.",
+    "speaker": "PATIENT"
+  }
 },
 {
   "decision_id": "d2",

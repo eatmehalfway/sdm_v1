@@ -238,13 +238,15 @@ def _mock_turns(episode_id: str, clinician_name: str) -> list[dict]:
             "index": 3,
             "encounter": f"{episode_id}_consult.txt",
             "speaker_line": "PATIENT",
-            "text_lines": ["What questions should I be asking?"],
+            "text_lines": ["If I wait, could things get worse?"],
         },
         {
             "index": 4,
             "encounter": f"{episode_id}_consult.txt",
             "speaker_line": "DOCTOR",
-            "text_lines": ["What questions do you have about these options?"],
+            "text_lines": [
+                "Progressive weakness would push us toward surgery sooner. What other questions do you have?"
+            ],
         },
         {
             "index": 5,
@@ -365,7 +367,10 @@ def _mock_region(
                         "question": "If I wait, could things get worse?",
                         "response": "Progressive weakness would push us toward surgery sooner.",
                         "response_status": "Answered",
+                        "quote": "If I wait, could things get worse?",
+                        "response_quote": "Progressive weakness would push us toward surgery sooner",
                         "turn_indices": [3],
+                        "response_turn_indices": [4],
                     }
                 ],
             },
@@ -685,12 +690,23 @@ def get_demo_episode_detail(episode_id: str) -> dict[str, Any] | None:
         "response": "Recovery was discussed generally",
         "response_status": "Partially answered",
         "quote": "Would the smaller incision get me back to a desk any sooner?",
+        "response_quote": "Recovery is usually a matter of weeks",
         "turn_indices": [5],
+        "response_turn_indices": [6],
     })
     treatment_parent.setdefault("decision_overview", {}).setdefault("patient_considerations", {})["questions"] = parent_questions
     treatment_parent["relevant_turn_indices"] = sorted(
-        set((treatment_parent.get("relevant_turn_indices") or []) + [5, 7, 8])
+        set((treatment_parent.get("relevant_turn_indices") or []) + [5, 6, 7, 8])
     )
+    desk_question = next((q for q in parent_questions if q.get("response_status") == "Partially answered"), None)
+    if desk_question:
+        child_questions = list(
+            ((region.get("decision_overview") or {}).get("patient_considerations") or {}).get("questions") or []
+        )
+        if not any(q.get("question") == desk_question.get("question") for q in child_questions):
+            child_questions.append(copy.deepcopy(desk_question))
+        region.setdefault("decision_overview", {}).setdefault("patient_considerations", {})["questions"] = child_questions
+        region["relevant_turn_indices"] = sorted(set((region.get("relevant_turn_indices") or []) + [5, 6]))
     if not meta.get("has_index_decision"):
         region["decision_label"] = meta["decision_label"]
         region["selected_intervention"] = None
@@ -773,7 +789,12 @@ def _chosen_interventions(decision: dict[str, Any]) -> list[dict[str, Any]]:
 def select_index_decision(
     decisions: list[dict[str, Any]], default_procedure: str | None = None
 ) -> dict[str, Any] | None:
-    """Select the consent-relevant decision used by every department-level view."""
+    """Select the consent-relevant decision used by every department-level view.
+
+    Pipeline `choice_made` ({turn_index, option_name, quote?}) is stored on this
+    informed-consent decision (or its treatment-approach ancestor if the index
+    is a nested timing/location/pain fork). Nested forks should not carry it.
+    """
     qualifying = [
         decision
         for decision in decisions

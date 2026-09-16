@@ -803,7 +803,7 @@
         .cluster-x { cursor:pointer; }
 
         .episode-cockpit { background:var(--border); }
-        .cockpit-stats { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:1px; margin:0 0 1px; background:var(--border); }
+        .cockpit-stats { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:1px; margin:0 0 1px; background:var(--border); }
         .cockpit-stat { background:var(--surface); padding:16px 18px; }
         .cockpit-stat-value { font-size:1.15rem; font-weight:800; color:var(--navy); letter-spacing:-0.02em; line-height:1.2; }
         .cockpit-stat-label { margin-top:8px; font-size:0.62rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.12em; }
@@ -821,34 +821,37 @@
         .spine-map-trees { display:flex; align-items:flex-start; flex-shrink:0; }
         .spine-node { display:flex; align-items:flex-start; height:auto; }
         .tick-grid {
-            flex-shrink:0; width:168px; height:auto;
+            flex-shrink:0; width:190px; height:auto;
             display:flex; flex-direction:column; background:var(--surface); outline:1px solid var(--border);
         }
         .tick-grid.is-selected { background:var(--surface); outline-color:var(--navy); }
         .tick-grid-title { height:56px; padding:8px 10px 4px; overflow:hidden; cursor:pointer; }
         .tick-grid-title strong { display:block; font-size:0.82rem; color:var(--navy); line-height:1.25; }
-        .tick-grid-title span { display:block; margin-top:2px; font-size:0.68rem; color:var(--muted); }
         .tick-grid-cols { height:18px; display:flex; align-items:center; border-bottom:1px solid var(--border); }
         .tick-grid-cols .tick-col-gutter {
-            width:36px; flex-shrink:0; padding-right:4px; box-sizing:border-box;
-            font-size:8px; font-weight:800; color:var(--muted); text-align:right;
-            line-height:18px; white-space:nowrap;
+            width:36px; flex-shrink:0;
         }
         .tick-grid-cols .tick-col {
             width:22px; text-align:center; font-size:9px; font-weight:800; line-height:1;
         }
         .tick-grid-body { flex:0 0 auto; overflow:hidden; }
         .tick-grid-body svg { display:block; }
-        .decision-tree {
-            width:var(--spine-tree-w); flex-shrink:0; overflow:auto;
+        .spine-left {
+            width:var(--spine-tree-w); flex-shrink:0; height:auto;
+            display:flex; flex-direction:column; min-height:0;
             border:1px solid var(--border); background:var(--surface);
+            box-sizing:border-box;
         }
-        .decision-tree-head { padding:8px 10px; border-bottom:1px solid var(--border); }
-        .decision-tree-head strong { display:block; font-size:0.82rem; color:var(--navy); }
-        .decision-tree-head span { display:block; margin-top:2px; font-size:0.72rem; color:var(--muted); }
+        .decision-tree {
+            width:100%; flex:1; min-height:0; overflow:hidden;
+            display:flex; flex-direction:column; border:0; background:transparent;
+        }
+        .decision-tree-head { padding:8px 10px; border-bottom:1px solid var(--border); flex-shrink:0; }
+        .decision-tree-head strong { display:block; font-size:1.05rem; font-weight:700; color:var(--navy); }
+        .decision-tree-body { flex:1; min-height:0; overflow:auto; }
         .tree-node { }
         .tree-node.is-selected { background:#eaf2fa; outline:1px solid var(--border-strong); }
-        .tree-row { display:flex; align-items:center; gap:6px; padding:6px 8px; }
+        .tree-row { display:flex; align-items:center; gap:6px; padding:6px 8px 2px; }
         .tree-row-toggle {
             width:18px; height:18px; padding:0; border:0; background:transparent;
             color:var(--muted); font-size:11px; line-height:18px; cursor:pointer; flex-shrink:0;
@@ -857,29 +860,50 @@
             flex:1; min-width:0; font-size:0.8rem; font-weight:700; color:var(--navy);
             cursor:pointer; line-height:1.3;
         }
-        .tree-row-status {
-            flex-shrink:0; font-size:0.62rem; font-weight:700; color:var(--muted);
-            text-transform:uppercase; letter-spacing:0.04em;
+        .tree-options { padding:0 8px 6px 36px; }
+        .tree-option { font-size:0.75rem; color:var(--muted); line-height:1.3; margin:0 0 1px; }
+        .tree-option-name.is-chosen { font-weight:700; font-style:italic; color:var(--navy); }
+        .core-risk-rail {
+            flex:0 1 auto; max-height:40%; overflow:auto;
+            border-top:1px solid var(--border); background:var(--surface);
         }
-        .tree-body { padding:0 8px 10px 22px; }
-        .tree-detail { font-size:0.75rem; color:var(--text); margin:0 0 4px; line-height:1.35; }
-        .tree-muted { color:var(--muted); }
-        .tree-show-map {
-            margin-top:4px; padding:4px 8px; border:1px solid var(--border);
-            background:var(--surface); font-family:inherit; font-size:0.72rem;
-            font-weight:700; color:var(--navy); cursor:pointer;
+        .core-risk-rail-head {
+            padding:6px 10px 4px; font-size:0.82rem; font-weight:700; font-style:italic; color:var(--navy);
         }
+        .core-risk-item {
+            display:flex; align-items:baseline; gap:6px;
+            padding:2px 10px; line-height:1.2; font-size:0.72rem;
+        }
+        .core-risk-item::before {
+            content:"•";
+            font-size:0.55rem;
+            font-weight:400;
+            line-height:1;
+            flex-shrink:0;
+            width:0.55em;
+            text-align:center;
+        }
+        .core-risk-item.is-discussed { color:#0b8f7f; }
+        .core-risk-item.is-gap { color:#c0392b; }
+        .core-risk-turn { font-size:0.62rem; color:var(--muted); }
+        .core-risk-rail.is-inactive .core-risk-rail-head,
+        .core-risk-rail.is-inactive .core-risk-item,
+        .core-risk-rail.is-inactive .core-risk-item::before,
+        .core-risk-rail.is-inactive .core-risk-turn { color:var(--muted); }
+        .core-risk-rail.is-inactive .core-risk-item { cursor:default; }
         .spine-right {
             flex:1; min-width:280px; display:flex; flex-direction:column; gap:8px; min-height:0;
         }
         .transcript-pane {
-            min-width:0; flex:1; min-height:0;
-            border:1px solid var(--border); background:var(--surface); overflow:auto;
+            position:relative; min-width:0; flex:1; min-height:0;
+            border:1px solid var(--border); background:var(--surface);
+            display:flex; flex-direction:column; overflow:hidden;
         }
-        .transcript-pane-head { padding:8px 10px; border-bottom:1px solid var(--border); }
-        .transcript-pane-head strong { display:block; font-size:0.88rem; color:var(--navy); }
-        .transcript-pane-head span { display:block; margin-top:2px; font-size:0.72rem; color:var(--muted); }
+        .transcript-pane-head { flex-shrink:0; padding:8px 10px; border-bottom:1px solid var(--border); }
+        .transcript-pane-head strong { display:block; font-size:1.05rem; font-weight:700; color:var(--navy); }
+        .transcript-pane-body { flex:1; min-height:0; overflow:auto; }
         .transcript-pane-row { padding:8px 10px; border-left:4px solid transparent; }
+        .transcript-pane-row.is-clickable { cursor:pointer; }
         .transcript-pane-row.is-playhead {
             background:#eaf2fa;
             border-left-color:var(--playhead-color, var(--secondary));
@@ -887,6 +911,19 @@
         .transcript-pane-row.is-related {
             background:#f3f7fb;
             border-left-color:var(--playhead-color, var(--secondary));
+        }
+        .transcript-pane-row.is-answer {
+            outline:1px solid var(--border-strong);
+            outline-offset:-1px;
+        }
+        .turn-role {
+            display:inline-block; margin-left:6px; padding:1px 6px;
+            border:1px solid var(--border); font-size:0.62rem; font-weight:800;
+            letter-spacing:0.06em; text-transform:uppercase; color:var(--navy);
+        }
+        .qa-answer {
+            margin-top:8px; padding:8px 10px;
+            border-left:3px solid var(--secondary); background:var(--secondary-soft);
         }
         .quote-hit { font-weight:600; }
         .turn-chips { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:8px; }
@@ -912,12 +949,18 @@
         .generative-layer { background:var(--surface); padding:16px 20px 14px; margin:0 0 1px; }
         .generative-layer h3 { margin:0 0 8px; }
         .generative-layer p { margin:0; font-size:0.92rem; line-height:1.45; }
-        .generative-trace { display:block; margin-top:6px; font-size:0.72rem; color:var(--muted); }
         .comm-opportunity {
-            margin-top:14px; padding:12px 14px;
-            border-left:4px solid var(--secondary); background:#f6faff;
+            margin:0 0 1px; padding:16px 20px 18px;
+            border:0;
+            border-left:4px solid var(--secondary);
+            background:var(--secondary-soft);
         }
-        .comm-opportunity strong { display:block; margin-bottom:6px; font-size:0.78rem; color:var(--navy); }
+        .comm-opportunity p { margin:0; font-size:0.92rem; line-height:1.45; }
+        .comm-opportunity strong {
+            display:block; margin-bottom:6px;
+            font-size:0.78rem; font-weight:800; color:var(--navy);
+            text-transform:uppercase; letter-spacing:0.06em;
+        }
         .transcript-pane-meta { font-size:0.72rem; color:var(--muted); margin:0 0 4px; }
         .episode-dock { background:var(--surface); padding:20px 24px 28px; margin:0 0 1px; }
         .episode-dock-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px; align-items:start; }
@@ -938,7 +981,7 @@
         @media (max-width: 800px) {
             .cockpit-stats { grid-template-columns:1fr 1fr; }
             .spine-map-body { flex-direction:column; }
-            .decision-tree, .spine-right { width:100%; height:auto !important; }
+            .spine-left, .decision-tree, .spine-right { width:100%; height:auto !important; max-height:none; }
             .transcript-pane { min-width:0; min-height:280px; }
             .option-prose { grid-template-columns:1fr; }
         }
@@ -3110,6 +3153,13 @@ function parseEpisodePayload(data, episodeId) {
         schemaVersion = data.schema_version;
     }
     const episode = data.episode || { episode_id: data.episode_id || episodeId, patient_label: data.episode_id || episodeId };
+    if (!episode.episode_id) episode.episode_id = episodeId;
+    const overview = (DEPARTMENT_EPISODES || []).find(e => e.episode_id === episodeId);
+    if (overview) {
+        if (!episode.clinician_name) episode.clinician_name = overview.clinician_name;
+        if (!episode.episode_date) episode.episode_date = overview.episode_date || String(overview.run_date || '').slice(0, 10);
+        if (!episode.run_date) episode.run_date = overview.run_date;
+    }
     return { episodeId, regions, turns: data.turns || [], schemaVersion, episode };
 }
 
@@ -3173,7 +3223,7 @@ function mountInlineEpisode(payload, opts = {}) {
         CURRENT_SELECTED_DECISION_ID = null;
         CURRENT_GLYPH = { key: 'overview', turn: null };
         CURRENT_EXPANDED_CLUSTER = null;
-        CURRENT_EXPANDED_IDS = spineRoots(payload.regions || []).map(r => r.decision_id);
+        CURRENT_EXPANDED_IDS = [];
         TRANSCRIPT_OPEN = false;
         NAV.decisionId = payload.regions[0]?.decision_id || null;
         NAV.optionName = null;
@@ -3530,7 +3580,10 @@ const CCQ_ANALYSIS_SCHEMA = {
                                     question: { type: "string" },
                                     response: { type: "string" },
                                     response_status: { type: "string", enum: ["Answered", "Acknowledged but not answered", "Not addressed"] },
-                                    turn_indices: { type: "array", items: { type: "integer" } }
+                                    turn_indices: { type: "array", items: { type: "integer" } },
+                                    response_turn_indices: { type: "array", items: { type: "integer" } },
+                                    quote: { type: "string" },
+                                    response_quote: { type: "string" }
                                 },
                                 required: ["question", "response", "response_status", "turn_indices"]
                             }
@@ -3666,6 +3719,48 @@ const INFORMED_CONSENT_SCHEMA = {
     required: ["interventions"]
 };
 
+// choice_made hangs off the informed-consent / index decision only
+// (select_index_decision / indexConsentDecision). Nested timing, location,
+// and postoperative pain decisions must not carry this field.
+const CHOICE_MADE_SCHEMA = {
+    type: "object",
+    properties: {
+        choice_detected: { type: "boolean" },
+        turn_index: { type: "integer" },
+        option_name: { type: "string" },
+        quote: { type: "string" },
+        speaker: { type: "string" }
+    },
+    required: ["choice_detected", "turn_index", "option_name", "quote"]
+};
+
+function getConsentChoicePrompt(decision, transcript) {
+    const options = (decision.option_names || []).join(", ") || "(none listed)";
+    return `Find the transcript turn where the patient or clinician actually CHOSE one option for this informed-consent decision.
+
+Decision: "${decision.decision_label}"
+Status: ${decision.status || ""}
+Options: ${options}
+Selected option: ${decision.selected_option || ""}
+Selected intervention: ${decision.selected_intervention || ""}
+
+This is the informed-consent / index decision (whether to proceed with the chosen surgery versus alternatives). Nested forks such as surgical timing, surgical location, and postoperative pain management are different decisions — do not treat those as this choice.
+
+A choice is an explicit commitment to one of the options above: the patient saying they have decided / want to proceed / will go with a named option, or the clinician confirming they will go ahead with that option after such a commitment.
+
+NOT a choice:
+- merely naming or describing options
+- a clinician recommendation without a decision
+- hypothetical or deferred language ("we can decide later", "I'll think about it")
+- a nested sub-decision (when to operate, where, pain control)
+
+Ground every field in the transcript. Use the global TURN numbers provided.
+If no clear choice moment exists, set choice_detected false, turn_index 0, and option_name/quote to empty strings.
+
+Transcript:
+${transcript}`;
+}
+
 function getCcqAnalysisPrompt(decisionLabel) {
     return `Analyze the clinical decision: "${decisionLabel}".
 Extract decision overview (options with benefits/risks/burdens and qualifying language), clinician recommendation, patient considerations, and communication analysis per CCQ spec.
@@ -3676,6 +3771,7 @@ Meaningful comparison (conservative vs procedure) requires all four: conservativ
 For clinician_recommendation, record an explicit clinician recommendation only. Do not treat “either would be reasonable”, “second opinion is reasonable”, or option-listing as a recommendation. Leave recommended_option empty unless the clinician actually recommended a path.
 For understanding_verification, only flag whether the clinician actively checked understanding — never conclude the patient understood.
 Ground every option detail, clinician recommendation, patient goal, and preference with an exact quote and global turn_indices. Use empty quote/turn_indices only when the field is absent.
+For patient questions, turn_indices is the turn the patient asked the question (usually one turn). If the clinician answered, put that answer turn in response_turn_indices and an exact answer span in response_quote. Leave response_turn_indices empty when there is no answer turn.
 For clinician_recommendation, preserve evidence that lets a reviewer determine whether it occurred before or after alternatives were discussed.
 List linked_interventions for surgical procedures discussed in this decision, including candidates that were not chosen. This list supports ontology matching; it does not imply that risks should be aggregated across procedures.`;
 }
@@ -3703,14 +3799,14 @@ const GENERATIVE_LAYER_SYSTEM = "You synthesize structured CCQ extraction findin
 function getGenerativeLayerPrompt() {
     return `Write the generative layer for THIS clinical decision only from structured CCQ findings. Do not blend parent or child decisions.
 
-Decision Summary: one neutral paragraph, 3–5 sentences, in conversation order when the fields support it
+Decision Summary: one neutral paragraph, 2–4 sentences, in conversation order when the fields support it
 1) the decision and options discussed;
 2) the clinician recommendation and why, if an explicit recommendation is present (not “either would be reasonable” or “second opinion is reasonable”);
 3) option differences that were actually compared, with the recorded comparison level;
-4) relevant patient goals or preferences if present;
+4) relevant patient goals or preferences if present, and only if they pertain to options of this decision;
 5) final status or selected option.
 
-Communication Opportunity: at most one observational sentence about a patient-raised question, concern, worry, or uncertainty on THIS decision that was not fully addressed (response_status is one of: Not addressed, Acknowledged, Acknowledged but not answered, Acknowledged but not substantively addressed, Partially answered, Partially addressed). If none of those statuses exist on this decision, set eligible false and text to an empty string. Do not invent an opportunity. Do not use a question from another decision.
+Communication Opportunity: at most one observational sentence. Prefer a patient-raised question, concern, worry, or uncertainty on THIS decision that was not fully addressed (response_status is one of: Not addressed, Acknowledged, Acknowledged but not answered, Acknowledged but not substantively addressed, Partially answered, Partially addressed). If none of those statuses exist, name one core risk on the chosen intervention with detection_status "Not detected" and state that discussion of that core risk was not present. If neither an open question nor a missed core risk exists, set eligible false and text to an empty string. Do not invent an opportunity. Do not use a question from another decision.
 
 Guardrails:
 - preserve qualifiers exactly (Named only, Limited comparison, May, etc.);
@@ -3786,6 +3882,109 @@ function chosenConsentInterventions(decision) {
         const candidate = normalizeSelectedIntervention(intv.intervention_name);
         return candidate && normalized && candidate.toLowerCase() === normalized.toLowerCase();
     });
+}
+
+function consentCoreRisks(decision) {
+    return chosenConsentInterventions(decision)[0]?.core_risks || [];
+}
+
+function indexConsentDecision(regions) {
+    const list = regions || [];
+    const id = cockpitCtx().episode?.index_decision_id;
+    if (id) {
+        const hit = list.find(r => r.decision_id === id);
+        if (hit && consentCoreRisks(hit).length) return hit;
+    }
+    const qualifying = list.filter(r => consentCoreRisks(r).length);
+    if (!qualifying.length) return null;
+    const discussed = r => consentCoreRisks(r).filter(risk => risk.detection_status === 'Discussed').length;
+    return qualifying.reduce((best, r) => discussed(r) > discussed(best) ? r : best);
+}
+
+function selectIndexDecision(regions, defaultProcedure) {
+    const list = regions || [];
+    const qualifying = list.filter(r => chosenConsentInterventions(r).length);
+    if (!qualifying.length) return null;
+    if (qualifying.length === 1) return qualifying[0];
+    const needle = String(defaultProcedure || "").toLowerCase();
+    const matching = needle
+        ? qualifying.filter(r => chosenConsentInterventions(r).some(intv =>
+            String(intv.intervention_name || "").toLowerCase() === needle))
+        : [];
+    const pool = matching.length ? matching : qualifying;
+    return pool.reduce((best, r) =>
+        consentCoreRisks(r).length > consentCoreRisks(best).length ? r : best
+    );
+}
+
+const NESTED_NON_CONSENT_RE = /\b(timing|location|pain management|postoperative pain)\b/i;
+
+function consentChoiceTarget(regions, defaultProcedure) {
+    const list = regions || [];
+    let target = selectIndexDecision(list, defaultProcedure) || indexConsentDecision(list);
+    if (!target) return null;
+    const byId = Object.fromEntries(list.filter(r => r.decision_id).map(r => [r.decision_id, r]));
+    while (target && NESTED_NON_CONSENT_RE.test(target.decision_label || "") && target.parent_decision_id) {
+        const parent = byId[target.parent_decision_id];
+        if (!parent) break;
+        target = parent;
+    }
+    return target;
+}
+
+function turnBlob(turnObj) {
+    if (!turnObj) return "";
+    return `${turnObj.speaker_line || ""} ${(turnObj.text_lines || []).join(" ")}`;
+}
+
+function normalizeChoiceMade(raw, decision, globalTurns) {
+    if (!raw || !raw.choice_detected) return null;
+    const turnIndex = Number(raw.turn_index);
+    if (!Number.isInteger(turnIndex) || turnIndex < 0) return null;
+    const turnObj = (globalTurns || []).find(t => t.index === turnIndex);
+    if (!turnObj) return null;
+    const quote = String(raw.quote || "").trim();
+    const hay = turnBlob(turnObj).toLowerCase();
+    if (quote && !hay.includes(quote.toLowerCase())) return null;
+    const options = [...(decision.option_names || []), decision.selected_option].filter(Boolean);
+    const rawName = String(raw.option_name || "").trim();
+    const matched = options.find(n => String(n).toLowerCase() === rawName.toLowerCase())
+        || options.find(n => {
+            const a = String(n).toLowerCase();
+            const b = rawName.toLowerCase();
+            return b && (a.includes(b) || b.includes(a));
+        })
+        || decision.selected_option
+        || rawName;
+    if (!matched) return null;
+    const choice = { turn_index: turnIndex, option_name: String(matched) };
+    if (quote) choice.quote = quote;
+    const speaker = String(raw.speaker || turnObj.speaker_line || "").trim();
+    if (speaker) choice.speaker = speaker;
+    return choice;
+}
+
+async function attachConsentChoiceMade(apiKey, regions, globalTurns, defaultProcedure) {
+    const target = consentChoiceTarget(regions, defaultProcedure);
+    if (!target) return;
+    try {
+        const filtered = target.relevant_turn_indices || [];
+        if (!filtered.length) return;
+        const lo = Math.min(...filtered);
+        const hi = Math.max(...filtered);
+        const span = expandTurnRange(globalTurns, lo, hi);
+        const transcript = buildTranscriptChunk(globalTurns, span.length ? span : filtered);
+        const raw = await callGemini(
+            apiKey,
+            CCQ_SYSTEM_INSTRUCTION,
+            CHOICE_MADE_SCHEMA,
+            getConsentChoicePrompt(target, transcript)
+        );
+        const choice = normalizeChoiceMade(raw, target, globalTurns);
+        if (choice) target.choice_made = choice;
+    } catch (err) {
+        logStatus(`Pass C2 skipped: ${err.message}`);
+    }
 }
 
 function buildOntologyTextForIntervention(interventionKey) {
@@ -4038,6 +4237,9 @@ async function runAnalysis() {
             });
         }
 
+        logStatus("Pass C2: Choice turn for the informed-consent decision...");
+        await attachConsentChoiceMade(apiKey, regions, globalTurns, procName);
+
         logStatus("Pass D: Generative layer from CCQ findings...");
         await generateGenerativeLayers(apiKey, regions);
 
@@ -4246,8 +4448,13 @@ function optionIsConservative(name) {
 }
 
 function optionIsChosen(r, name) {
-    const chosen = `${r.selected_option || ''} ${r.selected_intervention || ''}`.toLowerCase();
-    return !!(name && chosen.includes(String(name).toLowerCase()));
+    const n = String(name || '').toLowerCase().trim();
+    if (!n) return false;
+    const selected = String(r.selected_option || '').toLowerCase().trim();
+    const intervention = String(r.selected_intervention || '').toLowerCase().trim();
+    if (selected && (selected.includes(n) || n.includes(selected))) return true;
+    if (intervention && n.includes(intervention)) return true;
+    return false;
 }
 
 function allTurnIndices(...fields) {
@@ -4268,6 +4475,48 @@ function firstQuote(...fields) {
     return '';
 }
 
+function inferAnswerTurn(asked) {
+    if (asked == null) return null;
+    const rows = CURRENT_TURNS || [];
+    const after = rows.filter(t => Number(t.index) > Number(asked));
+    const clinician = after.find(t => /doctor|clinician|physician|surgeon|attending/i.test(t.speaker_line || ''));
+    if (clinician) return Number(clinician.index);
+    return after[0] != null ? Number(after[0].index) : null;
+}
+
+function numberedTurns(values) {
+    return (values || []).map(t => Number(t)).filter(t => !Number.isNaN(t));
+}
+
+function questionAnswerTurns(q) {
+    const askedTurns = numberedTurns(q?.turn_indices);
+    const asked = askedTurns[0];
+    let answerTurns = numberedTurns(q?.response_turn_indices);
+    if (!answerTurns.length) answerTurns = askedTurns.slice(1);
+    if (!answerTurns.length && (String(q?.response || '').trim() || String(q?.response_status || '').toLowerCase().includes('answer'))) {
+        const inferred = inferAnswerTurn(asked);
+        if (inferred != null) answerTurns = [inferred];
+    }
+    return { asked: asked ?? null, answerTurns, answer: answerTurns[0] ?? null };
+}
+
+function findQuestionRecord(glyph, region) {
+    const asked = Number(glyph?.askedTurn ?? glyph?.turn);
+    const match = (r) => {
+        const questions = r?.decision_overview?.patient_considerations?.questions || [];
+        return questions.find(item => glyph?.label && item.question === glyph.label)
+            || questions.find(item => Number(questionAnswerTurns(item).asked) === asked)
+            || questions.find(item => numberedTurns(item.turn_indices).includes(Number(glyph?.turn)));
+    };
+    return match(region) || (CURRENT_REGIONS || []).map(match).find(Boolean) || null;
+}
+
+function glyphTranscriptTurn(glyph) {
+    if (!glyph) return null;
+    if (glyph.key === 'question' && glyph.answerTurn != null && glyph.focusAnswer !== false) return Number(glyph.answerTurn);
+    return glyph.turn == null ? null : Number(glyph.turn);
+}
+
 function quoteAtTurn(fields, turn) {
     for (const field of fields) {
         if ((field?.turn_indices || []).includes(turn)) {
@@ -4279,16 +4528,45 @@ function quoteAtTurn(fields, turn) {
 }
 
 function eventGroupId(e) {
-    if (e.key === 'option') return `option:${e.optionName || e.label}`;
+    if (e.key === 'option' || e.key === 'benefit' || e.key === 'burden') {
+        return `${e.key}:${e.optionName || e.label}`;
+    }
     if (e.key === 'risk') return `risk:${e.riskName || e.label}`;
+    if (e.key === 'question') return `question:${e.label || e.askedTurn}`;
     return `${e.key}:${e.turn}:${e.label}`;
+}
+
+function groupedEventKey(key) {
+    return key === 'option' || key === 'benefit' || key === 'burden' || key === 'risk' || key === 'question';
+}
+
+function optionLinkedKey(key) {
+    return key === 'option' || key === 'benefit' || key === 'burden';
+}
+
+function relatedOptionNames(e, r) {
+    const names = new Set();
+    if (e.optionName) names.add(e.optionName);
+    if (e.optionA) names.add(e.optionA);
+    if (e.optionB) names.add(e.optionB);
+    if (e.key === 'risk' && e.riskName) {
+        const needle = String(e.riskName).toLowerCase();
+        (r.decision_overview?.options_considered || []).forEach(opt => {
+            const text = `${fieldPlainText(opt.risks) || ''}`.toLowerCase();
+            const turns = allTurnIndices(opt.risks);
+            if (text.includes(needle) || (e.turn != null && turns.includes(Number(e.turn)))) {
+                if (opt.option_name) names.add(opt.option_name);
+            }
+        });
+    }
+    return [...names];
 }
 
 function primaryTimelineEvents(events) {
     const seen = new Set();
     const out = [];
     [...events].sort((a, b) => a.turn - b.turn).forEach(e => {
-        if (e.key === 'option' || e.key === 'risk') {
+        if (groupedEventKey(e.key)) {
             const gid = eventGroupId(e);
             if (seen.has(gid)) return;
             seen.add(gid);
@@ -4421,16 +4699,18 @@ function renderDecisionTimeline(regions, turns) {
 // early, tradeoffs compared only late, or never) is scannable at a glance.
 const TIMELINE_VOCAB = [
     { key: 'option', label: 'Option considered', short: 'Option', symbol: () => d3.symbolCircle, color: '#1769e0' },
-    { key: 'recommendation', label: 'Clinician recommendation', short: 'Recommendation', symbol: () => d3.symbolDiamond, color: '#06182b' },
-    { key: 'tradeoff', label: 'Tradeoff compared', short: 'Tradeoff', symbol: () => d3.symbolTriangle, color: '#0f9e93' },
-    { key: 'preference', label: 'Patient preference / goal elicited', short: 'Preference', symbol: () => d3.symbolStar, color: '#9c5f10' },
+    { key: 'benefit', label: 'Benefit discussed', short: 'Benefit', symbol: () => d3.symbolTriangle, color: '#0f9e93' },
+    { key: 'burden', label: 'Burden discussed', short: 'Burden', symbol: () => d3.symbolTriangle, color: '#8e4a7a' },
     { key: 'risk', label: 'Risk discussed', short: 'Risk', symbol: () => d3.symbolSquare, color: '#c6475a' },
+    { key: 'recommendation', label: 'Clinician recommendation', short: 'Recommendation', symbol: () => d3.symbolDiamond, color: '#06182b' },
+    { key: 'preference', label: 'Patient preference / goal elicited', short: 'Preference', symbol: () => d3.symbolStar, color: '#9c5f10' },
     { key: 'question', label: 'Patient question asked', short: 'Question', symbol: () => d3.symbolCross, color: '#5968cf' },
 ];
 
 const TICK_COLUMNS = [
     { key: 'option', label: 'Option', short: 'Opt' },
-    { key: 'tradeoff', label: 'Tradeoff', short: 'Trd' },
+    { key: 'benefit', label: 'Benefit', short: 'Ben' },
+    { key: 'burden', label: 'Burden', short: 'Bur' },
     { key: 'risk', label: 'Risk', short: 'Rsk' },
     { key: 'recommendation', label: 'Recommendation', short: 'Rec' },
     { key: 'preference', label: 'Preference', short: 'Prf' },
@@ -4480,7 +4760,7 @@ const GLYPH_WORD_STOP = new Set([
 
 function shortGlyphWord(raw, kind) {
     const text = String(raw || "").replace(/\?+$/, "").trim();
-    if (!text) return kind === "tradeoff" ? "vs" : "—";
+    if (!text) return "—";
     const lower = text.toLowerCase();
     if (GLYPH_WORD_ALIASES[lower]) return GLYPH_WORD_ALIASES[lower];
     const clause = text.split("/")[0].trim();
@@ -4606,17 +4886,37 @@ function collectTimelineEvents(regions) {
     };
     (regions || []).forEach(r => {
         (r.decision_overview?.options_considered || []).forEach(opt => {
-            const fields = [opt.what_it_involves, opt.benefits, opt.risks, opt.burdens];
-            const turns = allTurnIndices(...fields);
-            turns.forEach(turn => pushEvent({
+            const involveTurns = allTurnIndices(opt.what_it_involves);
+            const optionTurns = involveTurns.length
+                ? involveTurns
+                : allTurnIndices(opt.what_it_involves, opt.benefits, opt.risks, opt.burdens).slice(0, 1);
+            optionTurns.forEach(turn => pushEvent({
                 key: 'option', turn, decisionId: r.decision_id,
                 label: `Option considered: ${opt.option_name}`,
                 word: shortGlyphWord(opt.option_name, 'option'),
                 optionName: opt.option_name,
-                turns,
-                quote: quoteAtTurn(fields, turn),
+                turns: optionTurns,
+                quote: quoteAtTurn([opt.what_it_involves, opt.benefits, opt.risks, opt.burdens], turn),
                 conservative: optionIsConservative(opt.option_name),
                 chosen: optionIsChosen(r, opt.option_name),
+            }));
+            const benefitTurns = allTurnIndices(opt.benefits);
+            benefitTurns.forEach(turn => pushEvent({
+                key: 'benefit', turn, decisionId: r.decision_id,
+                label: `Benefit: ${opt.option_name}`,
+                word: shortGlyphWord(fieldPlainText(opt.benefits) || opt.option_name, 'benefit'),
+                optionName: opt.option_name,
+                turns: benefitTurns,
+                quote: quoteAtTurn([opt.benefits], turn),
+            }));
+            const burdenTurns = allTurnIndices(opt.burdens);
+            burdenTurns.forEach(turn => pushEvent({
+                key: 'burden', turn, decisionId: r.decision_id,
+                label: `Burden: ${opt.option_name}`,
+                word: shortGlyphWord(fieldPlainText(opt.burdens) || opt.option_name, 'burden'),
+                optionName: opt.option_name,
+                turns: burdenTurns,
+                quote: quoteAtTurn([opt.burdens], turn),
             }));
         });
         const rec = r.decision_overview?.clinician_recommendation;
@@ -4630,21 +4930,6 @@ function collectTimelineEvents(regions) {
                 quote: rec.quote || '',
             });
         }
-        (r.communication_analysis?.tradeoff_comparisons || []).forEach(tc => {
-            const turns = tc.turn_indices || [];
-            const first = turns[0];
-            if (first == null) return;
-            pushEvent({
-                key: 'tradeoff', turn: first, decisionId: r.decision_id,
-                label: `${tc.option_a} vs ${tc.option_b} \u2014 ${tc.level}`,
-                word: shortGlyphWord(tc.option_a, 'tradeoff'),
-                optionA: tc.option_a,
-                optionB: tc.option_b,
-                turns,
-                quote: tc.evidence_quote || tc.quote || '',
-                qualifier: tc.qualifier || '',
-            });
-        });
         const pc = r.decision_overview?.patient_considerations || {};
         [...(pc.goals_priorities || []), ...(pc.preferences || [])].forEach(item => {
             const turns = item.turn_indices || [];
@@ -4657,14 +4942,26 @@ function collectTimelineEvents(regions) {
             }));
         });
         (pc.questions || []).forEach(q => {
-            const turns = q.turn_indices || [];
-            turns.forEach(turn => pushEvent({
-                key: 'question', turn, decisionId: r.decision_id,
+            const { asked, answerTurns, answer } = questionAnswerTurns(q);
+            if (asked == null) return;
+            const payload = {
+                key: 'question', decisionId: r.decision_id,
                 label: q.question,
                 word: shortGlyphWord(q.question, 'question'),
-                turns,
+                askedTurn: asked,
+                answerTurn: answer,
+                answerTurns,
+                turns: [asked, ...answerTurns],
                 quote: q.quote || q.question || '',
-            }));
+                answerQuote: q.response_quote || '',
+                answerText: q.response || '',
+                qStatus: q.response_status || '',
+            };
+            pushEvent({ ...payload, turn: asked, isAnswer: false });
+            answerTurns.forEach(t => {
+                if (Number(t) === Number(asked)) return;
+                pushEvent({ ...payload, turn: t, isAnswer: true });
+            });
         });
         chosenConsentInterventions(r).forEach(intv => {
             ['core_risks', 'relevant_risks', 'context_dependent_risks'].forEach(tier => {
@@ -4773,7 +5070,8 @@ function renderGlyphMark(key, color, opacity, cx, cy) {
     if (key === 'option') return `<circle cx="${x}" cy="${y}" r="8" fill="${color}" fill-opacity="${o}"></circle>`;
     if (key === 'preference') return `<circle cx="${x}" cy="${y}" r="7.5" fill="none" stroke="${color}" stroke-width="2" stroke-opacity="${o}"></circle>`;
     if (key === 'risk') return `<rect x="${x - 6.5}" y="${y - 6.5}" width="13" height="13" fill="${color}" fill-opacity="${o}"></rect>`;
-    if (key === 'tradeoff') return `<polygon points="${x},${y - 8} ${x + 7.5},${y + 4.5} ${x - 7.5},${y + 4.5}" fill="${color}" fill-opacity="${o}"></polygon>`;
+    if (key === 'benefit') return `<polygon points="${x},${y - 8} ${x + 7.5},${y + 4.5} ${x - 7.5},${y + 4.5}" fill="${color}" fill-opacity="${o}"></polygon>`;
+    if (key === 'burden') return `<polygon points="${x},${y + 8} ${x + 7.5},${y - 4.5} ${x - 7.5},${y - 4.5}" fill="${color}" fill-opacity="${o}"></polygon>`;
     if (key === 'recommendation') return `<polygon points="${x},${y - 8} ${x + 8},${y} ${x},${y + 8} ${x - 8},${y}" fill="${color}" fill-opacity="${o}"></polygon>`;
     return `<g stroke="${color}" stroke-width="2.4" stroke-opacity="${o}" stroke-linecap="square">
         <line x1="${x - 6}" y1="${y}" x2="${x + 6}" y2="${y}"></line>
@@ -4839,12 +5137,31 @@ function spineDescendantCount(regions, id) {
 }
 
 function spineSubtreeBehaviors(regions, allEvents, id) {
-    const self = (allEvents || []).filter(e => e.decisionId === id).length;
+    const self = (allEvents || []).filter(e => e.decisionId === id && !e.isAnswer).length;
     return self + spineChildrenOf(regions, id).reduce((n, child) => n + spineSubtreeBehaviors(regions, allEvents, child.decision_id), 0);
 }
 
 function spineHasParent(regions, r) {
     return !!(r.parent_decision_id && (regions || []).some(x => x.decision_id === r.parent_decision_id));
+}
+
+function centuryTurns(firstTurn, lastTurn) {
+    const out = [];
+    if (!Number.isFinite(firstTurn) || !Number.isFinite(lastTurn)) return out;
+    const start = Math.max(100, Math.ceil(firstTurn / 100) * 100);
+    for (let c = start; c <= lastTurn; c += 100) out.push(c);
+    return out;
+}
+
+function centuryLineY(rows, century) {
+    const exact = (rows || []).find(row => row.t === century);
+    if (exact) return exact.y0 + exact.rowH / 2;
+    const next = (rows || []).find(row => row.t >= century);
+    if (next) return next.y0;
+    for (let i = (rows || []).length - 1; i >= 0; i--) {
+        if (rows[i].t < century) return rows[i].y0 + rows[i].rowH;
+    }
+    return null;
 }
 
 function renderTickGrid(r, opts) {
@@ -4856,8 +5173,10 @@ function renderTickGrid(r, opts) {
     const glyph = ctx.glyph || {};
     const selectedEv = events.find(e => e.key === glyph.key && Number(e.turn) === Number(glyph.turn))
         || events.find(e => e.key === glyph.key && (e.turns || []).includes(Number(glyph.turn)));
-    const selectedGid = selected && selectedEv && (glyph.key === 'option' || glyph.key === 'risk')
+    const selectedGid = selected && selectedEv && groupedEventKey(glyph.key)
         ? eventGroupId(selectedEv) : null;
+    const selectedOptionName = selected && selectedEv && optionLinkedKey(glyph.key)
+        ? selectedEv.optionName : null;
     const earliestSelected = selectedGid
         ? Math.min(...events.filter(e => eventGroupId(e) === selectedGid).map(e => e.turn))
         : null;
@@ -4876,12 +5195,17 @@ function renderTickGrid(r, opts) {
             if (e.turn !== earliestSelected) ghostCells.add(k);
         });
     }
+    if (selectedOptionName) {
+        events.forEach(e => {
+            if (!relatedOptionNames(e, r).includes(selectedOptionName)) return;
+            const k = `${e.key}:${e.turn}`;
+            if (!byCell.has(k)) byCell.set(k, { event: e, labels: [e.label] });
+        });
+    }
     const firstTurn = turns[0] ?? events[0]?.turn ?? (r.relevant_turn_indices || [])[0] ?? 0;
     const lastTurn = turns.length ? turns[turns.length - 1] : firstTurn;
-    const rangeLabel = turns.length ? (firstTurn === lastTurn ? String(firstTurn) : `${firstTurn}–${lastTurn}`) : '';
-    const chosenLabel = r.selected_option || r.selected_intervention || '';
     const titleClick = interactive
-        ? `onclick="selectGlyph(${jsStr(r.decision_id)},${jsStr('overview')},${Number(firstTurn)})"`
+        ? `data-glyph-decision="${escAttr(r.decision_id)}" data-glyph-key="overview" data-glyph-turn="${Number(firstTurn)}"`
         : '';
     const cols = TICK_COLUMNS.map(col => {
         const color = vocabFor(col.key).color;
@@ -4898,11 +5222,13 @@ function renderTickGrid(r, opts) {
     }
     let yCursor = 0;
     const rules = [];
+    const rowMeta = [];
     const rows = turns.map(t => {
         const hasBeh = hasBehavior && hasBehavior.has(t);
         const rowH = hasBeh ? hB : hE;
         const y0 = yCursor;
         yCursor += rowH;
+        rowMeta.push({ t, y0, rowH });
         const playhead = selected && Number(ctx.glyph.turn) === t;
         if (hasBeh && hasBehavior.has(t + 1)) {
             TICK_COLUMNS.forEach((col, ci) => {
@@ -4920,21 +5246,23 @@ function renderTickGrid(r, opts) {
             const cx = SPINE_TURN_LABEL_W + ci * SPINE_COL_W + SPINE_COL_W / 2;
             const active = selected && ctx.glyph.key === col.key && Number(ctx.glyph.turn) === t;
             const ghost = ghostCells.has(cellKey);
-            const faded = ctx.glyph.key !== 'overview' && !active && !ghost;
-            const opacity = ghost ? 0.28 : active ? 1 : faded ? 0.22 : 0.85;
+            const associated = !!(selectedOptionName && relatedOptionNames(ev, r).includes(selectedOptionName));
+            const faded = ctx.glyph.key !== 'overview' && !active && !ghost && !associated;
+            const opacity = active ? 1 : ghost ? 0.28 : associated ? 0.95 : faded ? 0.22 : 0.85;
             const hatch = ev.key === 'option' && (ev.conservative || optionIsConservative(ev.optionName));
             const boxed = ev.key === 'option' && (ev.chosen || optionIsChosen(r, ev.optionName));
             const click = interactive
-                ? `onclick="event.stopPropagation(); selectGlyph(${jsStr(r.decision_id)},${jsStr(col.key)},${Number(t)},${jsStr(ev.id)})"`
+                ? `data-glyph-decision="${escAttr(r.decision_id)}" data-glyph-key="${escAttr(col.key)}" data-glyph-turn="${Number(t)}" data-glyph-id="${escAttr(ev.id)}"`
                 : '';
-            const title = `${vocabFor(col.key).label}: ${cell.labels.join('; ')} · turn ${t}${ghost ? ' · later mention' : ''}`;
-            return `<g class="timeline-event-mark${interactive ? '' : ' is-inert'}" ${click}>
+            const title = `${vocabFor(col.key).label}: ${cell.labels.join('; ')} · turn ${t}${ghost ? (ev.isAnswer ? ' · answer' : ' · later mention') : ''}`;
+            return `<g class="timeline-event-mark${interactive ? '' : ' is-inert'}" ${click} style="pointer-events:all">
                 <title>${escAttr(title)}</title>
                 <rect x="${cx - 10}" y="${y0}" width="20" height="${rowH}" fill="transparent"></rect>
                 <rect x="${cx - SPINE_TICK_W / 2}" y="${y0}" width="${SPINE_TICK_W}" height="${rowH}"
                       fill="${vocabFor(col.key).color}" fill-opacity="${opacity}"></rect>
                 ${hatch ? `<rect x="${cx - SPINE_TICK_W / 2}" y="${y0}" width="${SPINE_TICK_W}" height="${rowH}" fill="url(#conservative-hatch)"></rect>` : ''}
                 ${boxed ? `<rect x="${cx - SPINE_TICK_W / 2}" y="${y0}" width="${SPINE_TICK_W}" height="${rowH}" fill="none" stroke="#0d2136" stroke-width="1.5"></rect>` : ''}
+                ${associated && !active && !ghost ? `<rect x="${cx - SPINE_TICK_W / 2}" y="${y0}" width="${SPINE_TICK_W}" height="${rowH}" fill="none" stroke="#0d2136" stroke-width="2"></rect>` : ''}
             </g>`;
         }).join('') : '';
         return `<g>
@@ -4943,21 +5271,27 @@ function renderTickGrid(r, opts) {
             ${ticks}
         </g>`;
     }).join('');
+    const centuryLines = centuryTurns(firstTurn, lastTurn).map(c => {
+        const y = centuryLineY(rowMeta, c);
+        if (y == null) return '';
+        return `<line x1="0" y1="${y}" x2="${SPINE_TRACK_W}" y2="${y}"
+            stroke="#7a93ab" stroke-opacity="0.28" stroke-width="1" shape-rendering="crispEdges"></line>`;
+    }).join('');
     return `<div class="tick-grid${selected ? ' is-selected' : ''}" style="width:${SPINE_TRACK_W}px;height:${gridH}px">
         <div class="tick-grid-title" ${titleClick} style="${interactive ? '' : 'cursor:default;'}">
             <strong title="${escAttr(r.decision_label)}">${escHtml(r.decision_label)}</strong>
-            <span>${escHtml(r.status)}${chosenLabel ? ` → ${escHtml(chosenLabel)}` : ' · no path chosen'}</span>
         </div>
-        <div class="tick-grid-cols"><span class="tick-col-gutter" title="${escAttr(rangeLabel ? `Turns ${rangeLabel}` : '')}">${escHtml(rangeLabel)}</span>${cols}</div>
+        <div class="tick-grid-cols"><span class="tick-col-gutter"></span>${cols}</div>
         <div class="tick-grid-body" style="height:${bodyH}px">
             <svg viewBox="0 0 ${SPINE_TRACK_W} ${bodyH}" width="${SPINE_TRACK_W}" height="${bodyH}"
-                 ${interactive ? `onclick="clearGlyphSelection(${jsStr(r.decision_id)})" style="cursor:pointer"` : ''}>
+                 ${interactive ? `data-clear-selection="${escAttr(r.decision_id)}" style="cursor:pointer"` : ''}>
                 <defs>
-                    <pattern id="conservative-hatch" patternUnits="userSpaceOnUse" width="4" height="4">
-                        <path d="M0,4 L4,0" stroke="#7a93ab" stroke-width="1"></path>
+                    <pattern id="conservative-hatch" patternUnits="userSpaceOnUse" width="5" height="5">
+                        <path d="M-1,1 L1,-1 M0,5 L5,0 M4,6 L6,4" stroke="#0d2136" stroke-width="1.6"></path>
+                        <path d="M-1,4 L1,6 M0,0 L5,5 M4,-1 L6,1" stroke="#0d2136" stroke-width="1.6"></path>
                     </pattern>
                 </defs>
-                ${rows}${rules.join('')}${endpointLabels.join('')}</svg>
+                ${rows}${rules.join('')}${centuryLines}${endpointLabels.join('')}</svg>
         </div>
     </div>`;
 }
@@ -4977,51 +5311,52 @@ function spineDescendantsInOrder(regions, id) {
     return out;
 }
 
+function renderDecisionTreeOptions(r) {
+    const options = r.decision_overview?.options_considered || [];
+    if (!options.length) return '';
+    const items = options.map((opt, i) => {
+        const name = opt.option_name || '';
+        const chosen = optionIsChosen(r, name);
+        const letter = `${String.fromCharCode(97 + i)}. `;
+        return `<div class="tree-option">${escHtml(letter)}<span class="tree-option-name${chosen ? ' is-chosen' : ''}">${escHtml(name)}</span></div>`;
+    }).join('');
+    return `<div class="tree-options">${items}</div>`;
+}
+
 function renderDecisionTreeNode(r, opts, depth) {
     const kids = spineChildrenOf(opts.regions, r.decision_id);
     const open = (opts.expandedIds || []).includes(r.decision_id);
     const selected = r.decision_id === opts.selectedId;
-    const events = (opts.allEvents || []).filter(e => e.decisionId === r.decision_id);
-    const nested = spineDescendantCount(opts.regions, r.decision_id);
-    const hover = `${events.length} behaviors${nested ? ` · ${nested} nested` : ''}`;
-    const ov = r.decision_overview || {};
-    const rec = ov.clinician_recommendation || {};
-    const optionNames = (ov.options_considered || []).map(o => o.option_name).filter(Boolean).join(' · ');
-    const mix = spineEventMix(events);
-    const toggle = opts.interactive
+    const toggle = kids.length && opts.interactive
         ? `onclick="event.stopPropagation(); toggleSpineExpand(${jsStr(r.decision_id)})"`
         : '';
     const select = opts.interactive
         ? `onclick="selectDecision(${jsStr(r.decision_id)})"`
         : '';
-    const details = !open ? '' : `<div class="tree-body">
-        ${r.selected_option ? `<div class="tree-detail">Selected: ${escHtml(r.selected_option)}</div>` : ''}
-        ${isExplicitRecommendation(rec) ? `<div class="tree-detail">Recommended: ${escHtml(rec.recommended_option)}</div>` : ''}
-        ${optionNames ? `<div class="tree-detail tree-muted">${escHtml(optionNames)}</div>` : ''}
-        ${mix ? `<div class="tree-detail tree-muted">${escHtml(mix)}</div>` : ''}
-        ${opts.interactive && !selected
-            ? `<button type="button" class="tree-show-map" onclick="selectDecision(${jsStr(r.decision_id)})">Show on map</button>`
-            : (selected ? '<div class="tree-detail tree-muted">Showing on map</div>' : '')}
-        ${kids.map(child => renderDecisionTreeNode(child, opts, depth + 1)).join('')}
-    </div>`;
-    return `<div class="tree-node${selected ? ' is-selected' : ''}" title="${escAttr(hover)}" style="padding-left:${depth * 12}px">
+    const kidsHtml = kids.length && open
+        ? kids.map(child => renderDecisionTreeNode(child, opts, depth + 1)).join('')
+        : '';
+    return `<div class="tree-node${selected ? ' is-selected' : ''}" style="padding-left:${depth * 12}px">
         <div class="tree-row">
-            <button type="button" class="tree-row-toggle" ${toggle} aria-expanded="${open}">${open ? '▾' : '▸'}</button>
+            ${kids.length
+                ? `<button type="button" class="tree-row-toggle" ${toggle} aria-expanded="${open}">${open ? '▾' : '▸'}</button>`
+                : '<span class="tree-row-toggle"></span>'}
             <span class="tree-row-title" ${select}>${escHtml(r.decision_label)}</span>
-            <span class="tree-row-status">${escHtml(r.status || '')}</span>
         </div>
-        ${details}
+        ${renderDecisionTreeOptions(r)}
+        ${kidsHtml}
     </div>`;
 }
 
 function renderDecisionTree(regions, opts) {
     const roots = spineRoots(regions);
-    return `<div class="decision-tree" style="height:${opts.height}px">
+    return `<div class="decision-tree">
         <div class="decision-tree-head">
             <strong>Decisions</strong>
-            <span>Expand a row for details. Hover for behavior counts.</span>
         </div>
-        ${roots.map(r => renderDecisionTreeNode(r, opts, 0)).join('')}
+        <div class="decision-tree-body">
+            ${roots.map(r => renderDecisionTreeNode(r, opts, 0)).join('')}
+        </div>
     </div>`;
 }
 
@@ -5031,41 +5366,61 @@ function highlightQuoteHtml(text, quote, color) {
     if (!q) return escHtml(raw);
     const idx = raw.toLowerCase().indexOf(q.toLowerCase());
     if (idx < 0) return escHtml(raw);
-    return `${escHtml(raw.slice(0, idx))}<span class="quote-hit" style="background:${escAttr(color)}">${escHtml(raw.slice(idx, idx + q.length))}</span>${escHtml(raw.slice(idx + q.length))}`;
+    return `${escHtml(raw.slice(0, idx))}<span class="quote-hit" style="background:color-mix(in srgb, ${escAttr(color)} 22%, white)">${escHtml(raw.slice(idx, idx + q.length))}</span>${escHtml(raw.slice(idx + q.length))}`;
 }
 
 function renderTranscriptPane(turns, glyph) {
     if (!(turns || []).length) return '';
-    const playhead = glyph && glyph.turn;
+    const playhead = glyphTranscriptTurn(glyph);
     const cueKey = glyph && glyph.key && glyph.key !== 'overview' ? glyph.key : null;
     const cueColor = cueKey ? vocabFor(cueKey).color : '';
-    const related = new Set((glyph && glyph.turns) || []);
-    const quote = (glyph && glyph.quote) || '';
+    const askedTurn = glyph && glyph.key === 'question' && glyph.askedTurn != null ? Number(glyph.askedTurn) : null;
+    const answerTurn = glyph && glyph.key === 'question' && glyph.answerTurn != null ? Number(glyph.answerTurn) : null;
+    const related = new Set(numberedTurns((glyph && glyph.turns) || []));
+    if (askedTurn != null) related.add(askedTurn);
+    if (answerTurn != null) related.add(answerTurn);
+    const quoteFor = (index) => {
+        if (answerTurn != null && Number(index) === answerTurn && glyph.answerQuote) return glyph.answerQuote;
+        return (glyph && glyph.quote) || '';
+    };
     const rows = turns.map(t => {
-        const active = playhead != null && t.index === playhead && cueColor;
-        const isRelated = !active && cueColor && related.has(t.index);
+        const idx = Number(t.index);
+        const active = playhead != null && idx === Number(playhead) && cueColor;
+        const isRelated = !active && cueColor && related.has(idx);
+        const isAsked = askedTurn != null && idx === askedTurn;
+        const isAnswer = answerTurn != null && idx === answerTurn;
         const text = (t.text_lines || []).join(' ');
-        const cls = active ? ' is-playhead' : isRelated ? ' is-related' : '';
+        const cls = [
+            active ? ' is-playhead' : '',
+            isRelated ? ' is-related' : '',
+            isAnswer ? ' is-answer' : '',
+            isAsked && answerTurn != null ? ' is-clickable' : '',
+        ].join('');
         const style = (active || isRelated) ? ` style="--playhead-color:${escAttr(cueColor)}"` : '';
-        const body = (active || isRelated) ? highlightQuoteHtml(text, quote, cueColor) : escHtml(text);
-        return `<div class="transcript-pane-row${cls}" id="turn-${t.index}"${style}>
-            <div class="transcript-pane-meta">[${t.index}] ${escHtml(t.speaker_line)}</div>
+        const jump = isAsked && answerTurn != null
+            ? ` data-cue-turn="${answerTurn}"`
+            : '';
+        const role = isAnswer ? '<span class="turn-role">Answer</span>'
+            : isAsked ? '<span class="turn-role">Question</span>' : '';
+        const body = (active || isRelated || isAnswer) ? highlightQuoteHtml(text, quoteFor(idx), cueColor) : escHtml(text);
+        return `<div class="transcript-pane-row${cls}" id="turn-${idx}"${style}${jump}>
+            <div class="transcript-pane-meta">[${idx}] ${escHtml(t.speaker_line)}${role}</div>
             <div>${body}</div>
         </div>`;
     }).join('');
     return `<div class="transcript-pane">
         <div class="transcript-pane-head">
             <strong>Transcript</strong>
-            <span>A selected tick colors this turn. Related mentions get a lighter wash.</span>
         </div>
-        ${rows}
+        <div class="transcript-pane-body">${rows}</div>
     </div>`;
 }
 
 function sliceTitle(key) {
     if (key === 'preference') return 'Preference / goal';
     if (key === 'option') return 'Option';
-    if (key === 'tradeoff') return 'Tradeoff';
+    if (key === 'benefit') return 'Benefit';
+    if (key === 'burden') return 'Burden';
     if (key === 'risk') return 'Risk';
     if (key === 'recommendation') return 'Recommendation';
     if (key === 'question') return 'Question';
@@ -5084,8 +5439,7 @@ function renderBehaviorCard(r) {
     const glyph = cockpitCtx().glyph || {};
     if (!glyph.key || glyph.key === 'overview' || glyph.turn == null) return '';
     let body = '';
-    if (glyph.key === 'option') body = renderOptionCard(r);
-    else if (glyph.key === 'tradeoff') body = renderTradeoffCard(r);
+    if (glyph.key === 'option' || glyph.key === 'benefit' || glyph.key === 'burden') body = renderOptionCard(r);
     else if (glyph.key === 'risk') {
         body = glyph.riskName
             ? `<div class="callout-value">${escHtml(glyph.riskName)}</div>${renderTurnChips(glyph.turns || [glyph.turn], glyph.turn)}`
@@ -5105,7 +5459,13 @@ function renderGlyphMap(regions, turns) {
     const expandedIds = ctx.expandedIds || [];
     const selected = regions.find(r => r.decision_id === ctx.selectedId) || spineRoots(regions)[0] || regions[0];
     const selectedEvents = selected ? allEvents.filter(e => e.decisionId === selected.decision_id) : [];
-    const metrics = spineGridMetrics(selectedEvents);
+    const glyph = ctx.glyph || {};
+    const metricEvents = selectedEvents.filter(e => {
+        if (!e.isAnswer) return true;
+        if (glyph.key !== 'question') return false;
+        return (glyph.label && e.label === glyph.label) || Number(e.askedTurn) === Number(glyph.askedTurn);
+    });
+    const metrics = spineGridMetrics(metricEvents);
     const workspaceH = Math.max(paneH, metrics.gridH);
     const opts = {
         regions, allEvents, paneH, ...metrics,
@@ -5119,6 +5479,10 @@ function renderGlyphMap(regions, turns) {
         </div>`).join('');
     const tree = renderDecisionTree(regions, opts);
     const map = selected ? renderTickGrid(selected, opts) : '';
+    const left = `<div class="spine-left" style="height:${workspaceH}px">
+        ${tree}
+        ${renderCoreRiskRail(regions, selected)}
+    </div>`;
     const right = ctx.peek ? '' : `<div class="spine-right" style="height:${workspaceH}px">
         ${renderTranscriptPane(turns, ctx.glyph)}
         ${selected ? renderBehaviorCard(selected) : ''}
@@ -5128,13 +5492,13 @@ function renderGlyphMap(regions, turns) {
         <div class="spine-map-head">
             <div class="chart-heading-row" style="margin:0;">
                 <h3 class="decision-list-title" style="margin:0;border:0;min-height:0;padding:0;">Map</h3>
-                <span class="info-icon" tabindex="0" data-tip="The tree lists nested decisions with counts on hover. Show on map loads that tick grid. Option and risk ticks plot the first mention; later mentions appear as ghosts when selected. Conservative options are hatched; the chosen path is boxed. Click a tick to color that transcript turn and open the extracted card under it.">i</span>
+                <span class="info-icon" tabindex="0" data-tip="Click a decision title to load its map. Click an option tick to highlight associated ticks across columns. Nested decisions start collapsed. Conservative options are hatched; the chosen path is boxed.">i</span>
             </div>
             <button type="button" class="spine-collapse-all" ${collapseDisabled ? 'disabled' : ''} onclick="collapseAllSpine()">Collapse all</button>
         </div>
         <div class="timeline-vocab-legend">${legend}</div>
         <div class="spine-map-body">
-            ${tree}
+            ${left}
             <div class="spine-map-trees">${map}</div>
             ${right}
         </div>
@@ -5150,8 +5514,7 @@ function renderOptionMatrix(r) {
     const rows = options.map(opt => {
         const name = opt.option_name || '';
         const chosen = name && chosenText.includes(name.toLowerCase());
-        const hit = (glyph.key === 'option' && glyph.optionName === name)
-            || (glyph.key === 'tradeoff' && (glyph.optionA === name || glyph.optionB === name));
+        const hit = optionLinkedKey(glyph.key) && glyph.optionName === name;
         const tone = hit ? 'is-glyph-hit' : chosen ? 'is-chosen-path' : '';
         return `<tr class="${tone}">
             <td>${escHtml(name)}${chosen ? ' (path)' : ''}</td>
@@ -5209,30 +5572,24 @@ function renderTradeoffCard(r) {
     </div>`;
 }
 
-function renderCoreRisksDock(r) {
-    const intvs = chosenConsentInterventions(r);
-    const risks = intvs[0]?.core_risks || [];
+function renderCoreRiskRail(regions, selected) {
+    const consent = indexConsentDecision(regions);
+    if (!consent) return '';
+    const risks = consentCoreRisks(consent);
     if (!risks.length) return '';
-    const discussedCount = risks.filter(risk => risk.detection_status === 'Discussed').length;
+    const active = !selected || selected.decision_id === consent.decision_id;
     const rows = risks.map(risk => {
-        const hit = cockpitCtx().glyph.key === 'risk' && cockpitCtx().glyph.riskName === risk.risk_name;
         const discussed = risk.detection_status === 'Discussed';
-        const tone = hit ? 'is-glyph-hit' : discussed ? 'is-chosen-path' : 'is-gap';
         const t = (risk.turn_indices || [])[0];
-        const glyphId = t == null ? '' : `${r.decision_id}::risk::${t}::${risk.risk_name}`;
-        const click = t != null && cockpitCtx().interactive
-            ? `onclick="selectGlyph(${jsStr(r.decision_id)},${jsStr('risk')},${Number(t)},${jsStr(glyphId)})" style="cursor:pointer"`
+        const glyphId = t == null ? '' : `${consent.decision_id}::risk::${t}::${risk.risk_name}`;
+        const click = active && t != null && cockpitCtx().interactive
+            ? `data-glyph-decision="${escAttr(consent.decision_id)}" data-glyph-key="risk" data-glyph-turn="${Number(t)}" data-glyph-id="${escAttr(glyphId)}" style="cursor:pointer"`
             : '';
-        return `<tr class="${tone}" ${click}>
-            <td>${escHtml(risk.risk_name)}</td>
-            <td>${escHtml(risk.detection_status)}</td>
-            <td>${t == null ? '—' : t}</td>
-        </tr>`;
+        const tone = active ? (discussed ? 'is-discussed' : 'is-gap') : '';
+        const turnHtml = t == null ? '' : `<span class="core-risk-turn">${t}</span>`;
+        return `<div class="core-risk-item ${tone}" ${click}><span class="core-risk-name">${escHtml(risk.risk_name)}</span>${turnHtml}</div>`;
     }).join('');
-    return `<div>
-        <div class="chart-heading-row"><h3>Core risks</h3><span class="badge">${discussedCount} of ${risks.length} discussed</span></div>
-        <table class="risk-table"><thead><tr><th>Core risk</th><th>In conversation</th><th>Turn</th></tr></thead><tbody>${rows}</tbody></table>
-    </div>`;
+    return `<div class="core-risk-rail${active ? '' : ' is-inactive'}"><div class="core-risk-rail-head">Core Risks</div>${rows}</div>`;
 }
 
 function renderEngagementDock(r) {
@@ -5251,14 +5608,24 @@ function renderEngagementDock(r) {
 function renderGlyphSlice(r) {
     const glyph = cockpitCtx().glyph;
     if (glyph.key === 'question') {
-        const questions = r.decision_overview?.patient_considerations?.questions || [];
-        const q = questions.find(item => glyph.label && item.question === glyph.label)
-            || questions.find(item => (item.turn_indices || []).includes(glyph.turn));
-        if (!q) return '';
-        return `<div class="callout"><div class="field-label">Question</div><div class="callout-value">${escHtml(q.question)}</div>
-            <div class="field-value" style="margin-top:8px;">${escHtml(q.response || '—')}</div>
-            <div style="margin-top:6px;">${escHtml(q.response_status || '')}</div>
-            ${renderTurnChips(glyph.turns || q.turn_indices || [glyph.turn], glyph.turn)}</div>`;
+        const q = findQuestionRecord(glyph, r);
+        const asked = q ? questionAnswerTurns(q).asked : glyph.askedTurn;
+        const answer = q ? questionAnswerTurns(q).answer : glyph.answerTurn;
+        const answerTurns = q ? questionAnswerTurns(q).answerTurns : numberedTurns(glyph.answerTurns);
+        const question = (q && q.question) || glyph.label || '';
+        const response = (q && q.response) || glyph.answerText || glyph.answerQuote || 'No answer recorded';
+        const status = (q && q.response_status) || glyph.qStatus || '';
+        if (!question) return '';
+        const chipTurns = glyph.turns?.length ? glyph.turns : [asked, ...answerTurns].filter(t => t != null);
+        return `<div class="callout">
+            <div class="field-label">Question${asked != null ? ` · turn ${asked}` : ''}</div>
+            <div class="callout-value">${escHtml(question)}</div>
+            <div class="qa-answer">
+                <div class="field-label">Answer${answer != null ? ` · turn ${answer}` : ''}</div>
+                <div class="field-value">${escHtml(response)}</div>
+                <div style="margin-top:6px;">${escHtml(status)}</div>
+            </div>
+            ${renderTurnChips(chipTurns, glyphTranscriptTurn(glyph))}</div>`;
     }
     if (glyph.key === 'recommendation') {
         const rec = r.decision_overview?.clinician_recommendation || {};
@@ -5373,18 +5740,95 @@ function summarizeDecision(r) {
     return { text: validateGenerated(sentences.slice(0, 5).join(' '), fallback), traces };
 }
 
-function communicationOpportunity(start) {
-    const questions = start?.decision_overview?.patient_considerations?.questions || [];
-    const hit = questions.find(q => OPEN_QUESTION_STATUSES.includes(q.response_status));
-    if (!hit) return null;
+function openQuestionOn(r) {
+    return (r?.decision_overview?.patient_considerations?.questions || []).find(q =>
+        OPEN_QUESTION_STATUSES.includes(String(q.response_status || '').trim())
+    );
+}
+
+function formatOpportunity(r, hit) {
     let text = `The patient raised a question: ${hit.question}`;
     if (hit.response) text += ` The recorded response is ${hit.response}, with status ${hit.response_status}.`;
     else text += ` The recorded response status is ${hit.response_status}.`;
     return {
         text: validateGenerated(text, hit.question),
         trace: "decision_overview.patient_considerations.questions",
-        decisionLabel: start.decision_label,
+        decisionLabel: r.decision_label,
     };
+}
+
+function formatCoreRiskOpportunity(r, riskName) {
+    const name = String(riskName || '').trim();
+    const text = `The conversation missed discussion of a core risk: ${name}.`;
+    return {
+        text: validateGenerated(text, name),
+        trace: "informed_consent_analysis.interventions.core_risks",
+        decisionLabel: r.decision_label,
+    };
+}
+
+function consentInterventionsForOpportunity(decision) {
+    const chosen = chosenConsentInterventions(decision);
+    if (chosen.length) return chosen;
+    return decision?.informed_consent_analysis?.interventions || [];
+}
+
+function discussedCoreRiskNames(regions) {
+    const names = new Set();
+    (regions || []).forEach(r => {
+        (r.informed_consent_analysis?.interventions || []).forEach(intv => {
+            (intv.core_risks || []).forEach(risk => {
+                if (risk.detection_status === 'Discussed' && risk.risk_name) names.add(risk.risk_name);
+            });
+        });
+    });
+    return names;
+}
+
+function missedCoreRiskOn(r, discussedAnywhere) {
+    const discussed = discussedAnywhere || new Set();
+    for (const intv of consentInterventionsForOpportunity(r)) {
+        for (const risk of (intv.core_risks || [])) {
+            const name = String(risk.risk_name || '').trim();
+            if (!name || risk.detection_status === 'Discussed' || discussed.has(name)) continue;
+            return name;
+        }
+        for (const name of (intv.risk_communication_summary?.core_not_detected || [])) {
+            const n = String(name || '').trim();
+            if (!n || discussed.has(n)) continue;
+            return n;
+        }
+    }
+    return null;
+}
+
+function communicationOpportunity(start, regions) {
+    const seen = new Set();
+    const order = [];
+    const push = r => {
+        if (!r || !r.decision_id || seen.has(r.decision_id)) return;
+        seen.add(r.decision_id);
+        order.push(r);
+    };
+    push(start);
+    const list = regions || [];
+    const byId = new Map(list.map(r => [r.decision_id, r]));
+    let node = start;
+    while (node && node.parent_decision_id && byId.has(node.parent_decision_id)) {
+        node = byId.get(node.parent_decision_id);
+        push(node);
+    }
+    list.forEach(push);
+    for (const r of order) {
+        const hit = openQuestionOn(r);
+        if (hit) return formatOpportunity(r, hit);
+    }
+    const discussed = discussedCoreRiskNames(list);
+    for (const r of order) {
+        const missed = missedCoreRiskOn(r, discussed);
+        if (missed) return formatCoreRiskOpportunity(r, missed);
+    }
+    return null;
 }
 
 function ccqFieldBrief(field) {
@@ -5433,12 +5877,17 @@ function structuredCcqForGeneration(r, regions) {
             level: tc.level,
         })),
         questions,
+        missed_core_risks: (consentInterventionsForOpportunity(r)).flatMap(intv =>
+            (intv.core_risks || [])
+                .filter(risk => risk.detection_status !== 'Discussed' && risk.risk_name)
+                .map(risk => ({ intervention_name: intv.intervention_name, risk_name: risk.risk_name }))
+        ),
     };
 }
 
 function templateGenerativeLayer(r, regions) {
     const summary = summarizeDecision(r);
-    const opportunity = communicationOpportunity(r);
+    const opportunity = communicationOpportunity(r, regions);
     return {
         source: "template",
         decision_summary: summary.text,
@@ -5453,6 +5902,7 @@ function normalizeGenerativeLayerFromModel(raw, r, regions) {
     const fallback = templateGenerativeLayer(r, regions);
     const payload = structuredCcqForGeneration(r, regions);
     const eligibleQs = (payload.questions || []).filter(q => OPEN_QUESTION_STATUSES.includes(q.response_status));
+    const missedCore = payload.missed_core_risks || [];
     const summary = validateGenerated(raw?.decision_summary, fallback.decision_summary);
     const oppIn = raw?.communication_opportunity || {};
     let opportunity = {
@@ -5461,16 +5911,21 @@ function normalizeGenerativeLayerFromModel(raw, r, regions) {
         source_decision_label: "",
         source_field: "decision_overview.patient_considerations.questions",
     };
-    if (oppIn.eligible && eligibleQs.length) {
+    if (oppIn.eligible && (eligibleQs.length || missedCore.length)) {
         const text = validateGenerated(oppIn.text, "");
         if (text) {
             opportunity = {
                 eligible: true,
                 text,
-                source_decision_label: oppIn.source_decision_label || eligibleQs[0].decision_label,
-                source_field: "decision_overview.patient_considerations.questions",
+                source_decision_label: oppIn.source_decision_label || r.decision_label,
+                source_field: eligibleQs.length
+                    ? "decision_overview.patient_considerations.questions"
+                    : "informed_consent_analysis.interventions.core_risks",
             };
         }
+    }
+    if (!opportunity.eligible && fallback.communication_opportunity?.eligible) {
+        opportunity = fallback.communication_opportunity;
     }
     return {
         source: "llm",
@@ -5505,47 +5960,72 @@ function renderGenerativeLayer(selected, regions) {
     const summary = stored?.decision_summary
         ? { text: stored.decision_summary, traces: stored.traces || ["generative_layer"] }
         : summarizeDecision(selected);
-    const liveOpp = communicationOpportunity(selected);
+    return `<div class="generative-layer">
+        <h3>Decision Summary</h3>
+        <p>${escHtml(summary.text)}</p>
+    </div>`;
+}
+
+function renderCommunicationOpportunity(selected, regions) {
+    if (!selected) return '';
+    const stored = selected.generative_layer;
+    const liveOpp = communicationOpportunity(selected, regions);
     const storedOpp = stored?.communication_opportunity?.eligible ? stored.communication_opportunity : null;
     const opportunity = storedOpp
         ? { text: storedOpp.text, trace: storedOpp.source_field, decisionLabel: storedOpp.source_decision_label }
         : liveOpp;
-    const opp = opportunity ? `<div class="comm-opportunity">
+    if (!opportunity) return '';
+    return `<div class="comm-opportunity">
         <strong>Communication Opportunity</strong>
         <p>${escHtml(opportunity.text)}</p>
-        <span class="generative-trace">source: ${escHtml(opportunity.trace)} · ${escHtml(opportunity.decisionLabel)}</span>
-    </div>` : '';
-    return `<div class="generative-layer">
-        <h3>Decision Summary</h3>
-        <p>${escHtml(summary.text)}</p>
-        <span class="generative-trace">source: ${escHtml(summary.traces.join(' · '))}</span>
-        ${opp}
     </div>`;
 }
 
-function renderCockpitStats(regions, selected) {
-    const s = computeSummaryStats(regions);
-    const framing = selected?.communication_analysis?.decision_framing || '—';
+const FAKE_PATIENT_NAMES = [
+    'Elena Vasquez', 'James Okonkwo', 'Priya Shah', 'Marcus Hale',
+    'Sofia Alvarez', 'Daniel Cho', 'Amara Bennett', 'Luis Ortega',
+];
+
+function hashString(s) {
+    let h = 0;
+    String(s || '').split('').forEach(ch => { h = ((h << 5) - h) + ch.charCodeAt(0); h |= 0; });
+    return Math.abs(h);
+}
+
+function formatIdentityDate(d) {
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function episodeIdentity(ep) {
+    const id = ep?.episode_id || ep?.patient_label || 'episode';
+    const h = hashString(id);
+    const startRaw = ep?.episode_date || ep?.run_date;
+    let start = startRaw ? new Date(`${String(startRaw).slice(0, 10)}T00:00:00`) : new Date(2026, 2, 4);
+    if (Number.isNaN(start.getTime())) start = new Date(2026, 2, 4);
+    const end = new Date(start.getTime() + ((h % 10) + 7) * 86400000);
+    return {
+        clinician: ep?.clinician_name || 'Dr. Maya Chen',
+        patient: FAKE_PATIENT_NAMES[h % FAKE_PATIENT_NAMES.length],
+        startDate: formatIdentityDate(start),
+        endDate: formatIdentityDate(end),
+        mrn: String(1000000 + (h % 9000000)),
+    };
+}
+
+function renderCockpitStats() {
+    const idn = episodeIdentity(cockpitCtx().episode);
     return `<div class="cockpit-stats">
-        <div class="cockpit-stat"><div class="cockpit-stat-value">${s.coreTotal ? `${s.coreDiscussed}/${s.coreTotal}` : 'N/A'}</div><div class="cockpit-stat-label">Core risks discussed</div></div>
-        <div class="cockpit-stat"><div class="cockpit-stat-value">${escHtml(framing)}</div><div class="cockpit-stat-label">Decision framing</div></div>
-        <div class="cockpit-stat"><div class="cockpit-stat-value">${s.questionsAnswered}/${s.questionsTotal}</div><div class="cockpit-stat-label">Questions answered</div></div>
-        <div class="cockpit-stat"><div class="cockpit-stat-value">${escHtml(selected?.status || '—')}</div><div class="cockpit-stat-label">Active decision</div></div>
-    </div>`;
-}
-
-function renderPatientBanner() {
-    const ep = cockpitCtx().episode;
-    if (!ep) return '';
-    return `<div class="map-options episode-patient-banner" style="background:#eaf2fa;border:0;border-left:3px solid #1769e0;">
-        <strong>${escHtml(ep.patient_label)}</strong> · ${escHtml(ep.clinician_name || '')} · Core risks ${ep.core_risk_pct == null ? 'N/A' : `${ep.core_risk_pct}%`} · ${escHtml(jitterCategory(ep) || 'N/A')}${ep.source === 'demo' ? ' · <em>demo episode</em>' : ' · <em>saved analysis</em>'}
+        <div class="cockpit-stat"><div class="cockpit-stat-value">${escHtml(idn.clinician)}</div><div class="cockpit-stat-label">Clinician</div></div>
+        <div class="cockpit-stat"><div class="cockpit-stat-value">${escHtml(idn.patient)}</div><div class="cockpit-stat-label">Patient</div></div>
+        <div class="cockpit-stat"><div class="cockpit-stat-value">${escHtml(idn.startDate)}</div><div class="cockpit-stat-label">Start date</div></div>
+        <div class="cockpit-stat"><div class="cockpit-stat-value">${escHtml(idn.endDate)}</div><div class="cockpit-stat-label">End date</div></div>
+        <div class="cockpit-stat"><div class="cockpit-stat-value">${escHtml(idn.mrn)}</div><div class="cockpit-stat-label">Medical record number</div></div>
     </div>`;
 }
 
 function renderEpisodeDock(r, turns) {
     const glyph = cockpitCtx().glyph;
     const evLabel = glyph.key === 'overview' ? 'Decision' : glyph.key;
-    const risksDock = renderCoreRisksDock(r);
     return `<div class="episode-dock" id="episodeDock">
         <h3>Dock — ${escHtml(r.decision_label)}</h3>
         <p class="episode-dock-kicker">${escHtml(evLabel)}${glyph.turn != null ? ` · turn ${glyph.turn}` : ''}</p>
@@ -5554,7 +6034,7 @@ function renderEpisodeDock(r, turns) {
                 <h3>Options</h3>
                 ${renderOptionMatrix(r)}
             </div>
-            ${risksDock || renderEngagementDock(r)}
+            ${renderEngagementDock(r)}
         </div>
     </div>`;
 }
@@ -5574,11 +6054,11 @@ function renderEpisodeTranscript(regions, turns) {
 function renderEpisodeCockpit(regions, turns, selected) {
     const peekClass = cockpitCtx().peek ? ' is-peek' : '';
     return `<div class="episode-cockpit${peekClass}">
-        ${renderPatientBanner()}
-        ${renderCockpitStats(regions, selected)}
+        ${renderCockpitStats()}
         ${cockpitCtx().peek ? '' : renderGenerativeLayer(selected, regions)}
         ${renderGlyphMap(regions, turns)}
         ${renderEpisodeDock(selected, turns)}
+        ${cockpitCtx().peek ? '' : renderCommunicationOpportunity(selected, regions)}
     </div>`;
 }
 
@@ -5792,15 +6272,54 @@ function selectGlyph(decisionId, key, turn, glyphId) {
     }
     const ev = (idCandidates.length && events.find(e => idCandidates.includes(e.id)))
         || events.find(e => e.decisionId === decisionId && e.key === key && Number(e.turn) === Number(turn))
-        || events.find(e => e.decisionId === decisionId && e.key === key && (e.turns || []).includes(Number(turn)));
+        || events.find(e => e.decisionId === decisionId && e.key === key && (
+            Number(e.askedTurn) === Number(turn)
+            || numberedTurns(e.answerTurns).includes(Number(turn))
+            || numberedTurns(e.turns).includes(Number(turn))
+        ));
     const nextTurn = turn == null || turn === '' ? null : Number(turn);
     const sameTick = key !== 'overview' && prevDecision === decisionId && CURRENT_GLYPH.key === key
         && Number(CURRENT_GLYPH.turn) === nextTurn
         && (!glyphId || !CURRENT_GLYPH.id || idCandidates.includes(CURRENT_GLYPH.id));
     if (sameTick) {
+        if (key === 'question' && CURRENT_GLYPH.answerTurn != null) {
+            CURRENT_GLYPH.focusAnswer = true;
+            if (CURRENT_REGIONS && CURRENT_TURNS) {
+                renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION, {
+                    keepSpine: true,
+                    scrollTurn: Number(CURRENT_GLYPH.answerTurn),
+                });
+            }
+            return;
+        }
         clearGlyphSelection(decisionId);
         return;
     }
+    let askedTurn = ev?.askedTurn != null ? Number(ev.askedTurn) : (key === 'question' ? ev?.turn : null);
+    let answerTurn = ev?.answerTurn != null ? Number(ev.answerTurn) : null;
+    let answerTurns = numberedTurns(ev?.answerTurns);
+    let answerQuote = ev?.answerQuote || '';
+    let answerText = ev?.answerText || '';
+    let qStatus = ev?.qStatus || '';
+    let q = null;
+    if (key === 'question') {
+        const region = (CURRENT_REGIONS || []).find(r => r.decision_id === decisionId);
+        q = findQuestionRecord({ label: ev?.label, askedTurn: askedTurn ?? nextTurn, turn: nextTurn }, region);
+        if (q) {
+            const resolved = questionAnswerTurns(q);
+            askedTurn = resolved.asked ?? askedTurn;
+            answerTurn = resolved.answer ?? answerTurn;
+            answerTurns = resolved.answerTurns.length ? resolved.answerTurns : answerTurns;
+            answerQuote = q.response_quote || answerQuote;
+            answerText = q.response || answerText;
+            qStatus = q.response_status || qStatus;
+        }
+        if (answerTurn == null && String((ev?.label || q?.question || '')).trim()) {
+            answerTurn = inferAnswerTurn(askedTurn ?? nextTurn);
+            if (answerTurn != null) answerTurns = [answerTurn];
+        }
+    }
+    const clickedAsked = key === 'question' && askedTurn != null && Number(nextTurn) === Number(askedTurn);
     CURRENT_GLYPH = {
         id: ev?.id || null,
         key: key || 'overview',
@@ -5809,16 +6328,23 @@ function selectGlyph(decisionId, key, turn, glyphId) {
         optionA: ev?.optionA || null,
         optionB: ev?.optionB || null,
         riskName: ev?.riskName || null,
-        label: ev?.label || null,
-        turns: ev?.turns || (nextTurn != null ? [nextTurn] : []),
+        label: ev?.label || ev?.question || q?.question || null,
+        turns: numberedTurns(ev?.turns).length ? numberedTurns(ev.turns) : [askedTurn, ...answerTurns].filter(t => t != null),
         quote: ev?.quote || '',
         qualifier: ev?.qualifier || '',
+        askedTurn,
+        answerTurn,
+        answerTurns,
+        answerQuote,
+        answerText,
+        qStatus,
+        focusAnswer: key === 'question' && answerTurn != null && clickedAsked,
     };
     if (ev?.optionName) NAV.optionName = ev.optionName;
     else if (key !== 'option') NAV.optionName = null;
     ensureSpineExpandedTo(decisionId);
     if (CURRENT_REGIONS && CURRENT_TURNS) {
-        renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION, { keepSpine: true, scrollTurn: CURRENT_GLYPH.turn });
+        renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION, { keepSpine: true, scrollTurn: glyphTranscriptTurn(CURRENT_GLYPH) });
     }
     renderGlobalBreadcrumb();
 }
@@ -5828,7 +6354,7 @@ function clearGlyphSelection(decisionId) {
         CURRENT_SELECTED_DECISION_ID = decisionId;
         NAV.decisionId = decisionId;
     }
-    CURRENT_GLYPH = { key: 'overview', turn: null, id: null, optionName: null, optionA: null, optionB: null, riskName: null, label: null, turns: [], quote: '', qualifier: '' };
+    CURRENT_GLYPH = { key: 'overview', turn: null, id: null, optionName: null, optionA: null, optionB: null, riskName: null, label: null, turns: [], quote: '', qualifier: '', askedTurn: null, answerTurn: null, answerTurns: [], answerQuote: '', focusAnswer: false };
     NAV.optionName = null;
     if (CURRENT_REGIONS && CURRENT_TURNS) {
         renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION, { keepSpine: true });
@@ -5846,6 +6372,7 @@ function ensureSpineExpandedTo(decisionId) {
         node = byId.get(node.parent_decision_id);
     }
     needed.forEach(id => {
+        if (id === decisionId) return;
         if (!CURRENT_EXPANDED_IDS.includes(id)) CURRENT_EXPANDED_IDS = CURRENT_EXPANDED_IDS.concat(id);
     });
 }
@@ -5853,17 +6380,74 @@ function ensureSpineExpandedTo(decisionId) {
 function cueGlyphTurn(turn) {
     const g = cockpitCtx().glyph || {};
     if (!g.key || g.key === 'overview' || turn == null) return;
-    selectGlyph(CURRENT_SELECTED_DECISION_ID, g.key, Number(turn));
+    if (g.key === 'question' && g.answerTurn != null && Number(turn) === Number(g.answerTurn)) {
+        CURRENT_GLYPH = { ...g, focusAnswer: true };
+        if (CURRENT_REGIONS && CURRENT_TURNS) {
+            renderUI(CURRENT_REGIONS, CURRENT_TURNS, CURRENT_SCHEMA_VERSION, {
+                keepSpine: true,
+                scrollTurn: Number(g.answerTurn),
+            });
+        }
+        return;
+    }
+    selectGlyph(CURRENT_SELECTED_DECISION_ID, g.key, Number(turn), g.id);
+}
+
+function closestAttr(el, attr) {
+    while (el && el !== document) {
+        if (el.getAttribute && el.getAttribute(attr) != null) return el;
+        el = el.parentNode;
+    }
+    return null;
+}
+
+function bindCockpitClicks() {
+    const host = document.getElementById(CURRENT_RENDER_TARGET);
+    if (!host || host.dataset.cockpitClicksBound) return;
+    host.dataset.cockpitClicksBound = '1';
+    host.addEventListener('click', event => {
+        const cue = closestAttr(event.target, 'data-cue-turn');
+        if (cue) {
+            event.preventDefault();
+            event.stopPropagation();
+            cueGlyphTurn(Number(cue.getAttribute('data-cue-turn')));
+            return;
+        }
+        const mark = closestAttr(event.target, 'data-glyph-key');
+        if (mark) {
+            event.preventDefault();
+            event.stopPropagation();
+            selectGlyph(
+                mark.getAttribute('data-glyph-decision'),
+                mark.getAttribute('data-glyph-key'),
+                Number(mark.getAttribute('data-glyph-turn')),
+                mark.getAttribute('data-glyph-id') || undefined
+            );
+            return;
+        }
+        const clear = closestAttr(event.target, 'data-clear-selection');
+        if (clear) {
+            event.preventDefault();
+            clearGlyphSelection(clear.getAttribute('data-clear-selection'));
+        }
+    });
+}
+
+function transcriptScrollEl(root) {
+    return (root && (root.querySelector('.transcript-pane-body') || root.querySelector('.transcript-pane'))) || null;
 }
 
 function scrollTranscriptToTurn(turnIndex) {
+    if (turnIndex == null) return;
     const host = document.getElementById(CURRENT_RENDER_TARGET);
-    const body = host && host.querySelector('.transcript-pane');
-    if (!body) return;
-    const el = body.querySelector(`#turn-${CSS.escape(String(turnIndex))}`);
+    const pane = transcriptScrollEl(host);
+    if (!pane) return;
+    const el = pane.querySelector(`[id="turn-${turnIndex}"]`) || (host && host.querySelector(`[id="turn-${turnIndex}"]`));
     if (!el) return;
-    const top = el.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop - 12;
-    body.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    const paneRect = pane.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const delta = (elRect.top + elRect.height / 2) - (paneRect.top + paneRect.height / 2);
+    pane.scrollTop = Math.max(0, pane.scrollTop + delta);
 }
 
 function collectTurnTagsForDecision(r, turnIndex, tags) {
@@ -5938,7 +6522,7 @@ function renderUI(regions, turns, schemaVersion, opts = {}) {
     CURRENT_SELECTED_DECISION_ID = selected?.decision_id || null;
     NAV.decisionId = CURRENT_SELECTED_DECISION_ID;
 
-    const savedScroll = results.querySelector('.transcript-pane')?.scrollTop || 0;
+    const savedScroll = transcriptScrollEl(results)?.scrollTop || 0;
     const cockpit = renderEpisodeCockpit(regions, turns, selected);
     if (opts.keepSpine) {
         const existing = results.querySelector('.episode-cockpit');
@@ -5953,12 +6537,20 @@ function renderUI(regions, turns, schemaVersion, opts = {}) {
 }
 
 function afterSpineRender(results, opts, savedScroll) {
-    const pane = results && results.querySelector('.transcript-pane');
+    bindCockpitClicks();
+    const pane = transcriptScrollEl(results);
     if (!pane) return;
-    pane.scrollTop = savedScroll;
-    if (opts.scrollTurn != null) {
-        requestAnimationFrame(() => scrollTranscriptToTurn(opts.scrollTurn));
+    if (opts.scrollTurn == null) {
+        pane.scrollTop = savedScroll;
+        return;
     }
+    const jump = () => scrollTranscriptToTurn(opts.scrollTurn);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            jump();
+            setTimeout(jump, 40);
+        });
+    });
 }
 
 </script>
