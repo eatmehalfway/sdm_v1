@@ -95,6 +95,13 @@ PROCEDURE_DEFS = [
         "clinicians": None,
     },
     {
+        "name": "Lumbar decompression with possible fusion",
+        "n": 36,
+        "framing_bias": 0.10,
+        "categories": [CAT_NEURO, CAT_INFECTION, CAT_BLEEDING, CAT_STRUCTURAL, CAT_TREATMENT_FAILURE, CAT_REINTERVENTION, CAT_PAIN, CAT_DEVICE],
+        "clinicians": None,
+    },
+    {
         "name": "Lumbar microdiscectomy",
         "n": 40,
         "framing_bias": 0.25,

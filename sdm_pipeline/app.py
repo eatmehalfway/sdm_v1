@@ -52,7 +52,12 @@ init_db()
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', demo_page=False)
+
+
+@app.route('/demo')
+def demo():
+    return render_template('index.html', demo_page=True)
 
 
 @app.route('/api/history', methods=['GET'])

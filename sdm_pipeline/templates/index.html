@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CCQ Clinical Conversation Analyzer</title>
+    <title>{% if demo_page %}CCQ Demo{% else %}CCQ Clinical Conversation Analyzer{% endif %}</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12/dist/d3-sankey.min.js"></script>
@@ -65,6 +65,9 @@
             align-items: center;
             gap: 12px;
             flex: 0 0 auto;
+            min-width: 0;
+            text-decoration: none;
+            color: inherit;
         }
         .brand-mark {
             display: grid;
@@ -77,6 +80,20 @@
             font-weight: 800;
             font-size: 0.72rem;
             letter-spacing: -0.02em;
+        }
+        .brand-logo {
+            display: block;
+            height: 32px;
+            width: auto;
+            flex: 0 0 auto;
+        }
+        .brand-name {
+            color: #fff;
+            font-size: 0.92rem;
+            font-weight: 600;
+            letter-spacing: -0.015em;
+            line-height: 1.15;
+            white-space: nowrap;
         }
 
         /* ---------- NAVIGATION ---------- */
@@ -733,6 +750,21 @@
         #riskBubblePlot svg .static-layer { pointer-events:none; }
         #riskBubblePlot svg .static-layer .plot-bg { pointer-events:all; }
 
+        body.demo-page .topbar-new,
+        body.demo-page .dept-header,
+        body.demo-page .summary-bar,
+        body.demo-page .dept-controls-row,
+        body.demo-page .map-mode-bar,
+        body.demo-page .analytics-grid,
+        body.demo-page .section-kicker,
+        body.demo-page .jitter-hint,
+        body.demo-page .info-icon,
+        body.demo-page .legend-kicker-row,
+        body.demo-page .chart-controls-row { display: none !important; }
+        body.demo-page .legend-block { margin: 0 0 36px; }
+        body.demo-page .demo-dept-title { margin: 0 0 28px; }
+        body.demo-page .demo-dept-title h2 { margin: 0; }
+
         /* ---------- DECISION MAP (readable tree) ---------- */
         .decision-spine { margin:0 0 36px; background:var(--surface); padding:22px 24px 18px; }
         .decision-spine h3 { margin:0 0 6px; }
@@ -1032,13 +1064,14 @@
         }
     </style>
 </head>
-<body>
+<body{% if demo_page %} class="demo-page"{% endif %} data-demo-page="{{ 'true' if demo_page else 'false' }}">
 
 <div class="container" id="appContainer">
     <header class="topbar">
-        <div class="brand-row">
-            <div class="brand-mark">CCQ</div>
-        </div>
+        <a class="brand-row" href="{{ '/demo' if demo_page else '/' }}" aria-label="Clinical communication quality">
+            <img class="brand-logo" src="{{ url_for('static', filename='ccq-logo.svg') }}" alt="">
+            <span class="brand-name">Clinical communication quality</span>
+        </a>
 
         <nav class="nav-bar breadcrumb-trail" id="globalBreadcrumb" aria-label="Location"></nav>
 
@@ -1296,6 +1329,25 @@ let SANKEY_FOCUS_PROCEDURE = null;
 let SANKEY_FOCUS_IS_AUTO = true;
 let SANKEY_COMPARE_SCOPE = 'all';
 let RISK_BUBBLE_Y_METRIC = 'procedure_variation';
+const DEMO_PAGE = document.body?.dataset?.demoPage === 'true';
+const DEMO_PROCEDURES = [
+    'Cervical spinal fusion',
+    'Lumbar decompression with possible fusion',
+    'Lumbar laminectomy',
+    'Posterior lumbar fusion',
+    'Spinal cord stimulator implant',
+];
+if (DEMO_PAGE) RISK_BUBBLE_Y_METRIC = 'procedure_variation';
+
+function isDemoProcedure(name) {
+    const needle = String(name || '').toLowerCase();
+    return DEMO_PROCEDURES.some(p => p.toLowerCase() === needle);
+}
+
+function procedureTabList() {
+    if (DEMO_PAGE) return DEMO_PROCEDURES.slice();
+    return [...new Set(DEPARTMENT_EPISODES.map(e => e.procedure).filter(Boolean))].sort();
+}
 let DATE_RANGE_DAYS = null;
 let BOX_PLOT_EPISODES = [];
 let BOX_PLOT_CLINICIANS = [];
@@ -1547,6 +1599,7 @@ function scopeFilteredEpisodes() {
     return DEPARTMENT_EPISODES
         .filter(ep => ep.has_index_decision)
         .filter(ep => (ep.completeness_pct ?? 100) >= COMPLETENESS_THRESHOLD)
+        .filter(ep => !DEMO_PAGE || isDemoProcedure(ep.procedure))
         .filter(ep => !SELECTED_PROCEDURES.size || SELECTED_PROCEDURES.has(ep.procedure))
         .filter(withinDateRange)
         .filter(matchesDataSource);
@@ -1622,7 +1675,10 @@ function refreshDepartmentDashboard() {
     if (hint) hint.textContent = `${episodes.length} of ${consentTotal} consent-relevant episodes included`;
     renderSankeyDelta(sankeyEligibleEpisodes());
     renderRiskGapBubbleChart();
-    renderFramingDotPlot(DEPARTMENT_PROCEDURE_DATA.framing_scores || []);
+    const framingScores = DEMO_PAGE
+        ? (DEPARTMENT_PROCEDURE_DATA.framing_scores || []).filter(row => isDemoProcedure(row.procedure))
+        : (DEPARTMENT_PROCEDURE_DATA.framing_scores || []);
+    renderFramingDotPlot(framingScores);
     renderBoxPlot(base, DEPARTMENT_CLINICIANS, NAV.clinicianId);
     INLINE_RESTORE_PAUSED = false;
     bindEpisodePeeks();
@@ -1639,7 +1695,7 @@ function renderDepartmentShell(data, episodes) {
         const cls = NAV.clinicianId ? (NAV.clinicianId === c.id ? 'is-active' : 'is-muted') : '';
         return `<span class="${cls}" onclick="toggleClinicianFilter('${escAttr(c.id)}')" title="Click to isolate ${escAttr(c.name)}"><i class="clinician-swatch" style="background:${c.color}"></i>${escHtml(c.name)}</span>`;
     }).join('');
-    const allProcedures = [...new Set(DEPARTMENT_EPISODES.map(e => e.procedure).filter(Boolean))].sort();
+    const allProcedures = procedureTabList();
     const procedureLabel = SELECTED_PROCEDURES.size === 0
         ? 'All procedures'
         : (SELECTED_PROCEDURES.size === 1 ? [...SELECTED_PROCEDURES][0] : `${SELECTED_PROCEDURES.size} procedures selected`);
@@ -1661,6 +1717,32 @@ function renderDepartmentShell(data, episodes) {
             <td class="status-${ep.status}">${escHtml(ep.status)}</td>
             <td class="view-link" data-episode-id="${escAttr(ep.episode_id)}">Open →</td>
         </tr>`).join('');
+    const procedureTabs = allProcedures.map(p => {
+        const cls = NAV.procedure ? (NAV.procedure === p ? 'is-active' : 'is-muted') : '';
+        return `<span class="${cls}" onclick="navGoTo('procedure','${escAttr(p)}')" title="Click to isolate ${escAttr(p)}">${escHtml(p)}</span>`;
+    }).join('') || '<span style="color:var(--muted);">No procedures yet</span>';
+    const episodeTable = `
+    <h3 id="episode-table-heading">Episodes</h3>
+    <div class="episode-table-wrap">
+        <table class="history-table" style="margin-top:0;">
+            <thead><tr><th>Episode</th><th>Clinician</th><th>Core risks %</th><th>Completeness</th><th>Discussion category</th><th>Status</th><th></th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+    </div>`;
+
+    if (DEMO_PAGE) {
+        return `
+    <div class="demo-dept-title">
+        <h2>${escHtml(data.department || 'Department')}</h2>
+    </div>
+    <div class="legend-block">
+        <div class="legend-bar clinician-legend" aria-label="Filter charts by procedure">${procedureTabs}</div>
+    </div>
+    <div class="map-charts" data-mode="procedure">
+        ${renderMapCharts()}
+    </div>
+    ${episodeTable}`;
+    }
 
     return `
     <div class="dept-header">
@@ -1721,10 +1803,7 @@ function renderDepartmentShell(data, episodes) {
             <div class="legend-kicker">Filter by procedure</div>
             <span class="info-icon" tabindex="0" data-tip="This is the master filter for the procedure map. Click a name to isolate that procedure across the charts below. Click again to clear.">i</span>
         </div>
-        <div class="legend-bar clinician-legend" aria-label="Filter charts by procedure">${allProcedures.map(p => {
-            const cls = NAV.procedure ? (NAV.procedure === p ? 'is-active' : 'is-muted') : '';
-            return `<span class="${cls}" onclick="navGoTo('procedure','${escAttr(p)}')" title="Click to isolate ${escAttr(p)}">${escHtml(p)}</span>`;
-        }).join('') || '<span style="color:var(--muted);">No procedures yet</span>'}</div>
+        <div class="legend-bar clinician-legend" aria-label="Filter charts by procedure">${procedureTabs}</div>
     </div>`}
     <div class="map-charts" data-mode="${escAttr(mapMode())}">
         ${renderMapCharts()}
@@ -1741,13 +1820,7 @@ function renderDepartmentShell(data, episodes) {
             ${renderQuestionRollup(data.question_rollup || [], episodes)}
         </div>
     </div>
-    <h3 id="episode-table-heading">Episodes</h3>
-    <div class="episode-table-wrap">
-        <table class="history-table" style="margin-top:0;">
-            <thead><tr><th>Episode</th><th>Clinician</th><th>Core risks %</th><th>Completeness</th><th>Discussion category</th><th>Status</th><th></th></tr></thead>
-            <tbody>${rows}</tbody>
-        </table>
-    </div>`;
+    ${episodeTable}`;
 }
 
 function jumpToEpisodeTable(sort) {
@@ -1768,7 +1841,7 @@ function renderMapCharts() {
                     <div class="flow-caption">
                         <p class="section-kicker">Episode flow comparison</p>
                         <div class="chart-heading-row">
-                            <h3 class="chart-heading" id="flow-heading">Episode Flow</h3>
+                            <h3 class="chart-heading" id="flow-heading">${DEMO_PAGE ? 'Episode flow' : 'Episode Flow'}</h3>
                             <span class="info-icon" tabindex="0" data-tip="Follows one procedure's episodes from left to right: whether a single option was presented, and if alternatives came up, how thoroughly they were compared. The % next to each step is that step's share of episodes; (Δ) shows how many points higher or lower that is than your chosen benchmark.">i</span>
                         </div>
                         <p class="jitter-hint">Pick a procedure to trace and a benchmark to compare it against below — the numbers on each step show the gap between them.</p>
@@ -1980,7 +2053,7 @@ function renderSankeyDelta(episodes) {
     }
     if (SANKEY_COMPARE_SCOPE !== 'all' && (SANKEY_COMPARE_SCOPE === SANKEY_FOCUS_PROCEDURE || !allProcedures.includes(SANKEY_COMPARE_SCOPE))) SANKEY_COMPARE_SCOPE = 'all';
 
-    renderSankeyControls(allProcedures);
+    if (!DEMO_PAGE) renderSankeyControls(allProcedures);
 
     const focusEpisodes = episodes.filter(ep => ep.procedure === SANKEY_FOCUS_PROCEDURE);
     const benchmarkEpisodes = SANKEY_COMPARE_SCOPE === 'all'
@@ -2086,6 +2159,7 @@ const RISK_CATEGORY_COLORS = (typeof d3 !== 'undefined' ? d3.scaleOrdinal() : { 
     .range(['#1451a4', '#08a3b7', '#8e6fce', '#5968cf', '#1769e0', '#0f9e93', '#2e7de1', '#06182b']);
 
 function setRiskBubbleYMetric(metric) {
+    if (DEMO_PAGE && metric !== 'procedure_variation') return;
     if (RISK_BUBBLE_Y_METRIC === metric) return;
     RISK_BUBBLE_Y_METRIC = metric;
     NAV.bubbleSubGroup = null;
@@ -2639,9 +2713,9 @@ function renderRiskGapBubbleChart(rows) {
     const collapsing = wasExpanded && !expand;
 
     if (controlsEl) {
-        controlsEl.innerHTML = isolate
+        controlsEl.innerHTML = DEMO_PAGE ? '' : (isolate
             ? `<span class="chart-control-label">Showing ${escHtml(filterLabel)} · click a bubble for episodes</span>`
-            : `<span class="chart-control-label">Click a bubble to split by ${splitBy}</span>`;
+            : `<span class="chart-control-label">Click a bubble to split by ${splitBy}</span>`);
     }
 
     const usable = (rows || []).filter(row => row[yField] != null);
