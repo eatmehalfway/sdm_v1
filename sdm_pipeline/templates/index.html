@@ -1020,6 +1020,10 @@
             font-size:0.78rem; font-weight:800; color:var(--navy);
             text-transform:uppercase; letter-spacing:0.06em;
         }
+        .comm-opportunity .opp-priority {
+            margin-left:8px; font-size:0.72rem; font-weight:600;
+            letter-spacing:0.04em; color:var(--muted);
+        }
         .transcript-pane-meta { font-size:0.72rem; color:var(--muted); margin:0 0 4px; }
         .episode-dock { background:var(--surface); padding:20px 24px 28px; margin:0 0 1px; }
         .episode-dock-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px; align-items:start; }
@@ -4001,7 +4005,7 @@ Decision Summary: one neutral paragraph, 2–4 sentences, in conversation order 
 4) relevant patient goals or preferences if present, and only if they pertain to options of this decision;
 5) final status or selected option.
 
-Communication Opportunity: at most one observational sentence. Prefer a patient-raised question, concern, worry, or uncertainty on THIS decision that was not fully addressed (response_status is one of: Not addressed, Acknowledged, Acknowledged but not answered, Acknowledged but not substantively addressed, Partially answered, Partially addressed). If none of those statuses exist, name one core risk on the chosen intervention with detection_status "Not detected" and state that discussion of that core risk was not present. If neither an open question nor a missed core risk exists, set eligible false and text to an empty string. Do not invent an opportunity. Do not use a question from another decision.
+Communication Opportunity: set eligible false and text to an empty string. Opportunity copy is generated in code from CCQ fields, not by this model.
 
 Guardrails:
 - preserve qualifiers exactly (Named only, Limited comparison, May, etc.);
@@ -6232,33 +6236,268 @@ function missedCoreRiskOn(r, discussedAnywhere) {
     return null;
 }
 
-function communicationOpportunity(start, regions) {
-    const seen = new Set();
-    const order = [];
-    const push = r => {
-        if (!r || !r.decision_id || seen.has(r.decision_id)) return;
-        seen.add(r.decision_id);
-        order.push(r);
-    };
-    push(start);
+function discussedBeforeSelection(field, choiceTurn, treatedAsDiscussed) {
+    const discussed = treatedAsDiscussed != null ? treatedAsDiscussed : fieldDiscussedText(fieldPlainText(field));
+    if (!discussed) return false;
+    const turns = allTurnIndices(field);
+    if (!turns.length) return true;
+    return turns.some(t => t < choiceTurn);
+}
+
+function discussedOnlyAfterSelection(field, choiceTurn) {
+    if (!fieldDiscussedText(fieldPlainText(field))) return false;
+    const turns = allTurnIndices(field);
+    if (!turns.length) return false;
+    return turns.every(t => t >= choiceTurn);
+}
+
+function itemFirstTurn(item) {
+    const turns = numberedTurns(item?.turn_indices);
+    if (turns.length) return Math.min(...turns);
+    return null;
+}
+
+const LIMITED_BENEFIT_RE = /may not help|limited (relief|benefit)|temporary|not (likely|expected) to|unlikely to (help|relieve)|no (real |lasting )?benefit/i;
+
+function benefitCountsAsBurden(field) {
+    return LIMITED_BENEFIT_RE.test(fieldPlainText(field));
+}
+
+function optionHasOutcomeBeforeSelection(opt, choiceTurn) {
+    const benefitBefore = discussedBeforeSelection(opt.benefits, choiceTurn) && !benefitCountsAsBurden(opt.benefits);
+    const burdenBefore = discussedBeforeSelection(opt.burdens, choiceTurn) || discussedBeforeSelection(opt.benefits, choiceTurn, benefitCountsAsBurden(opt.benefits));
+    const riskBefore = discussedBeforeSelection(opt.risks, choiceTurn);
+    return benefitBefore || burdenBefore || riskBefore;
+}
+
+function optionPresentedBeforeSelection(opt, choiceTurn) {
+    const turns = allTurnIndices(opt.what_it_involves, opt.benefits, opt.risks, opt.burdens);
+    if (!turns.length) return true;
+    return turns.some(t => t < choiceTurn);
+}
+
+function opportunityIndexDecision(regions) {
     const list = regions || [];
-    const byId = new Map(list.map(r => [r.decision_id, r]));
-    let node = start;
-    while (node && node.parent_decision_id && byId.has(node.parent_decision_id)) {
-        node = byId.get(node.parent_decision_id);
-        push(node);
+    return consentChoiceTarget(list, CURRENT_RUN_META?.default_procedure)
+        || selectIndexDecision(list, CURRENT_RUN_META?.default_procedure)
+        || indexConsentDecision(list)
+        || list[0]
+        || null;
+}
+
+function choiceTurnOn(r) {
+    const raw = r?.choice_made?.turn_index;
+    if (raw == null || raw === '') return null;
+    const c = Number(raw);
+    return Number.isInteger(c) && c >= 0 ? c : null;
+}
+
+function detectAltWithoutOutcome(r, choiceTurn) {
+    const options = r?.decision_overview?.options_considered || [];
+    const alternatives = options.filter(opt => opt.option_name && !optionIsChosen(r, opt.option_name));
+    const presented = alternatives.filter(opt => optionPresentedBeforeSelection(opt, choiceTurn));
+    if (!presented.length) return null;
+    if (presented.some(opt => optionHasOutcomeBeforeSelection(opt, choiceTurn))) return null;
+    return {
+        rule: 1,
+        priority: 'High',
+        type: 'Alternative presented without expected outcome discussion',
+        text: 'An alternative was presented before selection without a recorded benefit, burden, or risk.',
+        source_field: 'decision_overview.options_considered',
+        decisionLabel: r.decision_label,
+    };
+}
+
+function detectNoPreferenceBeforeSelection(r, choiceTurn) {
+    const options = r?.decision_overview?.options_considered || [];
+    const presented = options.filter(opt => optionPresentedBeforeSelection(opt, choiceTurn));
+    if (presented.length < 2) return null;
+    const pc = r.decision_overview?.patient_considerations || {};
+    const pe = r.communication_analysis?.patient_engagement || {};
+    const prefs = [...(pc.preferences || []), ...(pc.goals_priorities || [])];
+    const prefBefore = prefs.some(item => {
+        const t = itemFirstTurn(item);
+        return t != null && t < choiceTurn;
+    });
+    if (prefBefore) return null;
+    if (pe.preferences_elicited || pe.goals_priorities_elicited) return null;
+    return {
+        rule: 2,
+        priority: 'Medium',
+        type: 'No patient preference identified before treatment selection',
+        text: 'Two or more options were presented before selection, with no recorded patient preference or elicitation attempt.',
+        source_field: 'decision_overview.patient_considerations',
+        decisionLabel: r.decision_label,
+    };
+}
+
+function questionAddressTurn(q) {
+    if (String(q?.response_status || '').trim() !== 'Answered') return null;
+    const turns = numberedTurns(q?.response_turn_indices);
+    return turns.length ? turns[0] : null;
+}
+
+function detectPriorityConcernTiming(r, choiceTurn) {
+    const pc = r.decision_overview?.patient_considerations || {};
+    const questions = pc.questions || [];
+    const prefs = [...(pc.preferences || []), ...(pc.goals_priorities || [])];
+    const items = [];
+    questions.forEach(q => {
+        const expressed = itemFirstTurn(q);
+        if (expressed == null) return;
+        items.push({ expressed, addressed: questionAddressTurn(q), kind: 'question' });
+    });
+    prefs.forEach(item => {
+        const expressed = itemFirstTurn(item);
+        if (expressed == null) return;
+        if (item?.response_status == null && item?.response_turn_indices == null) return;
+        items.push({ expressed, addressed: questionAddressTurn(item), kind: 'preference' });
+    });
+    if (!items.length) return null;
+    const beforeNever = items.filter(it => it.expressed < choiceTurn && it.addressed == null);
+    if (beforeNever.length) {
+        return {
+            rule: 3,
+            priority: 'High',
+            type: 'Patient priority or concern not subsequently addressed',
+            text: 'A patient priority or concern was raised before selection and was not subsequently addressed.',
+            source_field: 'decision_overview.patient_considerations',
+            decisionLabel: r.decision_label,
+        };
     }
-    list.forEach(push);
-    for (const r of order) {
-        const hit = openQuestionOn(r);
-        if (hit) return formatOpportunity(r, hit);
+    const beforeAfter = items.filter(it => it.expressed < choiceTurn && it.addressed != null && it.addressed >= choiceTurn);
+    if (beforeAfter.length) {
+        return {
+            rule: 3,
+            priority: 'Medium',
+            type: 'Patient priority or concern addressed after treatment selection',
+            text: 'A patient priority or concern was raised before selection and addressed only afterward.',
+            source_field: 'decision_overview.patient_considerations',
+            decisionLabel: r.decision_label,
+        };
     }
-    const discussed = discussedCoreRiskNames(list);
-    for (const r of order) {
-        const missed = missedCoreRiskOn(r, discussed);
-        if (missed) return formatCoreRiskOpportunity(r, missed);
+    const afterNever = items.filter(it => it.expressed >= choiceTurn && it.addressed == null);
+    if (afterNever.length) {
+        return {
+            rule: 3,
+            priority: 'Medium',
+            type: 'Patient priority or concern not subsequently addressed',
+            text: 'A patient priority or concern was raised after selection and was not subsequently addressed.',
+            source_field: 'decision_overview.patient_considerations',
+            decisionLabel: r.decision_label,
+        };
     }
     return null;
+}
+
+function detectNewInfoAfterSelection(r, choiceTurn) {
+    const options = r?.decision_overview?.options_considered || [];
+    const chosen = options.find(opt => optionIsChosen(r, opt.option_name)) || options.find(opt => optionIsChosen(r, r.selected_intervention));
+    let benefitBurdenAfter = false;
+    if (chosen) {
+        benefitBurdenAfter = discussedOnlyAfterSelection(chosen.benefits, choiceTurn)
+            || discussedOnlyAfterSelection(chosen.burdens, choiceTurn);
+    }
+    const core = consentCoreRisks(r);
+    const newCore = core.filter(risk => {
+        if (risk.detection_status !== 'Discussed') return false;
+        const turns = numberedTurns(risk.turn_indices);
+        if (!turns.length) return false;
+        return Math.min(...turns) >= choiceTurn;
+    });
+    if (benefitBurdenAfter) {
+        return {
+            rule: 4,
+            priority: 'High',
+            type: 'New decision information introduced after treatment selection',
+            text: 'A benefit or burden of the selected option was first recorded after selection.',
+            source_field: 'decision_overview.options_considered',
+            decisionLabel: r.decision_label,
+        };
+    }
+    if (newCore.length >= 2) {
+        return {
+            rule: 4,
+            priority: 'High',
+            type: 'New decision information introduced after treatment selection',
+            text: 'Two or more core risks of the selected option were first recorded after selection.',
+            source_field: 'informed_consent_analysis.interventions.core_risks',
+            decisionLabel: r.decision_label,
+        };
+    }
+    if (newCore.length === 1) {
+        return {
+            rule: 4,
+            priority: 'Medium',
+            type: 'New decision information introduced after treatment selection',
+            text: 'A core risk of the selected option was first recorded after selection.',
+            source_field: 'informed_consent_analysis.interventions.core_risks',
+            decisionLabel: r.decision_label,
+        };
+    }
+    return null;
+}
+
+function detectMissingCoreRisks(r) {
+    const core = consentCoreRisks(r);
+    if (!core.length) return null;
+    const missing = core.filter(risk => risk.detection_status === 'Not detected');
+    if (missing.length >= 3) {
+        return {
+            rule: 5,
+            priority: 'High',
+            type: 'Some core risks were not discussed',
+            text: 'Three or more core risks of the selected intervention were not discussed.',
+            source_field: 'informed_consent_analysis.interventions.core_risks',
+            decisionLabel: r.decision_label,
+        };
+    }
+    if (missing.length >= 2) {
+        return {
+            rule: 5,
+            priority: 'Medium',
+            type: 'Some core risks were not discussed',
+            text: 'Two core risks of the selected intervention were not discussed.',
+            source_field: 'informed_consent_analysis.interventions.core_risks',
+            decisionLabel: r.decision_label,
+        };
+    }
+    return null;
+}
+
+function rankCommunicationOpportunities(hits) {
+    const order = { 1: 0, 3: 1, 4: 2, 5: 3, 2: 4 };
+    return (hits || []).slice().sort((a, b) => {
+        if (a.priority !== b.priority) return a.priority === 'High' ? -1 : 1;
+        return (order[a.rule] ?? 9) - (order[b.rule] ?? 9);
+    });
+}
+
+function communicationOpportunity(start, regions) {
+    const list = regions || [];
+    const index = opportunityIndexDecision(list) || start;
+    if (!index) return null;
+    const choiceTurn = choiceTurnOn(index);
+    const hits = [];
+    if (choiceTurn != null) {
+        [detectAltWithoutOutcome, detectNoPreferenceBeforeSelection, detectPriorityConcernTiming, detectNewInfoAfterSelection]
+            .forEach(fn => {
+                const hit = fn(index, choiceTurn);
+                if (hit) hits.push(hit);
+            });
+    }
+    const missing = detectMissingCoreRisks(index);
+    if (missing) hits.push(missing);
+    const best = rankCommunicationOpportunities(hits)[0];
+    if (!best) return null;
+    return {
+        text: validateGenerated(best.text, best.type),
+        trace: best.source_field,
+        decisionLabel: best.decisionLabel,
+        priority: best.priority,
+        type: best.type,
+        rule: best.rule,
+    };
 }
 
 function ccqFieldBrief(field) {
@@ -6330,38 +6569,12 @@ function templateGenerativeLayer(r, regions) {
 
 function normalizeGenerativeLayerFromModel(raw, r, regions) {
     const fallback = templateGenerativeLayer(r, regions);
-    const payload = structuredCcqForGeneration(r, regions);
-    const eligibleQs = (payload.questions || []).filter(q => OPEN_QUESTION_STATUSES.includes(q.response_status));
-    const missedCore = payload.missed_core_risks || [];
     const summary = validateGenerated(raw?.decision_summary, fallback.decision_summary);
-    const oppIn = raw?.communication_opportunity || {};
-    let opportunity = {
-        eligible: false,
-        text: "",
-        source_decision_label: "",
-        source_field: "decision_overview.patient_considerations.questions",
-    };
-    if (oppIn.eligible && (eligibleQs.length || missedCore.length)) {
-        const text = validateGenerated(oppIn.text, "");
-        if (text) {
-            opportunity = {
-                eligible: true,
-                text,
-                source_decision_label: oppIn.source_decision_label || r.decision_label,
-                source_field: eligibleQs.length
-                    ? "decision_overview.patient_considerations.questions"
-                    : "informed_consent_analysis.interventions.core_risks",
-            };
-        }
-    }
-    if (!opportunity.eligible && fallback.communication_opportunity?.eligible) {
-        opportunity = fallback.communication_opportunity;
-    }
     return {
         source: "llm",
         decision_summary: summary,
         traces: ["generative_layer.llm", ...fallback.traces],
-        communication_opportunity: opportunity,
+        communication_opportunity: fallback.communication_opportunity,
     };
 }
 
@@ -6398,15 +6611,13 @@ function renderGenerativeLayer(selected, regions) {
 
 function renderCommunicationOpportunity(selected, regions) {
     if (!selected) return '';
-    const stored = selected.generative_layer;
-    const liveOpp = communicationOpportunity(selected, regions);
-    const storedOpp = stored?.communication_opportunity?.eligible ? stored.communication_opportunity : null;
-    const opportunity = storedOpp
-        ? { text: storedOpp.text, trace: storedOpp.source_field, decisionLabel: storedOpp.source_decision_label }
-        : liveOpp;
+    const opportunity = communicationOpportunity(selected, regions);
     if (!opportunity) return '';
+    const priority = opportunity.priority
+        ? ` <span class="opp-priority">${escHtml(opportunity.priority)}</span>`
+        : '';
     return `<div class="comm-opportunity">
-        <strong>Communication Opportunity</strong>
+        <strong>Communication Opportunity${priority}</strong>
         <p>${escHtml(opportunity.text)}</p>
     </div>`;
 }
