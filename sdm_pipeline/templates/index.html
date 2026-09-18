@@ -751,6 +751,9 @@
         #riskBubblePlot svg .static-layer .plot-bg { pointer-events:all; }
 
         body.demo-page .topbar-new,
+        body.demo-page .brand-name,
+        body.demo-page .breadcrumb-trail,
+        body.demo-page .topbar-actions,
         body.demo-page .dept-header,
         body.demo-page .summary-bar,
         body.demo-page .dept-controls-row,
@@ -762,8 +765,32 @@
         body.demo-page .legend-kicker-row,
         body.demo-page .chart-controls-row { display: none !important; }
         body.demo-page .legend-block { margin: 0 0 36px; }
-        body.demo-page .demo-dept-title { margin: 0 0 28px; }
+        body.demo-page .demo-dept-title {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 16px 24px;
+            flex-wrap: wrap;
+            margin: 0 0 28px;
+        }
         body.demo-page .demo-dept-title h2 { margin: 0; }
+        body.demo-page .demo-date-select { display: block; }
+        body.demo-page .flow-caption {
+            position: static;
+            width: auto;
+            max-width: none;
+            padding: 0 0 12px;
+            pointer-events: auto;
+        }
+        body.demo-page .demo-chart-desc {
+            display: block;
+            margin: 8px 0 0;
+            color: var(--muted);
+            font-size: 0.88rem;
+            font-weight: 500;
+            line-height: 1.45;
+            max-width: 52rem;
+        }
 
         /* ---------- DECISION MAP (readable tree) ---------- */
         .decision-spine { margin:0 0 36px; background:var(--surface); padding:22px 24px 18px; }
@@ -1331,13 +1358,27 @@ let SANKEY_COMPARE_SCOPE = 'all';
 let RISK_BUBBLE_Y_METRIC = 'procedure_variation';
 const DEMO_PAGE = document.body?.dataset?.demoPage === 'true';
 const DEMO_PROCEDURES = [
-    'Cervical spinal fusion',
-    'Lumbar decompression with possible fusion',
     'Lumbar laminectomy',
-    'Posterior lumbar fusion',
+    'Lumbar decompression with possible fusion',
+    'Lumbar microdiscectomy',
+    'Cervical spinal fusion',
+    'Posterior cervical decompression',
     'Spinal cord stimulator implant',
 ];
+const DEMO_PROCEDURE_LABELS = {
+    'Lumbar laminectomy': 'Lumbar decompression (no fusion planned)',
+    'Lumbar decompression with possible fusion': 'Lumbar decompression ± fusion',
+    'Lumbar microdiscectomy': 'Lumbar microdiscectomy',
+    'Cervical spinal fusion': 'Anterior cervical discectomy and fusion (ACDF)',
+    'Posterior cervical decompression': 'Posterior cervical decompression',
+    'Spinal cord stimulator implant': 'Spinal cord stimulator implantation',
+};
 if (DEMO_PAGE) RISK_BUBBLE_Y_METRIC = 'procedure_variation';
+
+function demoProcedureLabel(name) {
+    if (!DEMO_PAGE) return name;
+    return DEMO_PROCEDURE_LABELS[name] || name;
+}
 
 function isDemoProcedure(name) {
     const needle = String(name || '').toLowerCase();
@@ -1348,7 +1389,12 @@ function procedureTabList() {
     if (DEMO_PAGE) return DEMO_PROCEDURES.slice();
     return [...new Set(DEPARTMENT_EPISODES.map(e => e.procedure).filter(Boolean))].sort();
 }
-let DATE_RANGE_DAYS = null;
+function magentaByRate(rate) {
+    const t = Math.max(0, Math.min(1, Number(rate) / 100));
+    if (typeof d3 === 'undefined') return '#c2185b';
+    return d3.interpolateRgb('#f4d0e4', '#9b185f')(t);
+}
+let DATE_RANGE_DAYS = DEMO_PAGE ? 90 : null;
 let BOX_PLOT_EPISODES = [];
 let BOX_PLOT_CLINICIANS = [];
 let EPISODE_TABLE_SORT = 'core_risk';
@@ -1676,7 +1722,9 @@ function refreshDepartmentDashboard() {
     renderSankeyDelta(sankeyEligibleEpisodes());
     renderRiskGapBubbleChart();
     const framingScores = DEMO_PAGE
-        ? (DEPARTMENT_PROCEDURE_DATA.framing_scores || []).filter(row => isDemoProcedure(row.procedure))
+        ? (DEPARTMENT_PROCEDURE_DATA.framing_scores || [])
+            .filter(row => isDemoProcedure(row.procedure))
+            .sort((a, b) => DEMO_PROCEDURES.indexOf(a.procedure) - DEMO_PROCEDURES.indexOf(b.procedure))
         : (DEPARTMENT_PROCEDURE_DATA.framing_scores || []);
     renderFramingDotPlot(framingScores);
     renderBoxPlot(base, DEPARTMENT_CLINICIANS, NAV.clinicianId);
@@ -1719,7 +1767,8 @@ function renderDepartmentShell(data, episodes) {
         </tr>`).join('');
     const procedureTabs = allProcedures.map(p => {
         const cls = NAV.procedure ? (NAV.procedure === p ? 'is-active' : 'is-muted') : '';
-        return `<span class="${cls}" onclick="navGoTo('procedure','${escAttr(p)}')" title="Click to isolate ${escAttr(p)}">${escHtml(p)}</span>`;
+        const label = demoProcedureLabel(p);
+        return `<span class="${cls}" onclick="navGoTo('procedure','${escAttr(p)}')" title="Click to isolate ${escAttr(label)}">${escHtml(label)}</span>`;
     }).join('') || '<span style="color:var(--muted);">No procedures yet</span>';
     const episodeTable = `
     <h3 id="episode-table-heading">Episodes</h3>
@@ -1733,7 +1782,13 @@ function renderDepartmentShell(data, episodes) {
     if (DEMO_PAGE) {
         return `
     <div class="demo-dept-title">
-        <h2>${escHtml(data.department || 'Department')}</h2>
+        <h2>Spinal center</h2>
+        <select class="control-select demo-date-select" onchange="setDateRange(this.value)" title="Filter episodes by when they occurred">
+            <option value="all" ${DATE_RANGE_DAYS === null ? 'selected' : ''}>All time</option>
+            <option value="30" ${DATE_RANGE_DAYS === 30 ? 'selected' : ''}>Last 30 days</option>
+            <option value="60" ${DATE_RANGE_DAYS === 60 ? 'selected' : ''}>Last 60 days</option>
+            <option value="90" ${DATE_RANGE_DAYS === 90 ? 'selected' : ''}>Last 90 days</option>
+        </select>
     </div>
     <div class="legend-block">
         <div class="legend-bar clinician-legend" aria-label="Filter charts by procedure">${procedureTabs}</div>
@@ -1833,8 +1888,7 @@ function jumpToEpisodeTable(sort) {
 }
 
 function renderMapCharts() {
-    return `
-    <div class="visual-story">
+    const flowSection = `
         <section class="story-step is-procedure-only" aria-labelledby="flow-heading">
             <div class="analytics-card">
                 <div class="flow-stage">
@@ -1844,18 +1898,21 @@ function renderMapCharts() {
                             <h3 class="chart-heading" id="flow-heading">${DEMO_PAGE ? 'Episode flow' : 'Episode Flow'}</h3>
                             <span class="info-icon" tabindex="0" data-tip="Follows one procedure's episodes from left to right: whether a single option was presented, and if alternatives came up, how thoroughly they were compared. The % next to each step is that step's share of episodes; (Δ) shows how many points higher or lower that is than your chosen benchmark.">i</span>
                         </div>
-                        <p class="jitter-hint">Pick a procedure to trace and a benchmark to compare it against below — the numbers on each step show the gap between them.</p>
+                        ${DEMO_PAGE
+                            ? '<p class="demo-chart-desc">Whether alternatives to the proposed intervention were presented and how they were compared</p>'
+                            : '<p class="jitter-hint">Pick a procedure to trace and a benchmark to compare it against below — the numbers on each step show the gap between them.</p>'}
                         <div class="chart-controls-row" id="sankeyControls"></div>
                     </div>
                     <div id="sankeyPlot"></div>
                 </div>
             </div>
-        </section>
+        </section>`;
+    const bubbleSection = `
         <section class="story-step" aria-labelledby="risk-bubble-heading">
             <div class="analytics-card">
                 <p class="section-kicker">Core risk disclosure gaps</p>
                 <div class="chart-heading-row">
-                    <h3 class="chart-heading" id="risk-bubble-heading">Which core risks get missed, and how consistently</h3>
+                    <h3 class="chart-heading" id="risk-bubble-heading">${DEMO_PAGE ? 'How often risk categories are not discussed' : 'Which core risks get missed, and how consistently'}</h3>
                     <span class="info-icon" tabindex="0" data-tip="Each bubble is a core-risk category. Horizontal position = how often it's missed across applicable episodes. Vertical position = how much procedures (or clinicians, via the Compare variation toggle above) vary in how often they miss it. Bubble size = number of applicable episodes. If a procedure or clinician is already selected above, click a bubble to see those episodes. Otherwise click a bubble to split it, then click a sub-bubble — or click empty space to contract.">i</span>
                 </div>
                 <p class="jitter-hint">${NAV.clinicianId
@@ -1868,17 +1925,19 @@ function renderMapCharts() {
                 <div id="riskBubblePlot"></div>
                 <div id="riskBubbleZoomPanel"></div>
             </div>
-        </section>
+        </section>`;
+    const framingSection = `
         <section class="story-step is-procedure-only" aria-labelledby="framing-dot-heading">
             <div class="analytics-card">
                 <p class="section-kicker">Which Procedures Skew Toward Single-Option vs. Comparative Framing</p>
                 <div class="chart-heading-row">
-                    <h3 class="chart-heading" id="framing-dot-heading">How clinicians frame decisions differently across procedures</h3>
+                    <h3 class="chart-heading" id="framing-dot-heading">${DEMO_PAGE ? 'How discussion of alternatives varies across procedures' : 'How clinicians frame decisions differently across procedures'}</h3>
                     <span class="info-icon" tabindex="0" data-tip="Ordinal win-rate vs. peer procedures (50% = typical), with a 95% bootstrap confidence interval. This is descriptive only — it does not imply that more comparative framing is always more clinically appropriate.">i</span>
                 </div>
                 <div id="framingDotPlot"></div>
             </div>
-        </section>
+        </section>`;
+    const clinicianSection = `
         <section class="story-step is-clinician-only" aria-labelledby="quality-map-heading">
             <div class="jitter-wrap">
                 <p class="section-kicker">Secondary analysis</p>
@@ -1892,7 +1951,10 @@ function renderMapCharts() {
                 </div>
                 <div id="boxPlotZoomPanel"></div>
             </div>
-        </section>
+        </section>`;
+    return `
+    <div class="visual-story">
+        ${DEMO_PAGE ? `${flowSection}${framingSection}${bubbleSection}` : `${flowSection}${bubbleSection}${framingSection}${clinicianSection}`}
     </div>`;
 }
 
@@ -1925,16 +1987,26 @@ function questionsAnswered(episodes) {
 }
 
 const DISCUSSION_CATEGORIES = ['Single option presented', 'Not compared', 'Limited comparison', 'Meaningful comparison'];
+const DEMO_DISCUSSION_CATEGORIES = ['Single option', 'Limited comparison', 'Meaningful comparison'];
 const CHART_LANE_MARGIN = { left: 68, right: 32, inset: 50 };
+
+function discussionCategories() {
+    return DEMO_PAGE ? DEMO_DISCUSSION_CATEGORIES : DISCUSSION_CATEGORIES;
+}
 
 function chartLaneScale(width) {
     return d3.scalePoint()
-        .domain(DISCUSSION_CATEGORIES)
+        .domain(discussionCategories())
         .range([CHART_LANE_MARGIN.left + CHART_LANE_MARGIN.inset, width - CHART_LANE_MARGIN.right - CHART_LANE_MARGIN.inset])
         .padding(0.25);
 }
 
 function jitterCategory(ep) {
+    if (DEMO_PAGE) {
+        if (ep.decision_framing === 'Single option presented' || ep.tradeoff_level === 'Not compared') return 'Single option';
+        if (ep.tradeoff_level === 'Limited comparison' || ep.tradeoff_level === 'Meaningful comparison') return ep.tradeoff_level;
+        return null;
+    }
     if (ep.decision_framing === 'Single option presented') return 'Single option presented';
     return ep.tradeoff_level || null;
 }
@@ -1975,29 +2047,39 @@ function renderQuestionRollup(rows, episodes) {
 }
 
 function buildSankeyData(episodes) {
-    const counts = new Map(DISCUSSION_CATEGORIES.map(category => [category, 0]));
+    const categories = discussionCategories();
+    const counts = new Map(categories.map(category => [category, 0]));
     episodes.forEach(ep => {
         const category = jitterCategory(ep);
         if (category) counts.set(category, (counts.get(category) || 0) + 1);
     });
-    const links = [
-        {source:'all',target:'Single option presented',value:counts.get('Single option presented') || 0},
-        {source:'all',target:'alternatives',value:(counts.get('Not compared') || 0)+(counts.get('Limited comparison') || 0)+(counts.get('Meaningful comparison') || 0)},
-        {source:'alternatives',target:'Not compared',value:counts.get('Not compared') || 0},
-        {source:'alternatives',target:'Limited comparison',value:counts.get('Limited comparison') || 0},
-        {source:'alternatives',target:'Meaningful comparison',value:counts.get('Meaningful comparison') || 0}
-    ].filter(link => link.value > 0);
-    return {counts, links};
+    const links = DEMO_PAGE
+        ? [
+            {source:'all',target:'Single option',value:counts.get('Single option') || 0},
+            {source:'all',target:'alternatives',value:(counts.get('Limited comparison') || 0)+(counts.get('Meaningful comparison') || 0)},
+            {source:'alternatives',target:'Limited comparison',value:counts.get('Limited comparison') || 0},
+            {source:'alternatives',target:'Meaningful comparison',value:counts.get('Meaningful comparison') || 0}
+        ]
+        : [
+            {source:'all',target:'Single option presented',value:counts.get('Single option presented') || 0},
+            {source:'all',target:'alternatives',value:(counts.get('Not compared') || 0)+(counts.get('Limited comparison') || 0)+(counts.get('Meaningful comparison') || 0)},
+            {source:'alternatives',target:'Not compared',value:counts.get('Not compared') || 0},
+            {source:'alternatives',target:'Limited comparison',value:counts.get('Limited comparison') || 0},
+            {source:'alternatives',target:'Meaningful comparison',value:counts.get('Meaningful comparison') || 0}
+        ];
+    return {counts, links: links.filter(link => link.value > 0)};
 }
 
 // Percent of episodes in each Sankey node's bucket, keyed by node id
-// ('alternatives' plus the four DISCUSSION_CATEGORIES leaves).
+// ('alternatives' plus the discussion-category leaves).
 function categoryPercents(episodes) {
     const { counts } = buildSankeyData(episodes);
     const total = episodes.length || 1;
-    const alternativesCount = (counts.get('Not compared') || 0) + (counts.get('Limited comparison') || 0) + (counts.get('Meaningful comparison') || 0);
+    const alternativesCount = DEMO_PAGE
+        ? (counts.get('Limited comparison') || 0) + (counts.get('Meaningful comparison') || 0)
+        : (counts.get('Not compared') || 0) + (counts.get('Limited comparison') || 0) + (counts.get('Meaningful comparison') || 0);
     const percents = new Map();
-    DISCUSSION_CATEGORIES.forEach(cat => percents.set(cat, 100 * (counts.get(cat) || 0) / total));
+    discussionCategories().forEach(cat => percents.set(cat, 100 * (counts.get(cat) || 0) / total));
     percents.set('alternatives', 100 * alternativesCount / total);
     return { counts, percents };
 }
@@ -2040,12 +2122,8 @@ function renderSankeyDelta(episodes) {
         el.innerHTML = '<p class="jitter-hint">No procedure-level episodes yet.</p>';
         return;
     }
-    // Re-derive the default focus from the *current* eligible episodes any
-    // time it hasn't been explicitly chosen by the user — otherwise, once the
-    // top procedure/date filters change (e.g. narrowed to one procedure, then
-    // widened back to "All"), the auto-picked focus stayed valid (still
-    // technically in the list) and the chart never updated to match.
-    if (!SANKEY_FOCUS_PROCEDURE || SANKEY_FOCUS_IS_AUTO || !allProcedures.includes(SANKEY_FOCUS_PROCEDURE)) {
+    const demoAll = DEMO_PAGE && !NAV.procedure;
+    if (!demoAll && (!SANKEY_FOCUS_PROCEDURE || SANKEY_FOCUS_IS_AUTO || !allProcedures.includes(SANKEY_FOCUS_PROCEDURE))) {
         const volumeByProc = new Map();
         episodes.forEach(ep => ep.procedure && volumeByProc.set(ep.procedure, (volumeByProc.get(ep.procedure) || 0) + 1));
         SANKEY_FOCUS_PROCEDURE = [...volumeByProc.entries()].sort((a, b) => b[1] - a[1])[0][0];
@@ -2055,7 +2133,7 @@ function renderSankeyDelta(episodes) {
 
     if (!DEMO_PAGE) renderSankeyControls(allProcedures);
 
-    const focusEpisodes = episodes.filter(ep => ep.procedure === SANKEY_FOCUS_PROCEDURE);
+    const focusEpisodes = demoAll ? episodes : episodes.filter(ep => ep.procedure === SANKEY_FOCUS_PROCEDURE);
     const benchmarkEpisodes = SANKEY_COMPARE_SCOPE === 'all'
         ? episodes.filter(ep => ep.procedure !== SANKEY_FOCUS_PROCEDURE)
         : episodes.filter(ep => ep.procedure === SANKEY_COMPARE_SCOPE);
@@ -2070,12 +2148,17 @@ function renderSankeyDelta(episodes) {
     const { counts, links } = buildSankeyData(focusEpisodes);
     const { percents: focusPercents } = categoryPercents(focusEpisodes);
     const { percents: benchmarkPercents } = categoryPercents(benchmarkEpisodes);
+    const categories = discussionCategories();
+    const altLaneCats = DEMO_PAGE ? ['Limited comparison', 'Meaningful comparison'] : ['Not compared', 'Limited comparison', 'Meaningful comparison'];
+    const rootLabel = demoAll
+        ? `All procedures (${focusEpisodes.length} episodes)`
+        : `${demoProcedureLabel(SANKEY_FOCUS_PROCEDURE)} (${focusEpisodes.length} episodes)`;
 
     const laneX = chartLaneScale(width);
     const nodes = new Map();
-    nodes.set('all', {id:'all', name:`${SANKEY_FOCUS_PROCEDURE} (${focusEpisodes.length} episodes)`, x:width / 2, y:55, value:focusEpisodes.length, kind:'root'});
-    nodes.set('alternatives', {id:'alternatives', name:'Alternatives presented', x:d3.mean(['Not compared','Limited comparison','Meaningful comparison'], laneX), y:245, value:links.find(l => l.target === 'alternatives')?.value || 0, kind:'branch'});
-    DISCUSSION_CATEGORIES.forEach(category => nodes.set(category, {id:category, name:category, x:laneX(category), y:475, value:counts.get(category) || 0, kind:'terminal'}));
+    nodes.set('all', {id:'all', name:rootLabel, x:width / 2, y:55, value:focusEpisodes.length, kind:'root'});
+    nodes.set('alternatives', {id:'alternatives', name:'Alternatives presented', x:d3.mean(altLaneCats, laneX), y:245, value:links.find(l => l.target === 'alternatives')?.value || 0, kind:'branch'});
+    categories.forEach(category => nodes.set(category, {id:category, name:category, x:laneX(category), y:475, value:counts.get(category) || 0, kind:'terminal'}));
     const maxValue = Math.max(1, focusEpisodes.length);
     const maxBarWidth = Math.min(width * 0.42, 420);
     const widthUnit = maxBarWidth / maxValue;
@@ -2117,7 +2200,7 @@ function renderSankeyDelta(episodes) {
             'Z'
         ].join(' ');
     };
-    const svg = d3.select(el).append('svg').attr('viewBox',`0 0 ${width} ${height}`).attr('role','img').attr('aria-label',`Flow of treatment option discussion quality for ${SANKEY_FOCUS_PROCEDURE}, with benchmark deltas`);
+    const svg = d3.select(el).append('svg').attr('viewBox',`0 0 ${width} ${height}`).attr('role','img').attr('aria-label',`Flow of treatment option discussion quality for ${rootLabel}`);
     svg.append('g').selectAll('path').data(links).join('path')
         .attr('d',ribbonPath).attr('fill','#7eaee8').attr('fill-opacity',.46)
         .append('title').text(d=>`${nodes.get(d.source).name} → ${nodes.get(d.target).name}: ${d.value} episodes`);
@@ -2136,12 +2219,13 @@ function renderSankeyDelta(episodes) {
     deltaGroup.each(function(d) {
         const g = d3.select(this);
         const focusPct = focusPercents.get(d.id) || 0;
-        const benchmarkPct = benchmarkPercents.get(d.id) || 0;
-        const delta = Math.round(focusPct - benchmarkPct);
-        const positive = delta >= 0;
         g.append('text').attr('text-anchor','middle').attr('dy',0)
             .style('font-size','13px').style('font-weight',800).attr('fill','#0d2136')
             .text(`${Math.round(focusPct)}%`);
+        if (DEMO_PAGE) return;
+        const benchmarkPct = benchmarkPercents.get(d.id) || 0;
+        const delta = Math.round(focusPct - benchmarkPct);
+        const positive = delta >= 0;
         g.append('text').attr('text-anchor','middle').attr('dy',16)
             .style('font-size','11px').style('font-weight',800)
             .attr('fill', positive ? '#0b8f7f' : '#d1531f')
@@ -2315,7 +2399,7 @@ function bubbleSubGroupLabel(category, subGroup) {
         const clin = DEPARTMENT_CLINICIANS.find(c => c.id === subGroup);
         return clin ? clin.name : subGroup;
     }
-    return subGroup;
+    return demoProcedureLabel(subGroup);
 }
 
 // Breaks a sub-bubble label (clinician or procedure name) into up to two
@@ -2636,7 +2720,7 @@ function renderBubbleSizeLegend(usable, r) {
     if (!el) return;
     const maxN = Math.max(1, ...usable.map(row => row.applicable_episodes));
     const refs = [...new Set([Math.max(5, Math.round(maxN * 0.15)), Math.round(maxN * 0.5), maxN])];
-    el.innerHTML = `<div class="bubble-legend"><span class="bubble-legend-title">Bubble size = applicable episodes</span>${refs.map(n => `
+    el.innerHTML = `<div class="bubble-legend"><span class="bubble-legend-title">${DEMO_PAGE ? 'Bubble size = # of applicable episodes' : 'Bubble size = applicable episodes'}</span>${refs.map(n => `
         <div class="bubble-legend-item">
             <span class="bubble-legend-swatch" style="width:${Math.round(r(n) * 2)}px;height:${Math.round(r(n) * 2)}px;"></span>
             <span class="bubble-legend-label">n=${n}</span>
@@ -2792,7 +2876,7 @@ function renderRiskGapBubbleChart(rows) {
     quadrantLabel(width - margin.right - 8, height - margin.bottom - 12, 'end', 'Broad recurring gap');
     staticG.append('text').attr('x', (margin.left + width - margin.right) / 2).attr('y', height - 16).attr('text-anchor', 'middle')
         .style('font-size', '10px').style('font-weight', 800).style('letter-spacing', '0.14em').attr('fill', '#5d7691')
-        .text('GAP RATE AMONG APPLICABLE EPISODES');
+        .text(DEMO_PAGE ? 'RISK DISCUSSION GAP RATE' : 'GAP RATE AMONG APPLICABLE EPISODES');
     staticG.append('text').attr('transform', 'rotate(-90)').attr('x', -(margin.top + height - margin.bottom) / 2).attr('y', 16).attr('text-anchor', 'middle')
         .style('font-size', '10px').style('font-weight', 800).style('letter-spacing', '0.14em').attr('fill', '#5d7691')
         .text(yLabel.toUpperCase());
@@ -2835,6 +2919,7 @@ function renderRiskGapBubbleChart(rows) {
         .on('click', (event, row) => { event.stopPropagation(); selectBubbleCategory(row.risk_category); })
         .transition().duration(dur)
         .attr('cx', row => x(row.gap_rate)).attr('cy', row => y(row[yField])).attr('r', row => r(row.applicable_episodes))
+        .attr('fill', row => RISK_CATEGORY_COLORS(row.risk_category))
         .attr('fill-opacity', row => !zoomed ? 0.75 : (row.risk_category === zoomed ? 0.88 : 0.1))
         .attr('stroke', row => row.risk_category === zoomed ? 'var(--navy)' : '#fff')
         .attr('stroke-width', row => row.risk_category === zoomed ? 3 : 1.5)
@@ -2986,6 +3071,21 @@ function renderRiskGapBubbleChart(rows) {
 // Ordinal win-rate dot + 95% bootstrap CI plot: one row per procedure,
 // centered on a 50% peer-reference line (Jacob's implementation summary
 // steps A-D, computed server-side in procedure_analytics.py).
+function wrapFramingLabel(text, maxChars = 28) {
+    const words = String(text || '').split(/\s+/);
+    const lines = [];
+    let current = '';
+    words.forEach(word => {
+        const next = current ? `${current} ${word}` : word;
+        if (next.length > maxChars && current) {
+            lines.push(current);
+            current = word;
+        } else current = next;
+    });
+    if (current) lines.push(current);
+    return lines.slice(0, 3);
+}
+
 function renderFramingDotPlot(rows) {
     const el = document.getElementById('framingDotPlot');
     if (!el || typeof d3 === 'undefined') return;
@@ -2996,8 +3096,10 @@ function renderFramingDotPlot(rows) {
     }
 
     const width = Math.max(el.clientWidth || 1000, 760);
-    const rowHeight = 46;
-    const margin = { top: 56, right: 70, bottom: 40, left: 240 };
+    const rowHeight = DEMO_PAGE ? 58 : 46;
+    const margin = DEMO_PAGE
+        ? { top: 56, right: 70, bottom: 28, left: 280 }
+        : { top: 56, right: 70, bottom: 40, left: 240 };
     const height = margin.top + margin.bottom + rowHeight * rows.length;
 
     const tooltip = d3.select(el).append('div').attr('class', 'beeswarm-tooltip');
@@ -3011,22 +3113,36 @@ function renderFramingDotPlot(rows) {
         .call(g => g.select('.domain').attr('stroke', '#d4e2f0'))
         .selectAll('text').attr('fill', '#5d7691').style('font-size', '11px');
 
-    svg.append('line').attr('x1', x(50)).attr('x2', x(50)).attr('y1', margin.top - 24).attr('y2', height - margin.bottom + 8)
-        .attr('stroke', '#9bb0c4').attr('stroke-dasharray', '4,4');
-    svg.append('text').attr('x', x(50)).attr('y', height - margin.bottom + 24).attr('text-anchor', 'middle')
-        .style('font-size', '10px').style('font-weight', 700).attr('fill', '#5d7691').text('Typical peer pattern (50%)');
-
-    svg.append('text').attr('x', margin.left).attr('y', margin.top - 34).attr('text-anchor', 'start')
-        .style('font-size', '10px').style('font-weight', 800).style('letter-spacing', '0.06em').attr('fill', '#5d7691')
-        .text('← MORE SINGLE-OPTION FRAMING');
-    svg.append('text').attr('x', width - margin.right).attr('y', margin.top - 34).attr('text-anchor', 'end')
-        .style('font-size', '10px').style('font-weight', 800).style('letter-spacing', '0.06em').attr('fill', '#5d7691')
-        .text('MORE COMPARATIVE FRAMING →');
+    if (!DEMO_PAGE) {
+        svg.append('line').attr('x1', x(50)).attr('x2', x(50)).attr('y1', margin.top - 24).attr('y2', height - margin.bottom + 8)
+            .attr('stroke', '#9bb0c4').attr('stroke-dasharray', '4,4');
+        svg.append('text').attr('x', x(50)).attr('y', height - margin.bottom + 24).attr('text-anchor', 'middle')
+            .style('font-size', '10px').style('font-weight', 700).attr('fill', '#5d7691').text('Typical peer pattern (50%)');
+        svg.append('text').attr('x', margin.left).attr('y', margin.top - 34).attr('text-anchor', 'start')
+            .style('font-size', '10px').style('font-weight', 800).style('letter-spacing', '0.06em').attr('fill', '#5d7691')
+            .text('← MORE SINGLE-OPTION FRAMING');
+        svg.append('text').attr('x', width - margin.right).attr('y', margin.top - 34).attr('text-anchor', 'end')
+            .style('font-size', '10px').style('font-weight', 800).style('letter-spacing', '0.06em').attr('fill', '#5d7691')
+            .text('MORE COMPARATIVE FRAMING →');
+    } else {
+        svg.append('text').attr('x', margin.left).attr('y', margin.top - 34).attr('text-anchor', 'start')
+            .style('font-size', '10px').style('font-weight', 800).style('letter-spacing', '0.06em').attr('fill', '#5d7691')
+            .text('← Less comparative discussion');
+        svg.append('text').attr('x', width - margin.right).attr('y', margin.top - 34).attr('text-anchor', 'end')
+            .style('font-size', '10px').style('font-weight', 800).style('letter-spacing', '0.06em').attr('fill', '#5d7691')
+            .text('More comparative discussion →');
+    }
 
     const row = svg.append('g').selectAll('g').data(rows).join('g').attr('transform', d => `translate(0,${y(d.procedure)})`);
 
-    row.append('text').attr('x', margin.left - 16).attr('y', 5).attr('text-anchor', 'end')
-        .style('font-size', '12.5px').style('font-weight', 700).attr('fill', '#0d2136').text(d => d.procedure);
+    const label = row.append('text').attr('x', margin.left - 16).attr('y', 5).attr('text-anchor', 'end')
+        .style('font-size', '12.5px').style('font-weight', 700).attr('fill', '#0d2136');
+    label.each(function(d) {
+        const lines = wrapFramingLabel(demoProcedureLabel(d.procedure));
+        d3.select(this).attr('y', lines.length > 1 ? -6 : 5);
+        d3.select(this).selectAll('tspan').data(lines).join('tspan')
+            .attr('x', margin.left - 16).attr('dy', (line, i) => i === 0 ? 0 : 14).text(line => line);
+    });
 
     row.append('line').attr('x1', d => x(d.ci_low)).attr('x2', d => x(d.ci_high)).attr('y1', 0).attr('y2', 0)
         .attr('stroke', '#8fa9c4').attr('stroke-width', 2);
@@ -3034,12 +3150,12 @@ function renderFramingDotPlot(rows) {
     row.append('line').attr('x1', d => x(d.ci_high)).attr('x2', d => x(d.ci_high)).attr('y1', -5).attr('y2', 5).attr('stroke', '#8fa9c4').attr('stroke-width', 2);
 
     row.append('circle').attr('cx', d => x(d.score)).attr('cy', 0).attr('r', 7)
-        .attr('fill', d => d.score >= 50 ? '#0b8f7f' : '#d1531f').attr('stroke', '#fff').attr('stroke-width', 2)
+        .attr('fill', d => DEMO_PAGE ? magentaByRate(d.score) : (d.score >= 50 ? '#0b8f7f' : '#d1531f')).attr('stroke', '#fff').attr('stroke-width', 2)
         .style('cursor', 'pointer')
         .on('mousemove', function(event, d) {
             const rect = el.getBoundingClientRect();
             tooltip.html(
-                `<strong>${escHtml(d.procedure)}</strong><br>` +
+                `<strong>${escHtml(demoProcedureLabel(d.procedure))}</strong><br>` +
                 `${d.score}% win-rate vs. peers (95% CI ${d.ci_low}–${d.ci_high}%)<br>` +
                 `n=${d.n} episodes`
             ).style('left', `${event.clientX - rect.left + 12}px`).style('top', `${event.clientY - rect.top - 18}px`).style('opacity', 1);

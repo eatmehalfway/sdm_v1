@@ -116,6 +116,13 @@ PROCEDURE_DEFS = [
         "clinicians": None,
     },
     {
+        "name": "Posterior cervical decompression",
+        "n": 30,
+        "framing_bias": 0.20,
+        "categories": [CAT_NEURO, CAT_INFECTION, CAT_BLEEDING, CAT_STRUCTURAL, CAT_TREATMENT_FAILURE, CAT_REINTERVENTION, CAT_PAIN],
+        "clinicians": None,
+    },
+    {
         "name": "Total knee arthroplasty",
         "n": 45,
         "framing_bias": 0.40,
