@@ -3360,7 +3360,7 @@ function parseEpisodePayload(data, episodeId) {
         if (!episode.run_date) episode.run_date = overview.run_date;
     }
     const defaultProcedure = (raw && !Array.isArray(raw) && raw.default_procedure) || data.default_procedure;
-    hydrateInformedConsent(regions, defaultProcedure);
+    hydrateInformedConsent(regions, defaultProcedure, data.turns || []);
     return { episodeId, regions, turns: data.turns || [], schemaVersion, episode };
 }
 
@@ -3709,7 +3709,7 @@ const DECISION_MERGE_SCHEMA = {
     required: ["merged_decisions"]
 };
 
-const RELEVANCE_FILTERING_PROMPT = `Identify exact turn indices RELEVANT to this clinical decision, its options, tradeoffs, patient values, and any procedure risks discussed in the decision context.`;
+const RELEVANCE_FILTERING_PROMPT = `Identify exact turn indices RELEVANT to this clinical decision, its options, tradeoffs, patient values, and any procedure risks discussed in the decision context. Include turns after a treatment selection when they discuss procedure risks, recovery, or informed-consent counseling.`;
 const RELEVANCE_FILTERING_SCHEMA = {
     type: "object",
     properties: { relevant_turn_indices: { type: "array", items: { type: "integer" } } },
@@ -4387,7 +4387,7 @@ function riskMentionedInText(riskName, text) {
     return tokens.length >= 2 ? hits.length >= 2 : hits.length >= 1;
 }
 
-function evidenceForOntologyRisk(riskName, fields) {
+function evidenceForOntologyRisk(riskName, fields, turns) {
     for (const field of fields || []) {
         const text = fieldPlainText(field);
         if (!riskMentionedInText(riskName, text)) continue;
@@ -4396,10 +4396,36 @@ function evidenceForOntologyRisk(riskName, fields) {
             turn_indices: allTurnIndices(field),
         };
     }
-    return null;
+    const hits = [];
+    (turns || []).forEach(t => {
+        const text = (t.text_lines || []).join(' ');
+        if (!riskMentionedInText(riskName, text)) return;
+        hits.push(t);
+    });
+    if (!hits.length) return null;
+    return {
+        quote: String((hits[0].text_lines || []).join(' ')).trim(),
+        turn_indices: hits.map(t => t.index).filter(n => n != null),
+    };
 }
 
-function hydrateInformedConsent(regions, defaultProcedure) {
+function applyRiskEvidence(risk, hit) {
+    if (!hit) return;
+    risk.detection_status = 'Discussed';
+    if (!String(risk.quote || '').trim()) risk.quote = hit.quote || '';
+    if (!(risk.turn_indices || []).length) risk.turn_indices = hit.turn_indices || [];
+}
+
+function overlayDiscussedCoreRisks(target, fields, turns) {
+    (target.informed_consent_analysis?.interventions || []).forEach(intv => {
+        (intv.core_risks || []).forEach(risk => {
+            if (risk.detection_status === 'Discussed' && (risk.turn_indices || []).length) return;
+            applyRiskEvidence(risk, evidenceForOntologyRisk(risk.risk_name, fields, turns));
+        });
+    });
+}
+
+function hydrateInformedConsent(regions, defaultProcedure, turns) {
     const list = regions || [];
     const target = pickStructuralConsentDecision(list, defaultProcedure) || consentChoiceTarget(list, defaultProcedure);
     if (!target || target.status !== 'Resolved') return;
@@ -4410,8 +4436,12 @@ function hydrateInformedConsent(regions, defaultProcedure) {
     const ontKey = findOntologyKey(rawName);
     if (!ontKey) return;
     target.selected_intervention = ontKey;
-    if (decisionHasCoreRisks(target)) return;
     const fields = optionRiskFields(target);
+    const transcript = turns || [];
+    if (decisionHasCoreRisks(target)) {
+        overlayDiscussedCoreRisks(target, fields, transcript);
+        return;
+    }
     const rows = GLOBAL_RISK_DB[ontKey] || [];
     const core = rows.filter(r => normalizeRiskTier(r.importance) === 'Core');
     const source = core.length ? core : rows;
@@ -4421,7 +4451,7 @@ function hydrateInformedConsent(regions, defaultProcedure) {
         interventions: [{
             intervention_name: ontKey,
             core_risks: source.map(row => {
-                const hit = evidenceForOntologyRisk(row.risk_item, fields);
+                const hit = evidenceForOntologyRisk(row.risk_item, fields, transcript);
                 return {
                     risk_name: row.risk_item,
                     detection_status: hit ? 'Discussed' : 'Not detected',
@@ -4473,8 +4503,7 @@ async function attachInformedConsent(apiKey, regions, globalTurns, defaultProced
     target.selected_intervention = ontKey;
     const ontText = buildOntologyTextForIntervention(ontKey);
     const skeleton = skeletonConsentIntervention(ontKey);
-    const filtered = target.relevant_turn_indices || [];
-    const useTurns = filtered.length ? filtered : (globalTurns || []).map(t => Number(t.index)).filter(n => Number.isInteger(n));
+    const useTurns = consentAnalysisTurns(target, globalTurns);
     if (!ontText || !useTurns.length) {
         target.informed_consent_analysis = { interventions: [skeleton] };
         logStatus(`Pass C: recorded ontology core risks for ${ontKey} as not detected.`);
@@ -4483,9 +4512,7 @@ async function attachInformedConsent(apiKey, regions, globalTurns, defaultProced
     const snapped = rawName && String(rawName) !== ontKey ? ` (matched from "${rawName}")` : '';
     logStatus(`Pass C: Informed consent for chosen surgery: ${ontKey}${snapped} (${target.decision_label})...`);
     try {
-        const lo = Math.min(...useTurns);
-        const hi = Math.max(...useTurns);
-        const span = expandTurnRange(globalTurns, lo, hi);
+        const span = useTurns;
         const filteredText = buildTranscriptChunk(globalTurns, span.length ? span : useTurns);
         const consentChunk = await callGemini(
             apiKey,
@@ -4585,6 +4612,23 @@ function buildTranscriptChunk(globalTurns, indices) {
         }
     });
     return text;
+}
+
+function consentAnalysisTurns(target, globalTurns) {
+    const rows = globalTurns || [];
+    const relevant = (target?.relevant_turn_indices || []).map(Number).filter(n => Number.isInteger(n));
+    const encounters = new Set(target?.encounter_ids || []);
+    const inScope = t => !encounters.size || encounters.has(t.encounter);
+    const scoped = rows.filter(inScope);
+    const lo = relevant.length
+        ? Math.min(...relevant)
+        : (scoped[0] != null ? Number(scoped[0].index) : 0);
+    const hiCandidates = [
+        relevant.length ? Math.max(...relevant) : lo,
+        ...scoped.map(t => Number(t.index)).filter(n => Number.isInteger(n)),
+    ];
+    const hi = Math.max(...hiCandidates);
+    return expandTurnRange(rows, lo, hi);
 }
 
 function expandTurnRange(globalTurns, start, end) {
@@ -4818,7 +4862,7 @@ async function runAnalysis() {
         regions.forEach(alignDecisionOptions);
 
         await attachInformedConsent(apiKey, regions, globalTurns, procName);
-        hydrateInformedConsent(regions, procName);
+        hydrateInformedConsent(regions, procName, globalTurns);
 
         logStatus("Pass C2: Choice turn for the informed-consent decision...");
         await attachConsentChoiceMade(apiKey, regions, globalTurns, procName);
