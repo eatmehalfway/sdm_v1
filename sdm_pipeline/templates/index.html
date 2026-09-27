@@ -1014,11 +1014,16 @@
             border-left:4px solid var(--secondary);
             background:var(--secondary-soft);
         }
-        .comm-opportunity p { margin:0; font-size:0.92rem; line-height:1.45; }
+        .comm-opportunity p { margin:0; font-size:0.92rem; line-height:1.45; color:var(--muted); }
         .comm-opportunity strong {
             display:block; margin-bottom:6px;
             font-size:0.78rem; font-weight:800; color:var(--navy);
             text-transform:uppercase; letter-spacing:0.06em;
+        }
+        .comm-opportunity .opp-type {
+            display:block; margin:0 0 6px;
+            font-size:1rem; font-weight:700; line-height:1.35;
+            color:var(--navy); text-transform:none; letter-spacing:0;
         }
         .comm-opportunity .opp-priority {
             margin-left:8px; font-size:0.72rem; font-weight:600;
@@ -6788,12 +6793,17 @@ function renderCommunicationOpportunity(selected, regions) {
     if (!selected) return '';
     const opportunity = communicationOpportunity(selected, regions);
     if (!opportunity) return '';
+    const headline = opportunity.type || opportunity.text;
+    const detail = opportunity.type && opportunity.text && opportunity.text !== opportunity.type
+        ? `<p>${escHtml(opportunity.text)}</p>`
+        : '';
     const priority = opportunity.priority
         ? ` <span class="opp-priority">${escHtml(opportunity.priority)}</span>`
         : '';
     return `<div class="comm-opportunity">
         <strong>Communication Opportunity${priority}</strong>
-        <p>${escHtml(opportunity.text)}</p>
+        <span class="opp-type">${escHtml(headline)}</span>
+        ${detail}
     </div>`;
 }
 
