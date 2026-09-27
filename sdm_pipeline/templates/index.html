@@ -3360,6 +3360,7 @@ function parseEpisodePayload(data, episodeId) {
         if (!episode.run_date) episode.run_date = overview.run_date;
     }
     const defaultProcedure = (raw && !Array.isArray(raw) && raw.default_procedure) || data.default_procedure;
+    if (defaultProcedure) CURRENT_RUN_META = { ...(CURRENT_RUN_META || {}), default_procedure: defaultProcedure };
     hydrateInformedConsent(regions, defaultProcedure, data.turns || []);
     return { episodeId, regions, turns: data.turns || [], schemaVersion, episode };
 }
@@ -4383,7 +4384,7 @@ function riskMentionedInText(riskName, text) {
     if (name && hay.includes(name)) return true;
     const tokens = ontologyTokens(riskName).filter(tok => tok.length > 3);
     if (!tokens.length) return false;
-    const hits = tokens.filter(tok => hay.includes(tok));
+    const hits = tokens.filter(tok => hay.includes(tok) || [...hay.matchAll(/[a-z]{4,}/g)].some(m => m[0].startsWith(tok) || tok.startsWith(m[0])));
     return tokens.length >= 2 ? hits.length >= 2 : hits.length >= 1;
 }
 
@@ -4418,9 +4419,11 @@ function applyRiskEvidence(risk, hit) {
 
 function overlayDiscussedCoreRisks(target, fields, turns) {
     (target.informed_consent_analysis?.interventions || []).forEach(intv => {
-        (intv.core_risks || []).forEach(risk => {
-            if (risk.detection_status === 'Discussed' && (risk.turn_indices || []).length) return;
-            applyRiskEvidence(risk, evidenceForOntologyRisk(risk.risk_name, fields, turns));
+        ['core_risks', 'relevant_risks', 'context_dependent_risks'].forEach(tier => {
+            (intv[tier] || []).forEach(risk => {
+                if (risk.detection_status === 'Discussed' && (risk.turn_indices || []).length) return;
+                applyRiskEvidence(risk, evidenceForOntologyRisk(risk.risk_name, fields, turns));
+            });
         });
     });
 }
@@ -7372,6 +7375,7 @@ function renderUI(regions, turns, schemaVersion, opts = {}) {
     CURRENT_REGIONS = regions;
     CURRENT_TURNS = turns;
     CURRENT_SCHEMA_VERSION = schemaVersion;
+    hydrateInformedConsent(regions, CURRENT_RUN_META?.default_procedure, turns);
 
     const results = document.getElementById(CURRENT_RENDER_TARGET);
     if (!results) return;
