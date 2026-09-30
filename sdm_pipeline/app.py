@@ -52,12 +52,55 @@ init_db()
 
 @app.route('/')
 def index():
-    return render_template('index.html', demo_page=False)
+    return render_template('index.html', demo_page=False, compare_page=False)
 
 
 @app.route('/demo')
 def demo():
-    return render_template('index.html', demo_page=True)
+    return render_template('index.html', demo_page=True, compare_page=False)
+
+
+@app.route('/compare')
+def compare():
+    return render_template('index.html', demo_page=False, compare_page=True)
+
+
+@app.route('/api/jev/systemone', methods=['POST'])
+def jev_systemone():
+    import urllib.error
+    import urllib.request
+
+    data = request.get_json(silent=True) or {}
+    endpoint = (data.get("endpoint") or "https://api.typesafe.ai/v1/systemone").strip()
+    api_key = data.get("api_key") or ""
+    if not api_key:
+        return jsonify({"error": "Jev API key required"}), 400
+    if not endpoint.startswith("https://"):
+        return jsonify({"error": "Jev endpoint must start with https://"}), 400
+    payload = {
+        "state": data.get("state"),
+        "model": data.get("model") or "jev-latest",
+        "questions": data.get("questions") or {},
+    }
+    req = urllib.request.Request(
+        endpoint,
+        data=json.dumps(payload).encode(),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=180) as resp:
+            body = resp.read()
+            status = resp.status
+    except urllib.error.HTTPError as err:
+        body = err.read()
+        status = err.code
+    except Exception as err:
+        return jsonify({"error": str(err)}), 502
+    return app.response_class(body, status=status, mimetype="application/json")
 
 
 @app.route('/api/history', methods=['GET'])

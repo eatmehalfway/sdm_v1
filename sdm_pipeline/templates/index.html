@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if demo_page %}CCQ Demo{% else %}CCQ Clinical Conversation Analyzer{% endif %}</title>
+    <title>{% if compare_page %}Gemini and Jev{% elif demo_page %}CCQ Demo{% else %}CCQ Clinical Conversation Analyzer{% endif %}</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12/dist/d3-sankey.min.js"></script>
@@ -640,6 +640,45 @@
         .run-panel { width:min(720px, 94vw); z-index:221; }
         .episode-overlay-backdrop.open .episode-overlay-panel,
         .run-panel-backdrop.open .run-panel { transform:translateX(0); }
+        body.compare-page .topbar,
+        body.compare-page #view-department,
+        body.compare-page .episode-overlay-backdrop,
+        body.compare-page #settingsPopover,
+        body.compare-page .compare-hide { display:none !important; }
+        body.compare-page .run-panel-backdrop {
+            display:block; position:static; background:transparent; inset:auto;
+        }
+        body.compare-page .run-panel {
+            position:static; transform:none; width:auto; max-width:none;
+            box-shadow:none; min-height:100vh;
+        }
+        body.compare-page .compare-only { display:block; }
+        body.compare-page button.run-btn.compare-only {
+            display:inline-block;
+            margin-left:12px;
+            background:transparent;
+            color:var(--navy);
+            border:1px solid var(--navy);
+        }
+        body.compare-page button.run-btn.compare-only:hover { background:var(--navy); color:#fff; }
+        .compare-only { display:none; }
+        .compare-creds { display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; margin:0 0 18px; }
+        .compare-creds label { display:block; font-size:0.72rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+        .compare-creds input { width:100%; }
+        .compare-note { font-size:0.82rem; color:var(--muted); line-height:1.45; margin:0 0 16px; }
+        .compare-cockpits { margin-top:28px; }
+        .compare-cockpits > section { margin-bottom:42px; }
+        .compare-cockpits h2 { margin:0 0 12px; font-size:1.05rem; }
+        .compare-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:18px; }
+        .compare-grid h2 { margin:0 0 8px; font-size:0.95rem; }
+        .compare-grid pre {
+            margin:0; max-height:70vh; overflow:auto; padding:12px;
+            background:var(--navy); color:#e8f1fb; font-size:0.72rem; line-height:1.45;
+            white-space:pre-wrap; word-break:break-word;
+        }
+        @media (max-width: 900px) {
+            .compare-creds, .compare-grid { grid-template-columns:1fr; }
+        }
         .episode-overlay-header, .run-panel-header {
             flex:0 0 auto; display:flex; align-items:flex-start; justify-content:space-between; gap:18px;
             padding:22px 30px; background:var(--navy); color:#fff;
@@ -1100,7 +1139,7 @@
         }
     </style>
 </head>
-<body{% if demo_page %} class="demo-page"{% endif %} data-demo-page="{{ 'true' if demo_page else 'false' }}">
+<body class="{% if demo_page %}demo-page{% endif %}{% if compare_page %} compare-page{% endif %}" data-demo-page="{{ 'true' if demo_page else 'false' }}" data-compare-page="{{ 'true' if compare_page else 'false' }}">
 
 <div class="container" id="appContainer">
     <header class="topbar">
@@ -1172,7 +1211,36 @@
         </div>
         <div class="run-panel-body">
             <div class="setup-box">
-                <small style="display:block; margin-bottom:20px; color:#7f8fa6;">Set your Google Gemini API key in <a href="#" onclick="toggleSettingsPopover(); return false;">Settings</a> before running an analysis.</small>
+                <small class="compare-hide" style="display:block; margin-bottom:20px; color:#7f8fa6;">Set your Google Gemini API key in <a href="#" onclick="toggleSettingsPopover(); return false;">Settings</a> before running an analysis.</small>
+                <div class="compare-only">
+                    <p class="compare-note">Gemini keeps the JSON-schema passes. Jev asks Choice and Noul questions for the same cockpit fields: options, benefits, burdens, recommendation, preferences, questions, and core risks. Both raw responses show up below. Run Jev skips Gemini. Auto-detect asks Jev to pick the most likely procedure in the uploaded mapping. Keys stay in this browser; the Jev key is sent only to this app so the request can be forwarded.</p>
+                    <div class="compare-creds">
+                        <div>
+                            <label for="compareGeminiKey">Gemini API key</label>
+                            <input type="password" id="compareGeminiKey" autocomplete="off" placeholder="AIzaSy...">
+                        </div>
+                        <div>
+                            <label for="geminiModel">Gemini model</label>
+                            <input type="text" id="geminiModel" value="gemini-3.8-flash">
+                        </div>
+                        <div>
+                            <label for="geminiEndpoint">Gemini API base</label>
+                            <input type="text" id="geminiEndpoint" value="https://generativelanguage.googleapis.com/v1beta">
+                        </div>
+                        <div>
+                            <label for="jevKey">Jev API key</label>
+                            <input type="password" id="jevKey" autocomplete="off" placeholder="typesafe key">
+                        </div>
+                        <div>
+                            <label for="jevEndpoint">Jev endpoint</label>
+                            <input type="text" id="jevEndpoint" value="https://api.typesafe.ai/v1/systemone">
+                        </div>
+                        <div>
+                            <label for="jevModel">Jev model</label>
+                            <input type="text" id="jevModel" value="jev-latest">
+                        </div>
+                    </div>
+                </div>
 
                 <label><strong>0. Dynamic Taxonomy (Upload Excel File):</strong></label>
                 <input type="file" id="excelInput" accept=".xlsx, .xls">
@@ -1189,10 +1257,31 @@
                 <input type="number" id="totalEncounters" min="1" placeholder="Defaults to number of uploaded transcripts">
 
                 <button class="run-btn" onclick="runAnalysis()">Run CCQ Analysis</button>
+                <button class="run-btn compare-only" type="button" id="runJevOnlyBtn" onclick="runJevOnly()">Run Jev</button>
                 <div class="error" id="errorMsg"></div>
             </div>
             <div class="loading" id="loader">
                 <div id="statusLog"></div>
+            </div>
+            <div id="compareCockpits" class="compare-only compare-cockpits" hidden>
+                <section id="compareGeminiSection">
+                    <h2>Gemini decision analysis</h2>
+                    <div id="compareCockpitGeminiBody" data-compare-view="gemini"></div>
+                </section>
+                <section id="compareJevSection">
+                    <h2>Jev decision analysis</h2>
+                    <div id="compareCockpitJevBody" data-compare-view="jev"></div>
+                </section>
+            </div>
+            <div class="compare-only compare-grid">
+                <section>
+                    <h2>Gemini raw</h2>
+                    <pre id="geminiRaw">Waiting for a run.</pre>
+                </section>
+                <section>
+                    <h2>Jev raw</h2>
+                    <pre id="jevRaw">Waiting for a run.</pre>
+                </section>
             </div>
         </div>
     </div>
@@ -1230,8 +1319,31 @@ const FALLBACK_PROCEDURES_DB = {
 
 document.addEventListener('DOMContentLoaded', () => {
     const savedKey = localStorage.getItem('gemini_api_key');
-    if(savedKey) document.getElementById('apiKey').value = savedKey;
+    if (savedKey) document.getElementById('apiKey').value = savedKey;
     initFallbackDB();
+    if (document.body?.dataset?.comparePage === 'true') {
+        const geminiKey = document.getElementById('compareGeminiKey');
+        if (geminiKey) geminiKey.value = savedKey || '';
+        const jevKey = document.getElementById('jevKey');
+        if (jevKey) jevKey.value = localStorage.getItem('jev_api_key') || '';
+        const jevEndpoint = document.getElementById('jevEndpoint');
+        if (jevEndpoint && localStorage.getItem('jev_endpoint')) jevEndpoint.value = localStorage.getItem('jev_endpoint');
+        const geminiEndpoint = document.getElementById('geminiEndpoint');
+        if (geminiEndpoint && localStorage.getItem('gemini_endpoint')) geminiEndpoint.value = localStorage.getItem('gemini_endpoint');
+        const geminiModel = document.getElementById('geminiModel');
+        if (geminiModel && localStorage.getItem('gemini_model')) geminiModel.value = localStorage.getItem('gemini_model');
+        const jevModel = document.getElementById('jevModel');
+        if (jevModel && localStorage.getItem('jev_model')) jevModel.value = localStorage.getItem('jev_model');
+        const runBtn = document.querySelector('.run-btn');
+        if (runBtn) runBtn.textContent = 'Run Gemini and Jev';
+        document.addEventListener('click', event => {
+            const host = event.target.closest('[data-compare-view]');
+            if (!host || !COMPARE_VIEWS[host.id]) return;
+            activateCompareView(host.id);
+        }, true);
+        openRunPanel();
+        return;
+    }
     renderGlobalBreadcrumb();
     loadDepartmentOverview();
 });
@@ -1329,6 +1441,7 @@ function openRunPanel() {
 }
 
 function closeRunPanel() {
+    if (document.body?.dataset?.comparePage === 'true') return;
     NAV.runPanelOpen = false;
     const backdrop = document.getElementById('runPanelBackdrop');
     if (backdrop) backdrop.classList.remove('open');
@@ -1366,6 +1479,10 @@ let SANKEY_FOCUS_IS_AUTO = true;
 let SANKEY_COMPARE_SCOPE = 'all';
 let RISK_BUBBLE_Y_METRIC = 'procedure_variation';
 const DEMO_PAGE = document.body?.dataset?.demoPage === 'true';
+const COMPARE_PAGE = document.body?.dataset?.comparePage === 'true';
+let COMPARE_VIEWS = {};
+let GEMINI_RAW = [];
+let JEV_RAW = [];
 const DEMO_PROCEDURES = [
     'Lumbar laminectomy',
     'Lumbar decompression with possible fusion',
@@ -4421,6 +4538,7 @@ function overlayDiscussedCoreRisks(target, fields, turns) {
     (target.informed_consent_analysis?.interventions || []).forEach(intv => {
         ['core_risks', 'relevant_risks', 'context_dependent_risks'].forEach(tier => {
             (intv[tier] || []).forEach(risk => {
+                if (risk.jev_locked) return;
                 if (risk.detection_status === 'Discussed' && (risk.turn_indices || []).length) return;
                 applyRiskEvidence(risk, evidenceForOntologyRisk(risk.risk_name, fields, turns));
             });
@@ -4692,9 +4810,10 @@ function renderTextField(field, emptyLabel) {
 }
 
 async function callGemini(key, systemPrompt, schema, userContent, { timeoutMs = 120000, retries = 2 } = {}) {
-    // const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent?key=${key}`;
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${key}`;
-    
+    const model = (COMPARE_PAGE && document.getElementById('geminiModel')?.value.trim()) || 'gemini-3.8-flash';
+    const base = ((COMPARE_PAGE && document.getElementById('geminiEndpoint')?.value.trim()) || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/$/, '');
+    const url = `${base}/models/${encodeURIComponent(model)}:generateContent?key=${key}`;
+
     const payload = {
         system_instruction: { parts: [{ text: systemPrompt || CCQ_SYSTEM_INSTRUCTION }] },
         contents: [{ parts: [{ text: `${userContent}` }] }],
@@ -4715,6 +4834,10 @@ async function callGemini(key, systemPrompt, schema, userContent, { timeoutMs = 
             clearTimeout(timer);
             if (!res.ok) throw new Error(await res.text());
             const data = await res.json();
+            if (COMPARE_PAGE) {
+                GEMINI_RAW.push({ model, request: payload, response: data });
+                renderCompareOutputs();
+            }
             const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
             if (text == null) throw new Error(`Unexpected Gemini response shape: ${JSON.stringify(data).slice(0, 300)}`);
             return JSON.parse(text);
@@ -4756,7 +4879,660 @@ function parseMultipleTranscriptsToTurns(fileDataArray) {
     return globalTurns;
 }
 
+function renderCompareOutputs() {
+    const gemini = document.getElementById('geminiRaw');
+    const jev = document.getElementById('jevRaw');
+    if (gemini) gemini.textContent = GEMINI_RAW.length ? JSON.stringify(GEMINI_RAW, null, 2) : 'Waiting for a run.';
+    if (jev) jev.textContent = JEV_RAW.length ? JSON.stringify(JEV_RAW, null, 2) : 'Waiting for a run.';
+}
+
+function activateCompareView(hostId) {
+    const view = COMPARE_VIEWS[hostId];
+    if (!view) return;
+    CURRENT_RENDER_TARGET = hostId;
+    CURRENT_REGIONS = view.regions;
+    CURRENT_TURNS = view.turns;
+    CURRENT_GLYPH = view.glyph || { key: 'overview', turn: null };
+    CURRENT_SELECTED_DECISION_ID = view.decisionId;
+    NAV.decisionId = view.decisionId;
+    CURRENT_EXPANDED_IDS = (view.expandedIds || []).slice();
+    CURRENT_EXPANDED_CLUSTER = view.expandedCluster || null;
+    CURRENT_RUN_META = { default_procedure: view.procName };
+    CURRENT_SCHEMA_VERSION = CCQ_SCHEMA_VERSION;
+    CURRENT_EPISODE_META = view.episode || CURRENT_EPISODE_META;
+}
+
+function rememberCompareView() {
+    const view = COMPARE_VIEWS[CURRENT_RENDER_TARGET];
+    if (!view) return;
+    view.regions = CURRENT_REGIONS;
+    view.turns = CURRENT_TURNS;
+    view.glyph = CURRENT_GLYPH;
+    view.decisionId = NAV.decisionId || CURRENT_SELECTED_DECISION_ID;
+    view.expandedIds = (CURRENT_EXPANDED_IDS || []).slice();
+    view.expandedCluster = CURRENT_EXPANDED_CLUSTER;
+}
+
+function clearCompareCockpits() {
+    COMPARE_VIEWS = {};
+    ['compareCockpitGeminiBody', 'compareCockpitJevBody'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '';
+    });
+    const wrap = document.getElementById('compareCockpits');
+    if (wrap) wrap.hidden = true;
+}
+
+function paintCompareView(hostId, regions, turns, procName, episode) {
+    COMPARE_VIEWS[hostId] = {
+        regions,
+        turns,
+        procName,
+        episode,
+        glyph: { key: 'overview', turn: null },
+        decisionId: regions[0]?.decision_id || null,
+        expandedIds: [],
+        expandedCluster: null,
+    };
+    activateCompareView(hostId);
+    renderUI(regions, turns, CCQ_SCHEMA_VERSION);
+}
+
+function collectJevAnswers() {
+    const answers = {};
+    (JEV_RAW || []).forEach(batch => {
+        const found = batch?.response?.answers;
+        if (found && typeof found === 'object') Object.assign(answers, found);
+    });
+    return answers;
+}
+
+function jevDiscussed(answer) {
+    const n = Number(answer?.noul);
+    return Number.isFinite(n) && n >= 0.5;
+}
+
+function jevChoiceTurn(answer) {
+    if (!answer || answer.choice == null || answer.choice === 'none') return null;
+    const n = Number(answer.choice);
+    return Number.isInteger(n) ? n : null;
+}
+
+function jevTurnText(turns, index) {
+    const row = (turns || []).find(t => t.index === index);
+    return String((row?.text_lines || []).join(' ') || '').trim();
+}
+
+function jevHits(answers, role) {
+    const found = [];
+    Object.entries(answers || {}).forEach(([key, val]) => {
+        const match = key.match(/^t(\d+)_(.+)$/);
+        if (!match || match[2] !== role || !jevDiscussed(val)) return;
+        found.push(Number(match[1]));
+    });
+    return found.sort((a, b) => a - b);
+}
+
+function jevDetail(turns, indices) {
+    if (!indices.length) return null;
+    const parts = indices.map(index => jevTurnText(turns, index)).filter(Boolean);
+    const quote = parts[0] || '';
+    return { text: parts.join(' '), qualifying_language: [], quote, turn_indices: indices };
+}
+
+function jevStatements(turns, indices) {
+    return indices.map(index => {
+        const text = jevTurnText(turns, index);
+        return { text, quote: text, turn_indices: [index] };
+    }).filter(item => item.text);
+}
+
+function jevNextClinicianTurn(turns, asked) {
+    const after = (turns || []).filter(t => Number(t.index) > Number(asked));
+    const clinician = after.find(t => !/patient|family|caregiver/i.test(t.speaker_line || ''));
+    return clinician ? Number(clinician.index) : null;
+}
+
+function regionFromJev(turns, procedure) {
+    const answers = collectJevAnswers();
+    const ontKey = findOntologyKey(procedure) || procedure;
+    const rows = GLOBAL_RISK_DB[ontKey] || [];
+    const core = rows.filter(r => normalizeRiskTier(r.importance) === 'Core');
+    const source = core.length ? core : rows;
+    const blank = { likelihood: '', impact: '', patient_specific_relevance: '', management_or_response: '' };
+    const core_risks = source.map(row => {
+        const id = jevSlug(row.risk_item);
+        const turn = jevChoiceTurn(answers[`first_turn_${id}`]);
+        const discussed = jevDiscussed(answers[`discussed_${id}`]) || turn != null;
+        const quote = turn != null
+            ? ((turns || []).find(t => t.index === turn)?.text_lines || []).join(' ')
+            : '';
+        return {
+            risk_name: row.risk_item,
+            detection_status: discussed ? 'Discussed' : 'Not detected',
+            details_communicated: blank,
+            quote,
+            turn_indices: turn != null ? [turn] : [],
+            jev_locked: true,
+        };
+    });
+    const discussedNames = core_risks.filter(r => r.detection_status === 'Discussed').map(r => r.risk_name);
+    const missed = core_risks.filter(r => r.detection_status !== 'Discussed').map(r => r.risk_name);
+    const alt = jevDiscussed(answers.alternative_to_surgery_named)
+        || jevHits(answers, 'describes_nonoperative').length > 0;
+    const agreed = jevDiscussed(answers.patient_agreed_to_surgery);
+    const choiceTurn = jevChoiceTurn(answers.agreement_turn);
+    const choiceQuote = choiceTurn != null ? jevTurnText(turns, choiceTurn) : '';
+    const path = answers.selected_path?.choice;
+    let selectedOption = '';
+    if (path === 'nonoperative') selectedOption = 'Continued nonoperative management';
+    else if (path === 'surgery' || (path !== 'none' && (agreed || choiceTurn != null))) selectedOption = 'Surgical management';
+    const deferred = jevDiscussed(answers.decision_deferred) && !selectedOption;
+    const surgeryTurns = jevHits(answers, 'describes_surgery');
+    const nonopTurns = jevHits(answers, 'describes_nonoperative');
+    const surgeryBenefits = jevHits(answers, 'benefit_surgery');
+    const nonopBenefits = jevHits(answers, 'benefit_nonoperative');
+    const surgeryBurdens = jevHits(answers, 'burden_surgery');
+    const nonopBurdens = jevHits(answers, 'burden_nonoperative');
+    const surgery = {
+        option_name: 'Surgical management',
+        what_it_involves: jevDetail(turns, surgeryTurns),
+        benefits: jevDetail(turns, surgeryBenefits),
+        burdens: jevDetail(turns, surgeryBurdens),
+        risks: discussedNames.length ? {
+            text: discussedNames.join(', '),
+            qualifying_language: [],
+            quote: '',
+            turn_indices: [],
+        } : null,
+    };
+    surgery.named_only = ![surgery.what_it_involves, surgery.benefits, surgery.burdens, surgery.risks].some(field => fieldPlainText(field));
+    const options = [surgery];
+    if (alt || nonopTurns.length || nonopBenefits.length || nonopBurdens.length || selectedOption === 'Continued nonoperative management') {
+        const nonop = {
+            option_name: 'Continued nonoperative management',
+            conservative: true,
+            jev_burden: nonopBurdens.length > 0,
+            jev_timing: jevDiscussed(answers.nonop_timing),
+            what_it_involves: jevDetail(turns, nonopTurns),
+            benefits: jevDetail(turns, nonopBenefits),
+            burdens: jevDetail(turns, nonopBurdens),
+        };
+        nonop.named_only = ![nonop.what_it_involves, nonop.benefits, nonop.burdens].some(field => fieldPlainText(field));
+        options.push(nonop);
+    }
+    const recTurns = jevHits(answers, 'recommends');
+    const recChoice = answers.recommendation_target?.choice;
+    const recommendedOption = recChoice === 'surgery'
+        ? 'Surgical management'
+        : recChoice === 'nonoperative'
+            ? 'Continued nonoperative management'
+            : '';
+    const recQuote = recTurns.length ? jevTurnText(turns, recTurns[0]) : '';
+    const goals = jevStatements(turns, jevHits(answers, 'states_goal'));
+    const preferences = jevStatements(turns, jevHits(answers, 'states_preference'));
+    const questions = jevHits(answers, 'asks_question').map(index => {
+        const quote = jevTurnText(turns, index);
+        const answerTurn = jevNextClinicianTurn(turns, index);
+        const response = answerTurn != null ? jevTurnText(turns, answerTurn) : '';
+        return {
+            question: quote,
+            response,
+            response_status: response ? 'Answered' : 'Not addressed',
+            turn_indices: [index],
+            response_turn_indices: answerTurn != null ? [answerTurn] : [],
+            quote,
+            response_quote: response,
+        };
+    });
+    const answered = questions.filter(q => q.response_status === 'Answered').length;
+    const framing = options.length > 1 && options.every(opt => !opt.named_only)
+        ? 'Alternatives explicitly presented'
+        : options.length > 1
+            ? 'Multiple options mentioned, but choice framing unclear'
+            : 'Single option presented';
+    const tradeoffs = options.length > 1 ? [{
+        option_a: options[0].option_name,
+        option_b: options[1].option_name,
+        level: comparisonLevelFromOptions(options[0], options[1]),
+        evidence_quote: options.map(opt => opt.benefits?.quote || opt.burdens?.quote || '').find(Boolean) || '',
+        turn_indices: [...new Set(options.flatMap(opt => [
+            ...(opt.what_it_involves?.turn_indices || []),
+            ...(opt.benefits?.turn_indices || []),
+            ...(opt.burdens?.turn_indices || []),
+        ]))].sort((a, b) => a - b),
+    }] : [];
+    const relevant = [...new Set([
+        ...(choiceTurn != null ? [choiceTurn] : []),
+        ...core_risks.flatMap(r => r.turn_indices || []),
+        ...surgeryTurns, ...nonopTurns, ...surgeryBenefits, ...nonopBenefits, ...surgeryBurdens, ...nonopBurdens, ...recTurns,
+        ...goals.flatMap(item => item.turn_indices),
+        ...preferences.flatMap(item => item.turn_indices),
+        ...questions.flatMap(q => [...q.turn_indices, ...q.response_turn_indices]),
+    ])].sort((a, b) => a - b);
+    return {
+        decision_id: 'jev_decision_1',
+        jev_extracted: true,
+        parent_decision_id: null,
+        decision_label: ontKey,
+        status: selectedOption ? 'Resolved' : deferred ? 'Deferred' : 'Unresolved',
+        selected_option: selectedOption,
+        selected_intervention: selectedOption === 'Surgical management' ? ontKey : '',
+        option_names: options.map(o => o.option_name),
+        encounter_ids: [...new Set((turns || []).map(t => t.encounter).filter(Boolean))],
+        relevant_turn_indices: relevant.length ? relevant : (turns || []).map(t => t.index),
+        colorTheme: REGION_COLORS[0],
+        linked_interventions: [ontKey],
+        decision_overview: {
+            options_considered: options,
+            clinician_recommendation: {
+                recommended_option: recommendedOption,
+                rationale: recQuote,
+                qualification: '',
+                quote: recQuote,
+                turn_indices: recTurns,
+            },
+            patient_considerations: { goals_priorities: goals, preferences, questions },
+        },
+        communication_analysis: {
+            decision_framing: framing,
+            tradeoff_comparisons: tradeoffs,
+            patient_engagement: {
+                goals_priorities_elicited: jevDiscussed(answers.goals_elicited),
+                preferences_elicited: jevDiscussed(answers.preferences_elicited),
+                questions_invited: jevDiscussed(answers.questions_invited),
+                goals_priorities_evidence: goals[0]?.quote || '',
+                preferences_elicited_evidence: preferences[0]?.quote || '',
+                questions_invited_evidence: '',
+            },
+            clinician_response: {
+                questions_answered_count: answered,
+                questions_total_count: questions.length,
+                recommendation_explained: recQuote.length > 40 ? 'Explained' : 'Not explained',
+            },
+            understanding_verification: jevDiscussed(answers.understanding_check)
+                ? 'Active understanding check detected'
+                : 'No active understanding check detected',
+        },
+        informed_consent_analysis: {
+            interventions: [{
+                intervention_name: ontKey,
+                core_risks,
+                relevant_risks: [],
+                context_dependent_risks: [],
+                risk_communication_summary: {
+                    core_discussed: discussedNames,
+                    core_not_detected: missed,
+                    relevant_discussed: [],
+                    relevant_not_detected: [],
+                    context_dependent_warrant_review: [],
+                },
+            }],
+        },
+        choice_made: choiceTurn != null ? {
+            turn_index: choiceTurn,
+            option_name: selectedOption || 'Surgical management',
+            quote: choiceQuote,
+            speaker: ((turns || []).find(t => t.index === choiceTurn)?.speaker_line) || 'PATIENT',
+        } : null,
+    };
+}
+
+function mountCompareCockpits(geminiRegions, turns, procName, filename) {
+    const wrap = document.getElementById('compareCockpits');
+    if (!wrap) return;
+    const showGemini = Array.isArray(geminiRegions) && geminiRegions.length;
+    const showJev = (JEV_RAW || []).some(batch => batch?.response?.answers);
+    wrap.hidden = !(showGemini || showJev);
+    const geminiSection = document.getElementById('compareGeminiSection');
+    const jevSection = document.getElementById('compareJevSection');
+    if (geminiSection) geminiSection.hidden = !showGemini;
+    if (jevSection) jevSection.hidden = !showJev;
+    const episode = {
+        patient_label: filename || 'New analysis',
+        clinician_name: '',
+        episode_id: 'compare',
+    };
+    if (showGemini) paintCompareView('compareCockpitGeminiBody', geminiRegions, turns, procName, episode);
+    if (showJev) paintCompareView('compareCockpitJevBody', [regionFromJev(turns, procName)], turns, procName, episode);
+    const first = document.getElementById(showGemini ? 'compareCockpitGeminiBody' : 'compareCockpitJevBody');
+    if (first) first.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function jevSlug(name) {
+    return String(name || 'risk').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 48) || 'risk';
+}
+
+function jevTurnCriteria(turns) {
+    const criteria = { none: 'This is never discussed in the transcript.' };
+    (turns || []).forEach(t => {
+        const text = (t.text_lines || []).join(' ').replace(/\s+/g, ' ').slice(0, 160);
+        criteria[String(t.index)] = `${t.speaker_line}: ${text}`;
+    });
+    return criteria;
+}
+
+function jevBehaviorNoul(turn, procedure, question, yes, no) {
+    const text = (turn.text_lines || []).join(' ').replace(/\s+/g, ' ').slice(0, 240);
+    return {
+        type: 'noul',
+        instructions: {
+            turn_index: turn.index,
+            speaker: turn.speaker_line,
+            text,
+            procedure,
+            question,
+        },
+        criteria: { true: yes, false: no },
+    };
+}
+
+function jevQuestionsForTranscript(turns, procedure, riskNames) {
+    const turnCriteria = jevTurnCriteria(turns);
+    const nouls = {
+        patient_agreed_to_surgery: {
+            type: 'noul',
+            instructions: 'Using `turns`, the patient agrees to proceed with surgery.',
+            criteria: {
+                true: 'The patient says they want to go ahead with surgery.',
+                false: 'The patient does not agree to surgery.',
+            },
+        },
+        alternative_to_surgery_named: {
+            type: 'noul',
+            instructions: 'Using `turns`, the clinician names at least one alternative to surgery.',
+            criteria: {
+                true: 'A nonsurgical or other alternative is named.',
+                false: 'No alternative to surgery is named.',
+            },
+        },
+        decision_deferred: {
+            type: 'noul',
+            instructions: 'Using `turns`, the patient or clinician postpones the treatment choice instead of committing.',
+            criteria: {
+                true: 'Someone says they will decide later, think about it, or wait before choosing.',
+                false: 'The choice is made, or postponement is never discussed.',
+            },
+        },
+        nonop_timing: {
+            type: 'noul',
+            instructions: 'Using `turns`, the clinician describes the timing or urgency of continuing without surgery.',
+            criteria: {
+                true: 'Waiting, delaying, or how soon symptoms may change without surgery is described.',
+                false: 'Timing of nonsurgical care is not described.',
+            },
+        },
+        goals_elicited: {
+            type: 'noul',
+            instructions: 'Using `turns`, the clinician asks what the patient wants from treatment or what matters to them.',
+            criteria: {
+                true: 'The clinician asks about the patient’s goals or priorities.',
+                false: 'The clinician does not ask about goals or priorities.',
+            },
+        },
+        preferences_elicited: {
+            type: 'noul',
+            instructions: 'Using `turns`, the clinician asks which treatment path the patient prefers.',
+            criteria: {
+                true: 'The clinician asks the patient to choose or state a preference between paths.',
+                false: 'The clinician does not ask for a preference.',
+            },
+        },
+        questions_invited: {
+            type: 'noul',
+            instructions: 'Using `turns`, the clinician invites the patient to ask questions.',
+            criteria: {
+                true: 'The clinician asks whether the patient has questions.',
+                false: 'The clinician does not invite questions.',
+            },
+        },
+        understanding_check: {
+            type: 'noul',
+            instructions: 'Using `turns`, the clinician asks the patient to explain back their understanding of the decision.',
+            criteria: {
+                true: 'The clinician checks understanding by asking the patient to restate the plan or the risks.',
+                false: 'No teach-back or understanding check occurs.',
+            },
+        },
+    };
+    const choices = {
+        agreement_turn: {
+            type: 'choice',
+            instructions: 'Which turn in `turns` is the patient committing to a treatment path, surgery or nonsurgical care? Choose none if they never commit.',
+            criteria: turnCriteria,
+        },
+        selected_path: {
+            type: 'choice',
+            instructions: 'Which treatment path does the patient commit to in `turns`? Choose none if they never commit.',
+            criteria: {
+                surgery: 'The patient commits to the operation.',
+                nonoperative: 'The patient commits to nonsurgical care.',
+                none: 'The patient does not commit to a path.',
+            },
+        },
+        recommendation_target: {
+            type: 'choice',
+            instructions: 'Which treatment path does the clinician recommend in `turns`? Choose none if they do not recommend a path. Saying that either option would be reasonable is none.',
+            criteria: {
+                surgery: 'The clinician recommends proceeding with the operation.',
+                nonoperative: 'The clinician recommends continuing without surgery.',
+                none: 'The clinician does not recommend a path.',
+            },
+        },
+    };
+    const clinicianRoles = [
+        ['describes_surgery', 'Does this turn describe what the operation involves?', 'The speaker describes the steps, anatomy, or what will be done in the operation.', 'The speaker does not describe what the operation involves.'],
+        ['describes_nonoperative', 'Does this turn describe continuing without surgery, including therapy, injections, medication, or waiting?', 'The speaker describes a nonsurgical path.', 'The speaker does not describe a nonsurgical path.'],
+        ['benefit_surgery', 'Does this turn state a benefit or expected outcome of the operation?', 'The speaker states something the patient can gain from the operation.', 'This turn does not state a benefit of the operation.'],
+        ['benefit_nonoperative', 'Does this turn state a benefit or expected outcome of continuing without surgery?', 'The speaker states something the patient can gain from nonsurgical care.', 'This turn does not state a benefit of nonsurgical care.'],
+        ['burden_surgery', 'Does this turn state a practical burden, recovery demand, or limitation of the operation?', 'The speaker describes recovery, time, activity limits, or other cost of the operation.', 'This turn does not state a burden of the operation.'],
+        ['burden_nonoperative', 'Does this turn state a practical burden, inconvenience, or limitation of continuing without surgery?', 'The speaker describes ongoing symptoms, visits, or limits of nonsurgical care.', 'This turn does not state a burden of nonsurgical care.'],
+        ['recommends', 'Does this turn recommend one treatment path, rather than only listing options?', 'The speaker advises the patient to take one path.', 'The speaker does not recommend a path. Listing options or saying either would be reasonable does not count.'],
+    ];
+    const patientRoles = [
+        ['states_goal', 'Does this turn state a goal or priority for treatment, such as pain relief or returning to an activity?', 'The patient states an outcome or priority they care about.', 'The patient does not state a goal or priority.'],
+        ['states_preference', 'Does this turn state a lean toward one treatment path?', 'The patient says which path they want, or that they do not want a path.', 'The patient does not state a preference between paths.'],
+        ['asks_question', 'Does this turn ask a question about the decision, the procedure, a risk, or recovery?', 'The patient asks for information.', 'The patient does not ask a question.'],
+    ];
+    (turns || []).forEach(turn => {
+        const text = (turn.text_lines || []).join(' ').replace(/\s+/g, ' ').trim();
+        if (text.length < 8) return;
+        const patient = /patient|family|caregiver/i.test(turn.speaker_line || '');
+        const roles = patient ? patientRoles : (text.length >= 12 ? clinicianRoles : []);
+        roles.forEach(([role, question, yes, no]) => {
+            nouls[`t${turn.index}_${role}`] = jevBehaviorNoul(turn, procedure, question, yes, no);
+        });
+    });
+    (riskNames || []).forEach(name => {
+        const id = jevSlug(name);
+        nouls[`discussed_${id}`] = {
+            type: 'noul',
+            instructions: {
+                risk: name,
+                question: 'Using `turns`, does the clinician tell the patient that `risk` can occur because of `procedure`?',
+            },
+            criteria: {
+                true: 'The clinician names this risk, or a clear paraphrase, as something that can happen.',
+                false: 'The clinician does not communicate this risk.',
+            },
+        };
+        choices[`first_turn_${id}`] = {
+            type: 'choice',
+            instructions: {
+                risk: name,
+                question: 'Which turn first tells the patient that `risk` can occur? Choose none if it is never discussed.',
+            },
+            criteria: turnCriteria,
+        };
+    });
+    return { nouls, choices };
+}
+
+function chunkObject(obj, size) {
+    const entries = Object.entries(obj || {});
+    const out = [];
+    for (let i = 0; i < entries.length; i += size) out.push(Object.fromEntries(entries.slice(i, i + size)));
+    return out;
+}
+
+async function callJev(state, questions) {
+    const endpoint = document.getElementById('jevEndpoint')?.value.trim() || 'https://api.typesafe.ai/v1/systemone';
+    const model = document.getElementById('jevModel')?.value.trim() || 'jev-latest';
+    const api_key = document.getElementById('jevKey')?.value.trim() || '';
+    const res = await fetch('/api/jev/systemone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint, model, api_key, state, questions }),
+    });
+    const text = await res.text();
+    let parsed;
+    try { parsed = JSON.parse(text); } catch { parsed = { raw: text }; }
+    JEV_RAW.push({
+        ok: res.ok,
+        status: res.status,
+        request: { endpoint, model, state, questions },
+        response: parsed,
+    });
+    renderCompareOutputs();
+    if (!res.ok) throw new Error(parsed.error || parsed.message || text.slice(0, 300));
+    return parsed;
+}
+
+function ontologyProcedureNames() {
+    const all = Object.keys(GLOBAL_RISK_DB);
+    const withRisks = all.filter(name => (GLOBAL_RISK_DB[name] || []).length);
+    return withRisks.length ? withRisks : all;
+}
+
+function jevProcedureQuestion(procedures) {
+    const criteria = {};
+    (procedures || []).forEach(name => {
+        criteria[name] = `The procedure discussed in \`turns\` is ${name}.`;
+    });
+    return {
+        procedure: {
+            type: 'choice',
+            instructions: 'Using `turns`, which procedure in `procedures` is this encounter about? Choose the most likely one. The episode uses one of these mapped procedures.',
+            criteria,
+        },
+    };
+}
+
+async function detectProcedureWithJev(turns) {
+    const procedures = ontologyProcedureNames();
+    if (!procedures.length) throw new Error('Taxonomy Database is empty.');
+    if (procedures.length === 1) {
+        logStatus(`Jev auto-detect: only one procedure in the mapping, ${procedures[0]}.`);
+        return procedures[0];
+    }
+    logStatus(`Jev auto-detect: choosing the most likely of ${procedures.length} mapped procedures...`);
+    const state = {
+        procedures,
+        turns: (turns || []).map(t => ({
+            index: t.index,
+            speaker: t.speaker_line,
+            text: (t.text_lines || []).join(' '),
+        })),
+    };
+    const parsed = await callJev(state, jevProcedureQuestion(procedures));
+    const choice = parsed?.answers?.procedure?.choice;
+    if (!procedures.includes(choice)) throw new Error(`Jev auto-detect returned "${choice || ''}", which is not in the mapping.`);
+    logStatus(`Jev auto-detect: ${choice}`);
+    return choice;
+}
+
+async function runJevComparison(turns, procedure) {
+    const names = [...new Set((GLOBAL_RISK_DB[procedure] || [])
+        .filter(row => normalizeRiskTier(row.importance) === 'Core')
+        .map(row => row.risk_item)
+        .filter(Boolean))];
+    const source = names.length ? names : (GLOBAL_RISK_DB[procedure] || []).map(row => row.risk_item).filter(Boolean);
+    const state = {
+        procedure,
+        turns: (turns || []).map(t => ({
+            index: t.index,
+            speaker: t.speaker_line,
+            text: (t.text_lines || []).join(' '),
+        })),
+    };
+    const { nouls, choices } = jevQuestionsForTranscript(turns, procedure, source.slice(0, 24));
+    const batches = [
+        ...chunkObject(nouls, 20).map(questions => ({ kind: 'noul', questions })),
+        ...chunkObject(choices, 4).map(questions => ({ kind: 'choice', questions })),
+    ];
+    logStatus(`Jev: ${Object.keys(nouls).length} yes/no judgments and ${Object.keys(choices).length} choices in ${batches.length} batches.`);
+    const concurrency = 3;
+    for (let i = 0; i < batches.length; i += concurrency) {
+        const slice = batches.slice(i, i + concurrency);
+        logStatus(`Jev batch ${i + 1}–${i + slice.length} of ${batches.length}...`);
+        await Promise.all(slice.map(batch => callJev(state, batch.questions)));
+    }
+}
+
+function saveCompareSettings() {
+    const geminiKey = document.getElementById('compareGeminiKey')?.value || '';
+    const apiKeyEl = document.getElementById('apiKey');
+    if (apiKeyEl) apiKeyEl.value = geminiKey;
+    localStorage.setItem('gemini_api_key', geminiKey);
+    localStorage.setItem('jev_api_key', document.getElementById('jevKey')?.value || '');
+    localStorage.setItem('jev_endpoint', document.getElementById('jevEndpoint')?.value || '');
+    localStorage.setItem('gemini_endpoint', document.getElementById('geminiEndpoint')?.value || '');
+    localStorage.setItem('gemini_model', document.getElementById('geminiModel')?.value || '');
+    localStorage.setItem('jev_model', document.getElementById('jevModel')?.value || '');
+}
+
+async function runJevOnly() {
+    saveCompareSettings();
+    const fileInput = document.getElementById('fileInput');
+    const errBox = document.getElementById('errorMsg');
+    const loader = document.getElementById('loader');
+    errBox.innerText = '';
+    document.getElementById('statusLog').innerHTML = '';
+    if (!document.getElementById('jevKey')?.value.trim()) return (errBox.innerText = 'Jev API key required');
+    if (!fileInput.files.length) return (errBox.innerText = 'At least one transcript file required');
+    if (Object.keys(GLOBAL_RISK_DB).length === 0) return (errBox.innerText = 'Taxonomy Database is empty.');
+    let procName = document.getElementById('procedureSelect').value;
+
+    GEMINI_RAW = [{ skipped: true, note: 'Jev only. Gemini was not called.' }];
+    JEV_RAW = [];
+    renderCompareOutputs();
+    clearCompareCockpits();
+    loader.style.display = 'block';
+    let jevTurns = null;
+    let resolvedProc = null;
+    try {
+        const files = Array.from(fileInput.files);
+        const fileDataArray = [];
+        for (const f of files) fileDataArray.push({ name: f.name, text: await f.text() });
+        const globalTurns = parseMultipleTranscriptsToTurns(fileDataArray);
+        jevTurns = globalTurns;
+        if (!GLOBAL_RISK_DB[procName]) procName = await detectProcedureWithJev(globalTurns);
+        resolvedProc = procName;
+        logStatus(`Jev only. Procedure: ${procName}. ${globalTurns.length} turns.`);
+        await runJevComparison(globalTurns, procName);
+        logStatus('Jev output is below.');
+        mountCompareCockpits(null, globalTurns, procName, files[0]?.name);
+    } catch (error) {
+        console.error(error);
+        errBox.innerText = 'Error: ' + error.message;
+        if (!JEV_RAW.length) {
+            JEV_RAW.push({ error: error.message });
+            renderCompareOutputs();
+        }
+        if (jevTurns && resolvedProc) mountCompareCockpits(null, jevTurns, resolvedProc, fileInput.files[0]?.name);
+    } finally {
+        loader.style.display = 'none';
+    }
+}
+
 async function runAnalysis() {
+    if (COMPARE_PAGE) {
+        saveCompareSettings();
+        GEMINI_RAW = [];
+        JEV_RAW = [];
+        renderCompareOutputs();
+        clearCompareCockpits();
+    }
     const fileInput = document.getElementById("fileInput");
     const apiKey = document.getElementById("apiKey").value;
     let procName = document.getElementById("procedureSelect").value;
@@ -4772,6 +5548,9 @@ async function runAnalysis() {
 
     localStorage.setItem("gemini_api_key", apiKey);
     loader.style.display = "block";
+    let compareTurns = null;
+    let compareProc = procName;
+    let compareRegions = null;
 
     try {
         const files = Array.from(fileInput.files);
@@ -4783,6 +5562,7 @@ async function runAnalysis() {
 
         logStatus(`Extracted ${files.length} encounter(s). Building global timeline...`);
         const globalTurns = parseMultipleTranscriptsToTurns(fileDataArray);
+        compareTurns = globalTurns;
 
         if (procName === "AUTO") {
             logStatus("Auto-detecting default procedure for ontology fallback...");
@@ -4873,6 +5653,21 @@ async function runAnalysis() {
         logStatus("Pass D: Generative layer from CCQ findings...");
         await generateGenerativeLayers(apiKey, regions);
 
+        if (COMPARE_PAGE) {
+            compareProc = procName;
+            compareRegions = regions;
+            GEMINI_RAW.push({ assembled_regions: regions, default_procedure: procName });
+            renderCompareOutputs();
+            if (!document.getElementById('jevKey')?.value.trim()) {
+                logStatus('Jev skipped: API key is empty.');
+            } else {
+                await runJevComparison(globalTurns, procName);
+            }
+            mountCompareCockpits(regions, globalTurns, procName, files[0]?.name);
+            logStatus('Decision analysis and raw outputs are below.');
+            return;
+        }
+
         logStatus("Saving to database...");
         const payload = {
             filename: files.map(f => f.name).join(" + "),
@@ -4916,6 +5711,18 @@ async function runAnalysis() {
     } catch (error) {
         console.error(error);
         errBox.innerText = "Error: " + error.message;
+        if (COMPARE_PAGE && compareTurns && !JEV_RAW.length && document.getElementById('jevKey')?.value.trim()) {
+            try {
+                if (!GLOBAL_RISK_DB[compareProc]) compareProc = await detectProcedureWithJev(compareTurns);
+                await runJevComparison(compareTurns, compareProc);
+            } catch (jevErr) {
+                JEV_RAW.push({ error: jevErr.message });
+                renderCompareOutputs();
+            }
+        }
+        if (COMPARE_PAGE && compareTurns) {
+            mountCompareCockpits(compareRegions, compareTurns, compareProc);
+        }
     } finally {
         loader.style.display = "none";
     }
@@ -5018,8 +5825,8 @@ function optionSignalsFromCcq(opt) {
     return {
         conservative: !!opt.conservative || /nonsurgical|conservative|watchful|physical therapy|injection|waiting|epidural|structured pt/i.test(name),
         procedural: /surg|decompress|fusion|operat|laminect/i.test(`${name} ${involves}`),
-        burden: fieldDiscussedText(burdens) && /burden|visit|time|inconvenien|limit|hospital|recovery|stay|activity/i.test(burdens),
-        timing: /now|sooner|delay|wait|timing|urgent|week|for now|current/i.test(`${involves} ${burdens} ${benefits}`),
+        burden: !!opt.jev_burden || (fieldDiscussedText(burdens) && /burden|visit|time|inconvenien|limit|hospital|recovery|stay|activity/i.test(burdens)),
+        timing: !!opt.jev_timing || /now|sooner|delay|wait|timing|urgent|week|for now|current/i.test(`${involves} ${burdens} ${benefits}`),
         benefit: fieldDiscussedText(benefits),
         risk: fieldDiscussedText(risks),
         namedOnly: /named only/.test(blob) && !fieldDiscussedText(benefits) && !fieldDiscussedText(risks) && !fieldDiscussedText(burdens),
@@ -6928,7 +7735,7 @@ function renderEpisodeCockpit(regions, turns, selected) {
     const peekClass = cockpitCtx().peek ? ' is-peek' : '';
     return `<div class="episode-cockpit${peekClass}">
         ${renderCockpitStats()}
-        ${cockpitCtx().peek ? '' : renderGenerativeLayer(selected, regions)}
+        ${cockpitCtx().peek || selected?.jev_extracted ? '' : renderGenerativeLayer(selected, regions)}
         ${renderGlyphMap(regions, turns)}
         ${renderEpisodeDock(selected, turns)}
         ${cockpitCtx().peek ? '' : renderCommunicationOpportunity(selected, regions)}
@@ -7403,11 +8210,13 @@ function renderUI(regions, turns, schemaVersion, opts = {}) {
         if (existing) {
             existing.outerHTML = cockpit;
             afterSpineRender(results, opts, savedScroll);
+            rememberCompareView();
             return;
         }
     }
     results.innerHTML = cockpit;
     afterSpineRender(results, opts, savedScroll);
+    rememberCompareView();
 }
 
 function afterSpineRender(results, opts, savedScroll) {
