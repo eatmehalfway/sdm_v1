@@ -661,6 +661,13 @@
             border:1px solid var(--navy);
         }
         body.compare-page button.run-btn.compare-only:hover { background:var(--navy); color:#fff; }
+        .jev-check { display:block; margin:2px 0 6px 22px; font-size:0.72rem; font-weight:700; line-height:1.35; }
+        .jev-check.is-ok { color:#1e7a46; }
+        .jev-check.is-gap { color:#c0392b; }
+        .jev-check-list { margin:0 0 16px; }
+        .jev-check-list h3 { margin:0 0 8px; font-size:0.95rem; }
+        .jev-check-list ul { margin:0; padding-left:18px; }
+        .jev-check-list li { margin:0 0 6px; font-weight:500; }
         .compare-only { display:none; }
         .compare-creds { display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; margin:0 0 18px; }
         .compare-creds label { display:block; font-size:0.72rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
@@ -1213,7 +1220,7 @@
             <div class="setup-box">
                 <small class="compare-hide" style="display:block; margin-bottom:20px; color:#7f8fa6;">Set your Google Gemini API key in <a href="#" onclick="toggleSettingsPopover(); return false;">Settings</a> before running an analysis.</small>
                 <div class="compare-only">
-                    <p class="compare-note">Gemini keeps the JSON-schema passes. Jev asks Choice and Noul questions for the same cockpit fields: options, benefits, burdens, recommendation, preferences, questions, and core risks. Both raw responses show up below. Run Jev skips Gemini. Auto-detect asks Jev to pick the most likely procedure in the uploaded mapping. Keys stay in this browser; the Jev key is sent only to this app so the request can be forwarded.</p>
+                    <p class="compare-note">Run Gemini and Jev runs both full extractions. Run Jev labels only the top-level consent decision. Gemini pass + Jev has Gemini find subdecisions, then Jev labels that top-level decision and checks whether Gemini’s claims are plausible. Auto-detect asks Jev to pick the most likely procedure in the uploaded mapping. Keys stay in this browser; the Jev key is sent only to this app so the request can be forwarded.</p>
                     <div class="compare-creds">
                         <div>
                             <label for="compareGeminiKey">Gemini API key</label>
@@ -1258,6 +1265,7 @@
 
                 <button class="run-btn" onclick="runAnalysis()">Run CCQ Analysis</button>
                 <button class="run-btn compare-only" type="button" id="runJevOnlyBtn" onclick="runJevOnly()">Run Jev</button>
+                <button class="run-btn compare-only" type="button" id="runGeminiThenJevBtn" onclick="runGeminiThenJev()">Gemini pass + Jev</button>
                 <div class="error" id="errorMsg"></div>
             </div>
             <div class="loading" id="loader">
@@ -4414,6 +4422,21 @@ function regionId(r) {
     return r?.decision_id || r?.id || null;
 }
 
+function pickIndexMerged(list) {
+    const items = list || [];
+    if (!items.length) return null;
+    const ids = new Set(items.map(regionId).filter(Boolean));
+    const roots = items.filter(r => !r.parent_decision_id || !ids.has(r.parent_decision_id));
+    const pool = roots.length ? roots : items;
+    const open = pool.filter(r => !NESTED_NON_CONSENT_RE.test(r.decision_label || ''));
+    const candidates = open.length ? open : pool;
+    return candidates.reduce((best, r) => {
+        const span = (r.relevant_turn_indices || r.turn_indices || []).length;
+        const bestSpan = (best.relevant_turn_indices || best.turn_indices || []).length;
+        return span > bestSpan ? r : best;
+    });
+}
+
 function collapseOverlappingNestedDecisions(regions) {
     const list = regions || [];
     const byId = Object.fromEntries(list.filter(r => regionId(r)).map(r => [regionId(r), r]));
@@ -4931,7 +4954,7 @@ function paintCompareView(hostId, regions, turns, procName, episode) {
         episode,
         glyph: { key: 'overview', turn: null },
         decisionId: regions[0]?.decision_id || null,
-        expandedIds: [],
+        expandedIds: [...new Set((regions || []).map(r => r.parent_decision_id).filter(Boolean))],
         expandedCluster: null,
     };
     activateCompareView(hostId);
@@ -5178,7 +5201,21 @@ function regionFromJev(turns, procedure) {
     };
 }
 
-function mountCompareCockpits(geminiRegions, turns, procName, filename) {
+function jevTreeFromGemini(turns, procName, geminiRegions) {
+    const jevRegion = regionFromJev(turns, procName);
+    const list = Array.isArray(geminiRegions) ? geminiRegions : [];
+    const index = pickIndexMerged(list);
+    if (!index) return [jevRegion];
+    const indexId = regionId(index);
+    if (index.decision_label) jevRegion.decision_label = index.decision_label;
+    const subs = list.filter(r => regionId(r) !== indexId).map(r => JSON.parse(JSON.stringify(r)));
+    subs.forEach(r => {
+        if (!r.parent_decision_id || r.parent_decision_id === indexId) r.parent_decision_id = jevRegion.decision_id;
+    });
+    return [jevRegion, ...subs];
+}
+
+function mountCompareCockpits(geminiRegions, turns, procName, filename, jevRegions) {
     const wrap = document.getElementById('compareCockpits');
     if (!wrap) return;
     const showGemini = Array.isArray(geminiRegions) && geminiRegions.length;
@@ -5194,7 +5231,12 @@ function mountCompareCockpits(geminiRegions, turns, procName, filename) {
         episode_id: 'compare',
     };
     if (showGemini) paintCompareView('compareCockpitGeminiBody', geminiRegions, turns, procName, episode);
-    if (showJev) paintCompareView('compareCockpitJevBody', [regionFromJev(turns, procName)], turns, procName, episode);
+    if (showJev) {
+        const regions = Array.isArray(jevRegions) && jevRegions.length
+            ? jevRegions
+            : [regionFromJev(turns, procName)];
+        paintCompareView('compareCockpitJevBody', regions, turns, procName, episode);
+    }
     const first = document.getElementById(showGemini ? 'compareCockpitGeminiBody' : 'compareCockpitJevBody');
     if (first) first.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -5481,6 +5523,169 @@ function saveCompareSettings() {
     localStorage.setItem('jev_model', document.getElementById('jevModel')?.value || '');
 }
 
+async function detectMergedDecisions(apiKey, files, globalTurns) {
+    const rawDetections = [];
+    for (const f of files) {
+        logStatus(`Pass A: Detecting decisions in ${f.name}...`);
+        const localTurns = globalTurns.filter(t => t.encounter === f.name);
+        const localTranscriptText = localTurns.map(t => `[TURN ${t.index}] ${t.speaker_line}\n${t.text_lines.join("\n")}\n`).join("\n");
+        const det = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, DECISION_DETECTION_SCHEMA, `${DECISION_DETECTION_PROMPT}\n\nEncounter file: ${f.name}\n\n${localTranscriptText}`);
+        (det.decisions || []).forEach(d => {
+            rawDetections.push({
+                ...d,
+                decision_id: d.decision_id || d.id,
+                encounter_file: f.name,
+                turn_indices: expandTurnRange(globalTurns, d.start_turn_index, d.end_turn_index)
+            });
+        });
+    }
+    if (rawDetections.length === 0) {
+        throw new Error("No clinical decisions detected in the uploaded transcript(s).");
+    }
+    logStatus("Pass A: Merging decisions across encounters...");
+    const mergeInput = JSON.stringify(rawDetections, null, 2);
+    const mergeData = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, DECISION_MERGE_SCHEMA, `${DECISION_MERGE_PROMPT}\n\nDetected decisions:\n${mergeInput}`);
+    const merged = (mergeData.merged_decisions || []).map(md => ({
+        ...md,
+        decision_id: md.decision_id || md.id,
+        relevant_turn_indices: md.turn_indices || []
+    }));
+    return collapseOverlappingNestedDecisions(merged);
+}
+
+async function buildCcqRegion(apiKey, md, globalTurns, index) {
+    const colorTheme = REGION_COLORS[index % REGION_COLORS.length];
+    logStatus(`Pass B: CCQ analysis for "${md.decision_label}"...`);
+    const chunkIndices = md.turn_indices || md.relevant_turn_indices || [];
+    const chunkText = buildTranscriptChunk(globalTurns, chunkIndices);
+    const filterData = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, RELEVANCE_FILTERING_SCHEMA, `${RELEVANCE_FILTERING_PROMPT}\n\nDecision: ${md.decision_label}\n\n${chunkText}`);
+    const filtered = (filterData.relevant_turn_indices || chunkIndices).sort((a, b) => a - b);
+    const filteredText = buildTranscriptChunk(globalTurns, filtered);
+    const ccqData = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, CCQ_ANALYSIS_SCHEMA, `${getCcqAnalysisPrompt(md.decision_label, md.option_names)}\n\n${filteredText}`);
+    const interventions = (ccqData.linked_interventions || []).map(s => findOntologyKey(s)).filter(Boolean);
+    const selectedIntervention = md.status === "Resolved" ? normalizeSelectedIntervention(md.selected_intervention) : null;
+    return {
+        decision_id: md.decision_id || `d${index + 1}`,
+        parent_decision_id: md.parent_decision_id || null,
+        decision_label: md.decision_label,
+        status: md.status,
+        selected_option: md.selected_option || null,
+        selected_intervention: selectedIntervention,
+        option_names: md.option_names || [],
+        encounter_ids: md.encounter_files || [],
+        relevant_turn_indices: filtered,
+        colorTheme,
+        linked_interventions: [...new Set(interventions)],
+        decision_overview: ccqData.decision_overview,
+        communication_analysis: ccqData.communication_analysis,
+        informed_consent_analysis: null
+    };
+}
+
+async function geminiSubdecisionRegions(apiKey, files, globalTurns) {
+    const merged = await detectMergedDecisions(apiKey, files, globalTurns);
+    const index = pickIndexMerged(merged);
+    const indexId = regionId(index);
+    const subs = [];
+    let n = 0;
+    for (const md of merged) {
+        if (regionId(md) === indexId) continue;
+        subs.push(await buildCcqRegion(apiKey, md, globalTurns, n + 1));
+        n += 1;
+    }
+    subs.forEach(alignDecisionOptions);
+    const label = index?.decision_label || 'the top-level decision';
+    logStatus(subs.length
+        ? `Gemini found ${subs.length} subdecision${subs.length === 1 ? '' : 's'} under "${label}". Jev labels that top-level decision.`
+        : `Gemini found no subdecisions under "${label}". Jev labels that top-level decision.`);
+    return { index, subs };
+}
+
+function geminiClaimsForRegion(region) {
+    const claims = [];
+    const label = region?.decision_label || 'this decision';
+    const options = (region?.option_names || []).map(name => String(name || '').trim()).filter(Boolean);
+    const optionLine = options.length ? options.join(', ') : 'no named options';
+    claims.push({
+        kind: 'decision',
+        text: `The transcript discusses a decision about "${label}" with these options: ${optionLine}.`,
+    });
+    if (region?.status) {
+        claims.push({
+            kind: 'status',
+            text: `The decision "${label}" is ${region.status}.`,
+        });
+    }
+    if (region?.selected_option) {
+        claims.push({
+            kind: 'selection',
+            text: `For "${label}", the path that was chosen is "${region.selected_option}".`,
+        });
+    }
+    (region?.decision_overview?.options_considered || []).forEach(opt => {
+        ['what_it_involves', 'benefits', 'risks', 'burdens'].forEach(field => {
+            const value = fieldPlainText(opt[field]).replace(/\s+/g, ' ').trim();
+            if (!value) return;
+            claims.push({
+                kind: field,
+                text: `For the option "${opt.option_name || 'unnamed'}" in "${label}", this was communicated: ${value.slice(0, 280)}`,
+            });
+        });
+    });
+    return claims.slice(0, 8);
+}
+
+async function jevCheckGeminiClaims(turns, regions) {
+    const claims = [];
+    (regions || []).forEach(region => {
+        geminiClaimsForRegion(region).forEach(claim => claims.push({ ...claim, decision_id: regionId(region) }));
+    });
+    const capped = claims.slice(0, 24);
+    (regions || []).forEach(region => { region.jev_checks = []; });
+    if (!capped.length) return;
+    const nouls = {};
+    capped.forEach((claim, index) => {
+        nouls[`plausible_${index}`] = {
+            type: 'noul',
+            instructions: {
+                claim: claim.text,
+                question: 'Using `turns`, is `claim` a plausible reading of the transcript? Judge only whether the transcript supports the claim.',
+            },
+            criteria: {
+                true: 'The transcript supports this claim.',
+                false: 'The transcript does not support this claim, or the claim adds something that was not said.',
+            },
+        };
+    });
+    const state = {
+        turns: (turns || []).map(t => ({
+            index: t.index,
+            speaker: t.speaker_line,
+            text: (t.text_lines || []).join(' '),
+        })),
+    };
+    const batches = chunkObject(nouls, 20);
+    logStatus(`Jev check: ${capped.length} Gemini claim${capped.length === 1 ? '' : 's'}.`);
+    for (let i = 0; i < batches.length; i++) {
+        logStatus(`Jev check batch ${i + 1} of ${batches.length}...`);
+        await callJev(state, batches[i]);
+    }
+    const answers = collectJevAnswers();
+    capped.forEach((claim, index) => {
+        const noul = Number(answers[`plausible_${index}`]?.noul);
+        claim.noul = Number.isFinite(noul) ? noul : null;
+        claim.plausible = claim.noul != null && claim.noul >= 0.5;
+    });
+    (regions || []).forEach(region => {
+        region.jev_checks = capped.filter(claim => claim.decision_id === regionId(region));
+    });
+}
+
+function setJevSectionTitle(text) {
+    const heading = document.querySelector('#compareJevSection h2');
+    if (heading) heading.textContent = text;
+}
+
 async function runJevOnly() {
     saveCompareSettings();
     const fileInput = document.getElementById('fileInput');
@@ -5497,6 +5702,7 @@ async function runJevOnly() {
     JEV_RAW = [];
     renderCompareOutputs();
     clearCompareCockpits();
+    setJevSectionTitle('Jev decision analysis');
     loader.style.display = 'block';
     let jevTurns = null;
     let resolvedProc = null;
@@ -5525,6 +5731,65 @@ async function runJevOnly() {
     }
 }
 
+async function runGeminiThenJev() {
+    saveCompareSettings();
+    const fileInput = document.getElementById('fileInput');
+    const errBox = document.getElementById('errorMsg');
+    const loader = document.getElementById('loader');
+    const geminiKey = document.getElementById('compareGeminiKey')?.value.trim() || document.getElementById('apiKey')?.value.trim();
+    const apiKeyEl = document.getElementById('apiKey');
+    if (apiKeyEl && geminiKey) apiKeyEl.value = geminiKey;
+    errBox.innerText = '';
+    document.getElementById('statusLog').innerHTML = '';
+    if (!geminiKey) return (errBox.innerText = 'Gemini API key required');
+    if (!document.getElementById('jevKey')?.value.trim()) return (errBox.innerText = 'Jev API key required');
+    if (!fileInput.files.length) return (errBox.innerText = 'At least one transcript file required');
+    if (Object.keys(GLOBAL_RISK_DB).length === 0) return (errBox.innerText = 'Taxonomy Database is empty.');
+    let procName = document.getElementById('procedureSelect').value;
+
+    GEMINI_RAW = [];
+    JEV_RAW = [];
+    renderCompareOutputs();
+    clearCompareCockpits();
+    setJevSectionTitle('Gemini subdecisions, Jev top-level');
+    loader.style.display = 'block';
+    let jevTurns = null;
+    let resolvedProc = null;
+    let subPrelude = null;
+    try {
+        const files = Array.from(fileInput.files);
+        const fileDataArray = [];
+        for (const f of files) fileDataArray.push({ name: f.name, text: await f.text() });
+        const globalTurns = parseMultipleTranscriptsToTurns(fileDataArray);
+        jevTurns = globalTurns;
+        logStatus('Gemini: detecting the decision tree, then analyzing subdecisions.');
+        subPrelude = await geminiSubdecisionRegions(geminiKey, files, globalTurns);
+        if (!GLOBAL_RISK_DB[procName]) procName = await detectProcedureWithJev(globalTurns);
+        resolvedProc = procName;
+        logStatus(`Jev labels the top-level consent decision. Procedure: ${procName}. ${globalTurns.length} turns.`);
+        await runJevComparison(globalTurns, procName);
+        await jevCheckGeminiClaims(globalTurns, [subPrelude.index, ...subPrelude.subs]);
+        const jevRegions = jevTreeFromGemini(globalTurns, procName, [subPrelude.index, ...subPrelude.subs]);
+        if (jevRegions[0]) jevRegions[0].jev_checks = subPrelude.index?.jev_checks || [];
+        logStatus('Gemini pass and Jev checks are below.');
+        mountCompareCockpits(null, globalTurns, procName, files[0]?.name, jevRegions);
+    } catch (error) {
+        console.error(error);
+        errBox.innerText = 'Error: ' + error.message;
+        if (!JEV_RAW.length) {
+            JEV_RAW.push({ error: error.message });
+            renderCompareOutputs();
+        }
+        if (jevTurns && resolvedProc && subPrelude) {
+            const jevRegions = jevTreeFromGemini(jevTurns, resolvedProc, [subPrelude.index, ...subPrelude.subs]);
+            if (jevRegions[0]) jevRegions[0].jev_checks = subPrelude.index?.jev_checks || [];
+            mountCompareCockpits(null, jevTurns, resolvedProc, fileInput.files[0]?.name, jevRegions);
+        }
+    } finally {
+        loader.style.display = 'none';
+    }
+}
+
 async function runAnalysis() {
     if (COMPARE_PAGE) {
         saveCompareSettings();
@@ -5532,6 +5797,7 @@ async function runAnalysis() {
         JEV_RAW = [];
         renderCompareOutputs();
         clearCompareCockpits();
+        setJevSectionTitle('Jev decision analysis');
     }
     const fileInput = document.getElementById("fileInput");
     const apiKey = document.getElementById("apiKey").value;
@@ -5575,68 +5841,10 @@ async function runAnalysis() {
             logStatus(`Default ontology procedure: ${procName}`);
         }
 
-        const rawDetections = [];
-        for (const f of files) {
-            logStatus(`Pass A: Detecting decisions in ${f.name}...`);
-            const localTurns = globalTurns.filter(t => t.encounter === f.name);
-            const localTranscriptText = localTurns.map(t => `[TURN ${t.index}] ${t.speaker_line}\n${t.text_lines.join("\n")}\n`).join("\n");
-            const det = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, DECISION_DETECTION_SCHEMA, `${DECISION_DETECTION_PROMPT}\n\nEncounter file: ${f.name}\n\n${localTranscriptText}`);
-            (det.decisions || []).forEach(d => {
-                rawDetections.push({
-                    ...d,
-                    encounter_file: f.name,
-                    turn_indices: expandTurnRange(globalTurns, d.start_turn_index, d.end_turn_index)
-                });
-            });
-        }
-
-        if (rawDetections.length === 0) {
-            throw new Error("No clinical decisions detected in the uploaded transcript(s).");
-        }
-
-        logStatus("Pass A: Merging decisions across encounters...");
-        const mergeInput = JSON.stringify(rawDetections, null, 2);
-        const mergeData = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, DECISION_MERGE_SCHEMA, `${DECISION_MERGE_PROMPT}\n\nDetected decisions:\n${mergeInput}`);
-        let merged = (mergeData.merged_decisions || []).map(md => ({
-            ...md,
-            relevant_turn_indices: md.turn_indices || []
-        }));
-        merged = collapseOverlappingNestedDecisions(merged);
-
+        const merged = await detectMergedDecisions(apiKey, files, globalTurns);
         const regions = [];
         for (let i = 0; i < merged.length; i++) {
-            const md = merged[i];
-            const colorTheme = REGION_COLORS[i % REGION_COLORS.length];
-            logStatus(`Pass B: CCQ analysis for "${md.decision_label}"...`);
-
-            let chunkIndices = md.turn_indices || md.relevant_turn_indices || [];
-            const chunkText = buildTranscriptChunk(globalTurns, chunkIndices);
-            const filterData = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, RELEVANCE_FILTERING_SCHEMA, `${RELEVANCE_FILTERING_PROMPT}\n\nDecision: ${md.decision_label}\n\n${chunkText}`);
-            const filtered = (filterData.relevant_turn_indices || chunkIndices).sort((a, b) => a - b);
-            const filteredText = buildTranscriptChunk(globalTurns, filtered);
-
-            const ccqData = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, CCQ_ANALYSIS_SCHEMA, `${getCcqAnalysisPrompt(md.decision_label, md.option_names)}\n\n${filteredText}`);
-
-            const interventions = (ccqData.linked_interventions || []).map(s => findOntologyKey(s)).filter(Boolean);
-            const uniqueInterventions = [...new Set(interventions)];
-            const selectedIntervention = md.status === "Resolved" ? normalizeSelectedIntervention(md.selected_intervention) : null;
-
-            regions.push({
-                decision_id: md.decision_id || `d${i + 1}`,
-                parent_decision_id: md.parent_decision_id || null,
-                decision_label: md.decision_label,
-                status: md.status,
-                selected_option: md.selected_option || null,
-                selected_intervention: selectedIntervention,
-                option_names: md.option_names || [],
-                encounter_ids: md.encounter_files || [],
-                relevant_turn_indices: filtered,
-                colorTheme,
-                linked_interventions: uniqueInterventions,
-                decision_overview: ccqData.decision_overview,
-                communication_analysis: ccqData.communication_analysis,
-                informed_consent_analysis: null
-            });
+            regions.push(await buildCcqRegion(apiKey, merged[i], globalTurns, i));
         }
 
         const collapsedRegions = collapseOverlappingNestedDecisions(regions);
@@ -6791,6 +6999,25 @@ function renderDecisionTreeOptions(r) {
     return `<div class="tree-options">${items}</div>`;
 }
 
+function renderJevCheckLine(r) {
+    const checks = r?.jev_checks || [];
+    if (!checks.length) return '';
+    const failed = checks.filter(check => check.plausible === false).length;
+    if (!failed) return `<div class="jev-check is-ok">Jev: plausible</div>`;
+    return `<div class="jev-check is-gap">Jev: ${failed} of ${checks.length} not supported</div>`;
+}
+
+function renderJevCheckDetail(r) {
+    const checks = r?.jev_checks || [];
+    if (!checks.length) return '';
+    const items = checks.map(check => {
+        const mark = check.plausible ? 'Plausible' : 'Not supported';
+        const score = check.noul == null ? '' : ` ${Number(check.noul).toFixed(2)}`;
+        return `<li class="jev-check ${check.plausible ? 'is-ok' : 'is-gap'}"><strong>${mark}${score}.</strong> ${escHtml(check.text)}</li>`;
+    }).join('');
+    return `<div class="jev-check-list"><h3>Jev check</h3><ul>${items}</ul></div>`;
+}
+
 function renderDecisionTreeNode(r, opts, depth) {
     const kids = spineChildrenOf(opts.regions, r.decision_id);
     const open = (opts.expandedIds || []).includes(r.decision_id);
@@ -6811,6 +7038,7 @@ function renderDecisionTreeNode(r, opts, depth) {
                 : '<span class="tree-row-toggle"></span>'}
             <span class="tree-row-title" ${select}>${escHtml(r.decision_label)}</span>
         </div>
+        ${renderJevCheckLine(r)}
         ${renderDecisionTreeOptions(r)}
         ${kidsHtml}
     </div>`;
@@ -7709,6 +7937,7 @@ function renderEpisodeDock(r, turns) {
     return `<div class="episode-dock" id="episodeDock">
         <h3>Dock — ${escHtml(r.decision_label)}</h3>
         <p class="episode-dock-kicker">${escHtml(evLabel)}${glyph.turn != null ? ` · turn ${glyph.turn}` : ''}</p>
+        ${renderJevCheckDetail(r)}
         <div class="episode-dock-grid">
             <div>
                 <h3>Options</h3>
