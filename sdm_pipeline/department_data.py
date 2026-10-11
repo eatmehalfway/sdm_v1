@@ -6,6 +6,7 @@ import datetime
 import hashlib
 import random
 import re
+from collections import defaultdict
 from typing import Any
 
 # Rolling window (in days, trailing from "today") that synthetic episode_date
@@ -800,6 +801,55 @@ def _chosen_interventions(decision: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def core_risk_gap_bucket(status: str | None, pass_c: str | None) -> str | None:
+    """How a saved-run core risk counts in department gap stats.
+
+    ``ok`` scores Discussed and Not detected. A missing pass status is unknown:
+    Discussed still counts, and Not detected does not, because a past failure
+    wrote the same value. Not assessed and any other status leave the denominator.
+    """
+    if status == "Discussed" and pass_c in (None, "ok"):
+        return "discussed"
+    if status == "Not detected" and pass_c == "ok":
+        return "not_discussed"
+    return None
+
+
+def risk_item_bucket(risk: dict[str, Any]) -> str | None:
+    """Bucket an episode core-risk item that has already been filtered for scoring.
+
+    Demo rows are authored as Discussed or Not detected and have no pass status.
+    Not assessed and unverified never count.
+    """
+    status = risk.get("detection_status")
+    if status == "Discussed":
+        return "discussed"
+    if status == "Not detected":
+        return "not_discussed"
+    return None
+
+
+def risk_frequency_rows(episodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    counts: dict[str, dict[str, int]] = defaultdict(lambda: {"discussed": 0, "not_discussed": 0})
+    for episode in episodes:
+        for risk in episode.get("core_risk_items") or []:
+            bucket = risk_item_bucket(risk)
+            if not bucket:
+                continue
+            name = risk.get("risk_name") or "Unnamed risk"
+            counts[name][bucket] += 1
+    rows = []
+    for name, value in counts.items():
+        total = value["discussed"] + value["not_discussed"]
+        rows.append({
+            "risk_name": name,
+            "not_discussed_count": value["not_discussed"],
+            "discussed_count": value["discussed"],
+            "pct_not_discussed": round(100 * value["not_discussed"] / total) if total else 0,
+        })
+    return sorted(rows, key=lambda row: (-row["not_discussed_count"], row["risk_name"]))
+
+
 def select_index_decision(
     decisions: list[dict[str, Any]], default_procedure: str | None = None
 ) -> dict[str, Any] | None:
@@ -900,14 +950,19 @@ def metrics_from_regions(regions_payload: Any) -> dict[str, Any]:
     engagement_scores.append(100 * sum(1 for flag in flags if flag) / 3)
     teachback = comm.get("understanding_verification") == "Active understanding check detected"
     core_risk_items = []
+    pass_c = (decision.get("pipeline_status") or {}).get("pass_c")
     for intervention in _chosen_interventions(decision):
         for risk in intervention.get("core_risks") or []:
+            status = risk.get("detection_status")
+            bucket = core_risk_gap_bucket(status, pass_c)
+            if bucket is None:
+                continue
             core_risk_items.append({
                 "risk_name": risk.get("risk_name") or "Unnamed risk",
-                "detection_status": risk.get("detection_status") or "Not detected",
+                "detection_status": "Discussed" if bucket == "discussed" else "Not detected",
             })
             core_total += 1
-            if risk.get("detection_status") == "Discussed":
+            if bucket == "discussed":
                 core_discussed += 1
 
     tradeoff_pct = sum(tradeoff_scores) / len(tradeoff_scores) if tradeoff_scores else 30
