@@ -1055,7 +1055,7 @@
         .generative-layer h3 { margin:0 0 8px; }
         .generative-layer p { margin:0; font-size:0.92rem; line-height:1.45; }
         .comm-opportunity {
-            margin:0 0 1px; padding:16px 20px 18px;
+            margin:0 0 8px; padding:16px 20px 18px;
             border:0;
             border-left:4px solid var(--secondary);
             background:var(--secondary-soft);
@@ -6178,6 +6178,7 @@ function eventGroupId(e) {
     }
     if (e.key === 'risk') return `risk:${e.riskName || e.label}`;
     if (e.key === 'question') return `question:${e.label || e.askedTurn}`;
+    if (e.key === 'recommendation') return `recommendation:${e.optionName || e.label}`;
     return `${e.key}:${e.turn}:${e.label}`;
 }
 
@@ -6575,14 +6576,14 @@ function collectTimelineEvents(regions) {
         });
         const rec = r.decision_overview?.clinician_recommendation;
         if (isExplicitRecommendation(rec) && (rec.turn_indices || []).length) {
-            pushEvent({
-                key: 'recommendation', turn: rec.turn_indices[0], decisionId: r.decision_id,
+            rec.turn_indices.forEach(turn => pushEvent({
+                key: 'recommendation', turn, decisionId: r.decision_id,
                 label: `Recommended: ${rec.recommended_option || '\u2014'}`,
                 word: shortGlyphWord(rec.recommended_option, 'recommendation'),
                 optionName: rec.recommended_option,
                 turns: rec.turn_indices,
                 quote: rec.quote || '',
-            });
+            }));
         }
         const pc = r.decision_overview?.patient_considerations || {};
         [...(pc.goals_priorities || []), ...(pc.preferences || [])].forEach(item => {
@@ -6841,6 +6842,8 @@ function renderTickGrid(r, opts) {
         ? eventGroupId(selectedEv) : null;
     const selectedOptionName = selected && selectedEv && optionLinkedKey(glyph.key)
         ? selectedEv.optionName : null;
+    const selectedRecGid = selected && glyph.key === 'recommendation' && selectedEv
+        ? eventGroupId(selectedEv) : null;
     const earliestSelected = selectedGid
         ? Math.min(...events.filter(e => eventGroupId(e) === selectedGid).map(e => e.turn))
         : null;
@@ -6910,7 +6913,8 @@ function renderTickGrid(r, opts) {
             const cx = SPINE_TURN_LABEL_W + ci * SPINE_COL_W + SPINE_COL_W / 2;
             const active = selected && ctx.glyph.key === col.key && Number(ctx.glyph.turn) === t;
             const ghost = ghostCells.has(cellKey);
-            const associated = !!(selectedOptionName && relatedOptionNames(ev, r).includes(selectedOptionName));
+            const sameRecommendation = !!(selectedRecGid && eventGroupId(ev) === selectedRecGid);
+            const associated = !!(selectedOptionName && relatedOptionNames(ev, r).includes(selectedOptionName)) || (sameRecommendation && !active);
             const faded = ctx.glyph.key !== 'overview' && !active && !ghost && !associated;
             const opacity = active ? 1 : ghost ? 0.28 : associated ? 0.95 : faded ? 0.22 : 0.85;
             const hatch = ev.key === 'option' && (ev.conservative || optionIsConservative(ev.optionName));
@@ -6951,7 +6955,7 @@ function renderTickGrid(r, opts) {
     const choiceLine = choiceLineY == null ? '' : `<g>
             <title>${escAttr(`Choice made · turn ${choiceTurn}${r.choice_made?.option_name ? ` · ${r.choice_made.option_name}` : ''}`)}</title>
             <line x1="0" y1="${choiceLineY}" x2="${SPINE_TRACK_W}" y2="${choiceLineY}"
-                stroke="#0d2136" stroke-opacity="0.7" stroke-width="1.5" shape-rendering="crispEdges"></line>
+                stroke="#9aafc3" stroke-opacity="0.95" stroke-width="1.5" stroke-dasharray="1.5 3.5" stroke-linecap="round" shape-rendering="crispEdges"></line>
         </g>`;
     return `<div class="tick-grid${selected ? ' is-selected' : ''}" style="width:${SPINE_TRACK_W}px;height:${gridH}px">
         <div class="tick-grid-title" ${titleClick} style="${interactive ? '' : 'cursor:default;'}">
@@ -7735,10 +7739,10 @@ function rankCommunicationOpportunities(hits) {
     });
 }
 
-function communicationOpportunity(start, regions) {
+function communicationOpportunities(start, regions) {
     const list = regions || [];
     const index = opportunityIndexDecision(list) || start;
-    if (!index) return null;
+    if (!index) return [];
     const choiceTurn = choiceTurnOn(index);
     const hits = [];
     if (choiceTurn != null) {
@@ -7750,16 +7754,30 @@ function communicationOpportunity(start, regions) {
     }
     const missing = detectMissingCoreRisks(index);
     if (missing) hits.push(missing);
-    const best = rankCommunicationOpportunities(hits)[0];
-    if (!best) return null;
-    return {
+    let ranked = rankCommunicationOpportunities(hits);
+    if (DEMO_PAGE) {
+        const demoOrder = { 5: 0, 4: 1, 1: 2 };
+        ranked = ranked
+            .filter(hit => hit.rule === 1 || hit.rule === 4 || hit.rule === 5)
+            .sort((a, b) => {
+                if (a.priority !== b.priority) return a.priority === 'High' ? -1 : 1;
+                return (demoOrder[a.rule] ?? 9) - (demoOrder[b.rule] ?? 9);
+            });
+    } else {
+        ranked = ranked.slice(0, 1);
+    }
+    return ranked.map(best => ({
         text: validateGenerated(best.text, best.type),
         trace: best.source_field,
         decisionLabel: best.decisionLabel,
         priority: best.priority,
         type: best.type,
         rule: best.rule,
-    };
+    }));
+}
+
+function communicationOpportunity(start, regions) {
+    return communicationOpportunities(start, regions)[0] || null;
 }
 
 function ccqFieldBrief(field) {
@@ -7873,20 +7891,22 @@ function renderGenerativeLayer(selected, regions) {
 
 function renderCommunicationOpportunity(selected, regions) {
     if (!selected) return '';
-    const opportunity = communicationOpportunity(selected, regions);
-    if (!opportunity) return '';
-    const headline = opportunity.type || opportunity.text;
-    const detail = opportunity.type && opportunity.text && opportunity.text !== opportunity.type
-        ? `<p>${escHtml(opportunity.text)}</p>`
-        : '';
-    const priority = opportunity.priority
-        ? ` <span class="opp-priority">${escHtml(opportunity.priority)}</span>`
-        : '';
-    return `<div class="comm-opportunity">
-        <strong>Communication Opportunity${priority}</strong>
-        <span class="opp-type">${escHtml(headline)}</span>
-        ${detail}
-    </div>`;
+    const opportunities = communicationOpportunities(selected, regions);
+    if (!opportunities.length) return '';
+    return opportunities.map(opportunity => {
+        const headline = opportunity.type || opportunity.text;
+        const detail = opportunity.type && opportunity.text && opportunity.text !== opportunity.type
+            ? `<p>${escHtml(opportunity.text)}</p>`
+            : '';
+        const priority = opportunity.priority
+            ? ` <span class="opp-priority">${escHtml(opportunity.priority)}</span>`
+            : '';
+        return `<div class="comm-opportunity">
+            <strong>Communication Opportunity${priority}</strong>
+            <span class="opp-type">${escHtml(headline)}</span>
+            ${detail}
+        </div>`;
+    }).join('');
 }
 
 const FAKE_PATIENT_NAMES = [
