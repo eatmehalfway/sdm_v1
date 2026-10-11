@@ -18,6 +18,8 @@ per procedure.
 """
 from __future__ import annotations
 
+from department_data import risk_item_bucket
+
 import math
 import random
 import statistics
@@ -214,7 +216,10 @@ def risk_category_gap_stats(
             category = resolve_risk_category(item)
             if not category:
                 continue
-            is_gap = item.get("detection_status") != "Discussed"
+            gap_key = risk_item_bucket(item)
+            if gap_key is None:
+                continue
+            is_gap = gap_key == "not_discussed"
 
             bucket = overall[category]
             bucket["total"] += 1

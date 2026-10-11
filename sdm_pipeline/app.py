@@ -13,6 +13,7 @@ from department_data import (
     get_demo_episode_detail,
     get_demo_episodes,
     metrics_from_regions,
+    risk_frequency_rows,
 )
 from procedure_analytics import (
     framing_rank,
@@ -222,22 +223,7 @@ def _db_episodes():
 
 
 def _risk_frequency(episodes):
-    counts = defaultdict(lambda: {"discussed": 0, "not_discussed": 0})
-    for episode in episodes:
-        for risk in episode.get("core_risk_items") or []:
-            name = risk.get("risk_name") or "Unnamed risk"
-            key = "discussed" if risk.get("detection_status") == "Discussed" else "not_discussed"
-            counts[name][key] += 1
-    rows = []
-    for name, value in counts.items():
-        total = value["discussed"] + value["not_discussed"]
-        rows.append({
-            "risk_name": name,
-            "not_discussed_count": value["not_discussed"],
-            "discussed_count": value["discussed"],
-            "pct_not_discussed": round(100 * value["not_discussed"] / total) if total else 0,
-        })
-    return sorted(rows, key=lambda row: (-row["not_discussed_count"], row["risk_name"]))
+    return risk_frequency_rows(episodes)
 
 
 def _question_topic(question):

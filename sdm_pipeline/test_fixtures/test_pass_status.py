@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+"""Pass C failures and unknown saved runs must not count as missed core risks."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from department_data import metrics_from_regions, risk_frequency_rows
+from procedure_analytics import risk_category_gap_stats
+
+
+def region(risks, pass_c="omit"):
+    decision = {
+        "decision_id": "d1",
+        "decision_label": "Knee replacement",
+        "status": "Resolved",
+        "selected_intervention": "Knee replacement",
+        "decision_overview": {"options_considered": []},
+        "communication_analysis": {
+            "decision_framing": "Single option presented",
+            "tradeoff_comparisons": [],
+            "patient_engagement": {},
+            "understanding_verification": "No active understanding check detected",
+        },
+        "informed_consent_analysis": {
+            "interventions": [{
+                "intervention_name": "Knee replacement",
+                "core_risks": risks,
+            }],
+        },
+    }
+    if pass_c != "omit":
+        decision["pipeline_status"] = {"pass_c": pass_c}
+    return {"decisions": [decision]}
+
+
+def frequency(metrics):
+    rows = risk_frequency_rows([{"core_risk_items": metrics["core_risk_items"]}])
+    return {row["risk_name"]: row["not_discussed_count"] for row in rows}
+
+
+def test_failed_pass_does_not_count():
+    metrics = metrics_from_regions(region([
+        {"risk_name": "Infection", "detection_status": "Not assessed"},
+        {"risk_name": "Nerve injury", "detection_status": "Not assessed"},
+    ], pass_c="failed"))
+    assert metrics["core_risk_pct"] is None
+    assert metrics["core_risk_items"] == []
+    assert frequency(metrics) == {}
+
+
+def test_missing_status_keeps_discussed_and_drops_not_detected():
+    metrics = metrics_from_regions(region([
+        {"risk_name": "Infection", "detection_status": "Discussed"},
+        {"risk_name": "Nerve injury", "detection_status": "Not detected"},
+        {"risk_name": "Dural tear", "detection_status": "Not detected"},
+    ]))
+    names = [item["risk_name"] for item in metrics["core_risk_items"]]
+    assert names == ["Infection"]
+    assert metrics["core_risk_pct"] == 100
+    assert frequency(metrics) == {"Infection": 0}
+
+
+def test_ok_pass_counts_real_gaps():
+    metrics = metrics_from_regions(region([
+        {"risk_name": "Infection", "detection_status": "Discussed"},
+        {"risk_name": "Nerve injury", "detection_status": "Not detected"},
+        {"risk_name": "Dural tear", "detection_status": "Not detected"},
+    ], pass_c="ok"))
+    assert metrics["core_risk_pct"] == 33
+    assert frequency(metrics) == {"Infection": 0, "Nerve injury": 1, "Dural tear": 1}
+
+
+def test_not_assessed_leaves_gap_stats():
+    stats = risk_category_gap_stats([{
+        "clinician_id": "clin_chen",
+        "procedure": "Knee replacement",
+        "core_risk_items": [
+            {"risk_name": "Infection", "risk_category": "Infection", "detection_status": "Not assessed"},
+            {"risk_name": "Nerve injury", "risk_category": "Nerve", "detection_status": "Not detected"},
+        ],
+    }], min_clinicians=1, min_procedures=1, min_episodes_per_group=1)
+    by_name = {row["risk_category"]: row for row in stats}
+    assert "Infection" not in by_name
+    assert by_name["Nerve"]["applicable_episodes"] == 1
+    assert by_name["Nerve"]["gap_rate"] == 100.0
+
+
+def main():
+    test_failed_pass_does_not_count()
+    test_missing_status_keeps_discussed_and_drops_not_detected()
+    test_ok_pass_counts_real_gaps()
+    test_not_assessed_leaves_gap_stats()
+    print("OK: pass status stays out of the not-discussed counts")
+
+
+if __name__ == "__main__":
+    main()
