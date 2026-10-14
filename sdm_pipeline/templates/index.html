@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if compare_page %}Gemini and Jev{% elif demo_page %}CCQ Demo{% else %}CCQ Clinical Conversation Analyzer{% endif %}</title>
+    <title>{% if style_page %}Cockpit · {{ style_theme }}{% elif compare_page %}Gemini and Jev{% elif demo_page %}CCQ Demo{% else %}CCQ Clinical Conversation Analyzer{% endif %}</title>
+    {% if style_page %}<link rel="stylesheet" href="{{ url_for('static', filename='cockpit_styles.css') }}">{% endif %}
     <script src="{{ url_for('static', filename='ccq_scoring.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
@@ -1190,7 +1191,7 @@
         }
     </style>
 </head>
-<body class="{% if demo_page %}demo-page{% endif %}{% if compare_page %} compare-page{% endif %}" data-demo-page="{{ 'true' if demo_page else 'false' }}" data-compare-page="{{ 'true' if compare_page else 'false' }}">
+<body class="{% if demo_page %}demo-page{% endif %}{% if compare_page %} compare-page{% endif %}{% if style_page %} style-page style-{{ style_theme }}{% endif %}" data-demo-page="{{ 'true' if demo_page else 'false' }}" data-compare-page="{{ 'true' if compare_page else 'false' }}" data-style-page="{{ 'true' if style_page else 'false' }}" data-style-theme="{{ style_theme or '' }}" data-style-run="{{ style_run or '' }}">
 
 <div class="container" id="appContainer">
     <header class="topbar">
@@ -1381,6 +1382,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedKey = localStorage.getItem('gemini_api_key');
     if (savedKey) document.getElementById('apiKey').value = savedKey;
     initFallbackDB();
+    if (document.body?.dataset?.stylePage === 'true') {
+        const runId = document.body.dataset.styleRun;
+        const slot = document.getElementById('episodeInlineDetail');
+        const body = document.getElementById('episodeInlineBody');
+        if (slot) slot.hidden = false;
+        if (!runId) {
+            if (body) body.innerHTML = '<p class="jitter-hint">Choose a saved run on the styles page.</p>';
+            return;
+        }
+        openEpisodeOverlay(`run_${runId}`);
+        return;
+    }
     if (document.body?.dataset?.comparePage === 'true') {
         const geminiKey = document.getElementById('compareGeminiKey');
         if (geminiKey) geminiKey.value = savedKey || '';
@@ -4595,13 +4608,19 @@ function evidenceForOntologyRisk(riskName, fields, turns) {
     for (const field of fields || []) {
         const text = fieldPlainText(field);
         if (!riskMentionedInText(riskName, text)) continue;
+        const indices = (field.turn_indices || []).filter(index => {
+            const row = (turns || []).find(t => Number(t.index) === Number(index));
+            return row && !isPatientSpeaker(row.speaker_line);
+        });
+        if (!indices.length) continue;
         return {
             quote: String(field.quote || text || '').trim(),
-            turn_indices: allTurnIndices(field),
+            turn_indices: indices,
         };
     }
     const hits = [];
     (turns || []).forEach(t => {
+        if (isPatientSpeaker(t.speaker_line)) return;
         const text = (t.text_lines || []).join(' ');
         if (!riskMentionedInText(riskName, text)) return;
         hits.push(t);
@@ -4618,6 +4637,34 @@ function applyRiskEvidence(risk, hit) {
     risk.detection_status = 'Discussed';
     if (!String(risk.quote || '').trim()) risk.quote = hit.quote || '';
     if (!(risk.turn_indices || []).length) risk.turn_indices = hit.turn_indices || [];
+}
+
+function expandDiscussedRiskMentions(decision, turns, fields) {
+    (decision?.informed_consent_analysis?.interventions || []).forEach(intv => {
+        ['core_risks', 'relevant_risks', 'context_dependent_risks'].forEach(tier => {
+            (intv[tier] || []).forEach(risk => {
+                if (risk.detection_status !== 'Discussed') return;
+                const found = [];
+                (fields || []).forEach(field => {
+                    if (!riskMentionedInText(risk.risk_name, fieldPlainText(field))) return;
+                    (field.turn_indices || []).forEach(index => {
+                        const row = (turns || []).find(t => Number(t.index) === Number(index));
+                        if (row && isPatientSpeaker(row.speaker_line)) return;
+                        found.push(Number(index));
+                    });
+                });
+                (turns || []).forEach(t => {
+                    if (isPatientSpeaker(t.speaker_line)) return;
+                    const text = (t.text_lines || []).join(' ');
+                    if (!riskMentionedInText(risk.risk_name, text)) return;
+                    found.push(Number(t.index));
+                });
+                risk.turn_indices = [...new Set([...(risk.turn_indices || []).map(Number), ...found])]
+                    .filter(n => Number.isInteger(n))
+                    .sort((a, b) => a - b);
+            });
+        });
+    });
 }
 
 function overlayDiscussedCoreRisks(target, fields, turns) {
@@ -4662,6 +4709,7 @@ function hydrateInformedConsent(regions, defaultProcedure, turns) {
     const transcript = turns || [];
     if (decisionHasCoreRisks(target)) {
         overlayDiscussedCoreRisks(target, fields, transcript);
+        expandDiscussedRiskMentions(target, transcript, fields);
         return;
     }
     const rows = GLOBAL_RISK_DB[ontKey] || [];
@@ -4994,13 +5042,30 @@ async function callGemini(key, systemPrompt, schema, userContent, { timeoutMs = 
 function parseMultipleTranscriptsToTurns(fileDataArray) {
     const globalTurns = [];
     let globalIndex = 0;
+    const numberedTurnRegex = /^Turn\s+(\d+)\s*(?:—|–|--|-)\s*([^:]+):\s*(.*)$/i;
+    const speakerColonRegex = /^([A-Za-z\s\.\-\d]+):\s*(.*)$/;
     fileDataArray.forEach((fileObj) => {
         const lines = fileObj.text.split("\n");
         let currentTurn = null;
-        const speakerColonRegex = /^([A-Za-z\s\.\-\d]+):\s*(.*)$/;
+        let numberOffset = null;
         lines.forEach((line) => {
             const clean = line.trim();
             if (!clean) return;
+            const numbered = clean.match(numberedTurnRegex);
+            if (numbered && numbered[2].trim().length < 40) {
+                const labeled = parseInt(numbered[1], 10);
+                if (numberOffset === null) numberOffset = globalIndex > labeled ? globalIndex - labeled : 0;
+                if (currentTurn) globalTurns.push(currentTurn);
+                const index = labeled + numberOffset;
+                currentTurn = {
+                    index,
+                    encounter: fileObj.name,
+                    speaker_line: numbered[2].trim().toUpperCase(),
+                    text_lines: [numbered[3] ? numbered[3] : ""]
+                };
+                globalIndex = Math.max(globalIndex, index + 1);
+                return;
+            }
             const colonMatch = clean.match(speakerColonRegex);
             if (colonMatch && colonMatch[1].length < 30) {
                 if (currentTurn) globalTurns.push(currentTurn);
@@ -5109,11 +5174,13 @@ function jevHits(answers, role) {
     return found.sort((a, b) => a - b);
 }
 
-function jevDetail(turns, indices) {
+function jevDetail(turns, indices, patientChecks) {
     if (!indices.length) return null;
     const parts = indices.map(index => jevTurnText(turns, index)).filter(Boolean);
     const quote = parts[0] || '';
-    return { text: parts.join(' '), qualifying_language: [], quote, turn_indices: indices };
+    const detail = { text: parts.join(' '), qualifying_language: [], quote, turn_indices: indices };
+    if (patientChecks && Object.keys(patientChecks).length) detail.patient_checks = patientChecks;
+    return detail;
 }
 
 function jevStatements(turns, indices) {
@@ -5125,8 +5192,46 @@ function jevStatements(turns, indices) {
 
 function jevNextClinicianTurn(turns, asked) {
     const after = (turns || []).filter(t => Number(t.index) > Number(asked));
-    const clinician = after.find(t => !/patient|family|caregiver/i.test(t.speaker_line || ''));
+    const clinician = after.find(t => !isPatientSpeaker(t.speaker_line));
     return clinician ? Number(clinician.index) : null;
+}
+
+function confirmedPatientTurns(answers, role) {
+    const found = [];
+    Object.entries(answers || {}).forEach(([key, val]) => {
+        const match = key.match(/^t(\d+)_p_(.+)$/);
+        if (!match || match[2] !== role) return;
+        const index = Number(match[1]);
+        const assertion = answers[`t${index}_assert_${role}`];
+        if (!patientBehaviorKept(val?.noul, assertion?.noul)) return;
+        found.push(index);
+    });
+    return found.sort((a, b) => a - b);
+}
+
+function patientHarmTurns(answers, riskName) {
+    const found = [];
+    Object.entries(answers || {}).forEach(([key, val]) => {
+        const match = key.match(/^t(\d+)_harm_risk$/);
+        if (!match || val?.choice !== riskName) return;
+        const index = Number(match[1]);
+        if (!patientBehaviorKept(answers[`t${index}_p_states_harm`]?.noul, answers[`t${index}_assert_states_harm`]?.noul)) return;
+        found.push(index);
+    });
+    return found.sort((a, b) => a - b);
+}
+
+function patientCheckMap(turns, indices, status) {
+    const checks = {};
+    (indices || []).forEach(index => {
+        const row = (turns || []).find(t => t.index === index);
+        if (row && isPatientSpeaker(row.speaker_line)) checks[index] = status;
+    });
+    return checks;
+}
+
+function mergeTurnIndices(...lists) {
+    return [...new Set(lists.flat().filter(index => index != null))].sort((a, b) => a - b);
 }
 
 function regionFromJev(turns, procedure) {
@@ -5139,16 +5244,19 @@ function regionFromJev(turns, procedure) {
     const core_risks = source.map(row => {
         const id = jevSlug(row.risk_item);
         const turn = jevChoiceTurn(answers[`first_turn_${id}`]);
-        const discussed = jevDiscussed(answers[`discussed_${id}`]) || turn != null;
-        const quote = turn != null
-            ? ((turns || []).find(t => t.index === turn)?.text_lines || []).join(' ')
-            : '';
+        const turnRow = turn != null ? (turns || []).find(t => t.index === turn) : null;
+        const clinicianTurn = turn != null && turnRow && !isPatientSpeaker(turnRow.speaker_line) ? turn : null;
+        const discussed = jevDiscussed(answers[`discussed_${id}`]) || clinicianTurn != null;
+        const quote = clinicianTurn != null ? jevTurnText(turns, clinicianTurn) : '';
+        const patientTurns = patientHarmTurns(answers, row.risk_item);
         return {
             risk_name: row.risk_item,
-            detection_status: discussed ? 'Discussed' : 'Not detected',
+            detection_status: riskDetectionStatus(discussed),
             details_communicated: blank,
             quote,
-            turn_indices: turn != null ? [turn] : [],
+            turn_indices: clinicianTurn != null ? [clinicianTurn] : [],
+            patient_turn_indices: patientTurns,
+            patient_checks: patientCheckMap(turns, patientTurns, 'confirmed'),
             jev_locked: true,
         };
     });
@@ -5164,17 +5272,17 @@ function regionFromJev(turns, procedure) {
     if (path === 'nonoperative') selectedOption = 'Continued nonoperative management';
     else if (path === 'surgery' || (path !== 'none' && (agreed || choiceTurn != null))) selectedOption = 'Surgical management';
     const deferred = jevDiscussed(answers.decision_deferred) && !selectedOption;
-    const surgeryTurns = jevHits(answers, 'describes_surgery');
-    const nonopTurns = jevHits(answers, 'describes_nonoperative');
-    const surgeryBenefits = jevHits(answers, 'benefit_surgery');
-    const nonopBenefits = jevHits(answers, 'benefit_nonoperative');
-    const surgeryBurdens = jevHits(answers, 'burden_surgery');
-    const nonopBurdens = jevHits(answers, 'burden_nonoperative');
+    const surgeryTurns = mergeTurnIndices(jevHits(answers, 'describes_surgery'), confirmedPatientTurns(answers, 'describes_surgery'));
+    const nonopTurns = mergeTurnIndices(jevHits(answers, 'describes_nonoperative'), confirmedPatientTurns(answers, 'describes_nonoperative'));
+    const surgeryBenefits = mergeTurnIndices(jevHits(answers, 'benefit_surgery'), confirmedPatientTurns(answers, 'benefit_surgery'));
+    const nonopBenefits = mergeTurnIndices(jevHits(answers, 'benefit_nonoperative'), confirmedPatientTurns(answers, 'benefit_nonoperative'));
+    const surgeryBurdens = mergeTurnIndices(jevHits(answers, 'burden_surgery'), confirmedPatientTurns(answers, 'burden_surgery'));
+    const nonopBurdens = mergeTurnIndices(jevHits(answers, 'burden_nonoperative'), confirmedPatientTurns(answers, 'burden_nonoperative'));
     const surgery = {
         option_name: 'Surgical management',
-        what_it_involves: jevDetail(turns, surgeryTurns),
-        benefits: jevDetail(turns, surgeryBenefits),
-        burdens: jevDetail(turns, surgeryBurdens),
+        what_it_involves: jevDetail(turns, surgeryTurns, patientCheckMap(turns, surgeryTurns, 'confirmed')),
+        benefits: jevDetail(turns, surgeryBenefits, patientCheckMap(turns, surgeryBenefits, 'confirmed')),
+        burdens: jevDetail(turns, surgeryBurdens, patientCheckMap(turns, surgeryBurdens, 'confirmed')),
         risks: discussedNames.length ? {
             text: discussedNames.join(', '),
             qualifying_language: [],
@@ -5190,9 +5298,9 @@ function regionFromJev(turns, procedure) {
             conservative: true,
             jev_burden: nonopBurdens.length > 0,
             jev_timing: jevDiscussed(answers.nonop_timing),
-            what_it_involves: jevDetail(turns, nonopTurns),
-            benefits: jevDetail(turns, nonopBenefits),
-            burdens: jevDetail(turns, nonopBurdens),
+            what_it_involves: jevDetail(turns, nonopTurns, patientCheckMap(turns, nonopTurns, 'confirmed')),
+            benefits: jevDetail(turns, nonopBenefits, patientCheckMap(turns, nonopBenefits, 'confirmed')),
+            burdens: jevDetail(turns, nonopBurdens, patientCheckMap(turns, nonopBurdens, 'confirmed')),
         };
         nonop.named_only = ![nonop.what_it_involves, nonop.benefits, nonop.burdens].some(field => fieldPlainText(field));
         options.push(nonop);
@@ -5240,7 +5348,7 @@ function regionFromJev(turns, procedure) {
     }] : [];
     const relevant = [...new Set([
         ...(choiceTurn != null ? [choiceTurn] : []),
-        ...core_risks.flatMap(r => r.turn_indices || []),
+        ...core_risks.flatMap(r => [...(r.turn_indices || []), ...(r.patient_turn_indices || [])]),
         ...surgeryTurns, ...nonopTurns, ...surgeryBenefits, ...nonopBenefits, ...surgeryBurdens, ...nonopBurdens, ...recTurns,
         ...goals.flatMap(item => item.turn_indices),
         ...preferences.flatMap(item => item.turn_indices),
@@ -5493,13 +5601,26 @@ function jevQuestionsForTranscript(turns, procedure, riskNames) {
         ['states_preference', 'Does this turn state a lean toward one treatment path?', 'The patient says which path they want, or that they do not want a path.', 'The patient does not state a preference between paths.'],
         ['asks_question', 'Does this turn ask a question about the decision, the procedure, a risk, or recovery?', 'The patient asks for information.', 'The patient does not ask a question.'],
     ];
+    const patientStrictRoles = [
+        ['describes_surgery', 'Does this turn assert what the operation involves, rather than ask about it, repeat the clinician, or describe symptoms the patient already has?', 'The patient asserts the steps, anatomy, or what will be done in the operation.', 'The patient does not assert what the operation involves. A question, an echo of the clinician, or a report of current symptoms does not count.'],
+        ['describes_nonoperative', 'Does this turn assert a path of continuing without surgery, rather than ask about it, repeat the clinician, or describe symptoms the patient already has?', 'The patient asserts therapy, injections, medication, or waiting as a treatment path.', 'The patient does not assert a nonsurgical path. A question, an echo of the clinician, or a report of current symptoms does not count.'],
+        ['benefit_surgery', 'Does this turn assert a benefit or expected outcome of the operation, rather than ask, repeat the clinician, or describe symptoms the patient already has?', 'The patient asserts something that can be gained from the operation.', 'The patient does not assert a benefit of the operation. A question, an echo of the clinician, or a report of current symptoms does not count.'],
+        ['benefit_nonoperative', 'Does this turn assert a benefit or expected outcome of continuing without surgery, rather than ask, repeat the clinician, or describe symptoms the patient already has?', 'The patient asserts something that can be gained from nonsurgical care.', 'The patient does not assert a benefit of nonsurgical care. A question, an echo of the clinician, or a report of current symptoms does not count.'],
+        ['burden_surgery', 'Does this turn assert a practical burden, recovery demand, or limitation of the operation, rather than ask, repeat the clinician, or describe symptoms the patient already has?', 'The patient asserts recovery, time, activity limits, or another cost of the operation.', 'The patient does not assert a burden of the operation. A question, an echo of the clinician, or a report of current symptoms does not count.'],
+        ['burden_nonoperative', 'Does this turn assert a practical burden or limitation of continuing without surgery, rather than ask, repeat the clinician, or describe symptoms the patient already has?', 'The patient asserts ongoing symptoms, visits, or limits as a cost of nonsurgical care.', 'The patient does not assert a burden of nonsurgical care. A question, an echo of the clinician, or a report of current symptoms does not count.'],
+        ['states_harm', 'Does this turn assert that a harm can occur because of a treatment path, rather than ask about a risk, repeat the clinician, or describe symptoms the patient already has?', 'The patient asserts that a harm can happen because of a treatment path.', 'The patient does not assert a treatment harm. A question, an echo of the clinician, or a report of current symptoms does not count.'],
+    ];
     (turns || []).forEach(turn => {
         const text = (turn.text_lines || []).join(' ').replace(/\s+/g, ' ').trim();
         if (text.length < 8) return;
-        const patient = /patient|family|caregiver/i.test(turn.speaker_line || '');
+        const patient = isPatientSpeaker(turn.speaker_line);
         const roles = patient ? patientRoles : (text.length >= 12 ? clinicianRoles : []);
         roles.forEach(([role, question, yes, no]) => {
             nouls[`t${turn.index}_${role}`] = jevBehaviorNoul(turn, procedure, question, yes, no);
+        });
+        if (!patient) return;
+        patientStrictRoles.forEach(([role, question, yes, no]) => {
+            nouls[`t${turn.index}_p_${role}`] = jevBehaviorNoul(turn, procedure, question, yes, no);
         });
     });
     (riskNames || []).forEach(name => {
@@ -5626,6 +5747,56 @@ async function runJevComparison(turns, procedure) {
         logStatus(`Jev batch ${i + 1}–${i + slice.length} of ${batches.length}...`);
         await Promise.all(slice.map(batch => callJev(state, batch.questions)));
     }
+    await confirmPatientBehaviorTurns(state, turns, procedure, source.slice(0, 24));
+}
+
+async function confirmPatientBehaviorTurns(state, turns, procedure, riskNames) {
+    const first = collectJevAnswers();
+    const hits = [];
+    (turns || []).forEach(turn => {
+        if (!isPatientSpeaker(turn.speaker_line)) return;
+        ['describes_surgery', 'describes_nonoperative', 'benefit_surgery', 'benefit_nonoperative', 'burden_surgery', 'burden_nonoperative', 'states_harm'].forEach(role => {
+            const noul = Number(first[`t${turn.index}_p_${role}`]?.noul);
+            if (!Number.isFinite(noul) || noul < PATIENT_BEHAVIOR_NOUL) return;
+            hits.push({ turn, role });
+        });
+    });
+    if (!hits.length) return;
+    const nouls = {};
+    hits.forEach(({ turn, role }) => {
+        nouls[`t${turn.index}_assert_${role}`] = jevBehaviorNoul(
+            turn,
+            procedure,
+            'Is the patient asserting this about the treatment, rather than asking a question, repeating the clinician, or describing symptoms they already have?',
+            'The patient is asserting information about the treatment.',
+            'The patient is asking, echoing the clinician, or describing symptoms they already have.'
+        );
+    });
+    logStatus(`Jev patient check: ${hits.length} assertion${hits.length === 1 ? '' : 's'}.`);
+    const batches = chunkObject(nouls, 20);
+    for (let i = 0; i < batches.length; i++) await callJev(state, batches[i]);
+    const names = (riskNames || []).filter(Boolean);
+    if (!names.length) return;
+    const after = collectJevAnswers();
+    const choices = {};
+    hits.forEach(({ turn, role }) => {
+        if (role !== 'states_harm') return;
+        if (!patientBehaviorKept(after[`t${turn.index}_p_states_harm`]?.noul, after[`t${turn.index}_assert_states_harm`]?.noul)) return;
+        const criteria = { none: 'The patient does not name one of the mapped core risks.' };
+        names.forEach(name => { criteria[name] = `The patient asserts that ${name} can occur.`; });
+        choices[`t${turn.index}_harm_risk`] = {
+            type: 'choice',
+            instructions: {
+                turn_index: turn.index,
+                speaker: turn.speaker_line,
+                text: (turn.text_lines || []).join(' ').replace(/\s+/g, ' ').slice(0, 240),
+                question: 'Which mapped core risk does this patient turn assert can occur? Choose none if the turn does not name one of these risks.',
+            },
+            criteria,
+        };
+    });
+    const choiceBatches = chunkObject(choices, 4);
+    for (let i = 0; i < choiceBatches.length; i++) await callJev(state, choiceBatches[i]);
 }
 
 function saveCompareSettings() {
@@ -5681,7 +5852,7 @@ async function buildCcqRegion(apiKey, md, globalTurns, index) {
     const ccqData = await callGemini(apiKey, CCQ_SYSTEM_INSTRUCTION, CCQ_ANALYSIS_SCHEMA, `${getCcqAnalysisPrompt(md.decision_label, md.option_names)}\n\n${filteredText}`);
     const interventions = (ccqData.linked_interventions || []).map(s => findOntologyKey(s)).filter(Boolean);
     const selectedIntervention = md.status === "Resolved" ? normalizeSelectedIntervention(md.selected_intervention) : null;
-    return {
+    const region = {
         decision_id: md.decision_id || `d${index + 1}`,
         parent_decision_id: md.parent_decision_id || null,
         decision_label: md.decision_label,
@@ -5697,6 +5868,202 @@ async function buildCcqRegion(apiKey, md, globalTurns, index) {
         communication_analysis: ccqData.communication_analysis,
         informed_consent_analysis: null
     };
+    filterPatientCitations(region, globalTurns);
+    return region;
+}
+
+function filterPatientField(field, turns) {
+    if (!field || typeof field !== 'object') return field;
+    const indices = field.turn_indices || [];
+    if (!indices.length) return field;
+    const kept = [];
+    const checks = { ...(field.patient_checks || {}) };
+    let droppedPatient = false;
+    indices.forEach(index => {
+        const row = (turns || []).find(t => Number(t.index) === Number(index));
+        if (!row || !isPatientSpeaker(row.speaker_line)) {
+            kept.push(index);
+            return;
+        }
+        const quote = String(field.quote || field.text || '').trim();
+        const turnText = (row.text_lines || []).join(' ');
+        if (!quoteInTurn(quote, turnText)) {
+            droppedPatient = true;
+            delete checks[index];
+            delete checks[String(index)];
+            return;
+        }
+        kept.push(index);
+        if (!checks[index] && !checks[String(index)]) checks[index] = 'quote_only';
+    });
+    if (!kept.length && droppedPatient) return null;
+    return { ...field, turn_indices: kept, patient_checks: checks };
+}
+
+function filterPatientCitations(region, turns) {
+    (region?.decision_overview?.options_considered || []).forEach(opt => {
+        ['what_it_involves', 'benefits', 'risks', 'burdens'].forEach(key => {
+            opt[key] = filterPatientField(opt[key], turns);
+        });
+    });
+}
+
+function releasePatientCoreRisks(regions, turns) {
+    (regions || []).forEach(region => {
+        (region.informed_consent_analysis?.interventions || []).forEach(intv => {
+            ['core_risks', 'relevant_risks', 'context_dependent_risks'].forEach(tier => {
+                (intv[tier] || []).forEach(risk => {
+                    if (risk.jev_locked) return;
+                    const clinician = [];
+                    const patient = [];
+                    const checks = { ...(risk.patient_checks || {}) };
+                    (risk.turn_indices || []).forEach(index => {
+                        const row = (turns || []).find(t => Number(t.index) === Number(index));
+                        if (!row || !isPatientSpeaker(row.speaker_line)) {
+                            clinician.push(index);
+                            return;
+                        }
+                        const quote = String(risk.quote || '').trim();
+                        const turnText = (row.text_lines || []).join(' ');
+                        if (!quoteInTurn(quote, turnText)) return;
+                        patient.push(index);
+                        if (!checks[index] && !checks[String(index)]) checks[index] = 'quote_only';
+                    });
+                    risk.turn_indices = clinician;
+                    risk.patient_turn_indices = [...new Set([...(risk.patient_turn_indices || []), ...patient])];
+                    risk.patient_checks = checks;
+                    if (!clinician.length && risk.detection_status === 'Discussed') {
+                        risk.detection_status = 'Not detected';
+                        risk.quote = '';
+                    }
+                });
+            });
+        });
+    });
+}
+
+function dropPatientTurn(checks, indices, index) {
+    const nextChecks = { ...(checks || {}) };
+    delete nextChecks[index];
+    delete nextChecks[String(index)];
+    const next = (indices || []).filter(item => Number(item) !== Number(index));
+    return { checks: nextChecks, indices: next };
+}
+
+function confirmPatientCheck(checks, index) {
+    const next = { ...(checks || {}) };
+    if (next[index] === 'quote_only') next[index] = 'confirmed';
+    if (next[String(index)] === 'quote_only') {
+        next[index] = 'confirmed';
+        delete next[String(index)];
+    }
+    return next;
+}
+
+async function confirmGeminiPatientCitations(turns, regions) {
+    if (!document.getElementById('jevKey')?.value.trim()) return;
+    const pending = new Map();
+    const note = (index) => {
+        const row = (turns || []).find(t => Number(t.index) === Number(index));
+        if (!row || !isPatientSpeaker(row.speaker_line)) return;
+        pending.set(Number(index), row);
+    };
+    (regions || []).forEach(region => {
+        (region.decision_overview?.options_considered || []).forEach(opt => {
+            ['what_it_involves', 'benefits', 'risks', 'burdens'].forEach(key => {
+                const node = opt[key];
+                Object.keys(node?.patient_checks || {}).forEach(index => {
+                    if (node.patient_checks[index] === 'quote_only') note(index);
+                });
+            });
+        });
+        (region.informed_consent_analysis?.interventions || []).forEach(intv => {
+            ['core_risks', 'relevant_risks', 'context_dependent_risks'].forEach(tier => {
+                (intv[tier] || []).forEach(risk => {
+                    Object.keys(risk.patient_checks || {}).forEach(index => {
+                        if (risk.patient_checks[index] === 'quote_only') note(index);
+                    });
+                });
+            });
+        });
+    });
+    if (!pending.size) return;
+    const nouls = {};
+    pending.forEach((turn, index) => {
+        nouls[`g_assert_${index}`] = jevBehaviorNoul(
+            turn,
+            '',
+            'Is the patient asserting something about the treatment, rather than asking a question, repeating the clinician, or describing symptoms they already have?',
+            'The patient is asserting information about the treatment.',
+            'The patient is asking, echoing the clinician, or describing symptoms they already have.'
+        );
+    });
+    const state = {
+        turns: (turns || []).map(t => ({
+            index: t.index,
+            speaker: t.speaker_line,
+            text: (t.text_lines || []).join(' '),
+        })),
+    };
+    const batches = chunkObject(nouls, 20);
+    logStatus(`Jev patient check: ${pending.size} cited turn${pending.size === 1 ? '' : 's'}.`);
+    for (let i = 0; i < batches.length; i++) await callJev(state, batches[i]);
+    const answers = collectJevAnswers();
+    const drop = new Set();
+    const keep = new Set();
+    pending.forEach((turn, index) => {
+        if (patientAssertionKept(answers[`g_assert_${index}`]?.noul)) keep.add(index);
+        else drop.add(index);
+    });
+    (regions || []).forEach(region => {
+        (region.decision_overview?.options_considered || []).forEach(opt => {
+            ['what_it_involves', 'benefits', 'risks', 'burdens'].forEach(key => {
+                const node = opt[key];
+                if (!node) return;
+                let indices = node.turn_indices || [];
+                let checks = node.patient_checks || {};
+                drop.forEach(index => {
+                    if (checks[index] == null && checks[String(index)] == null) return;
+                    const next = dropPatientTurn(checks, indices, index);
+                    indices = next.indices;
+                    checks = next.checks;
+                });
+                keep.forEach(index => { checks = confirmPatientCheck(checks, index); });
+                if (!indices.length && Object.keys(node.patient_checks || {}).length) opt[key] = null;
+                else {
+                    node.turn_indices = indices;
+                    node.patient_checks = checks;
+                }
+            });
+        });
+        (region.informed_consent_analysis?.interventions || []).forEach(intv => {
+            ['core_risks', 'relevant_risks', 'context_dependent_risks'].forEach(tier => {
+                (intv[tier] || []).forEach(risk => {
+                    let mentions = risk.patient_turn_indices || [];
+                    let checks = risk.patient_checks || {};
+                    drop.forEach(index => {
+                        if (checks[index] == null && checks[String(index)] == null) return;
+                        const next = dropPatientTurn(checks, mentions, index);
+                        mentions = next.indices;
+                        checks = next.checks;
+                    });
+                    keep.forEach(index => {
+                        const row = pending.get(index);
+                        const text = (row?.text_lines || []).join(' ');
+                        if (!riskMentionedInText(risk.risk_name, text)) {
+                            checks = confirmPatientCheck(checks, index);
+                            return;
+                        }
+                        if (!mentions.some(item => Number(item) === Number(index))) mentions = mentions.concat(index);
+                        checks[index] = 'confirmed';
+                        delete checks[String(index)];
+                    });
+                    risk.patient_turn_indices = mentions;
+                    risk.patient_checks = checks;
+                });
+            });
+        });
+    });
 }
 
 async function geminiSubdecisionRegions(apiKey, files, globalTurns) {
@@ -5885,6 +6252,7 @@ async function runGeminiThenJev() {
         resolvedProc = procName;
         logStatus(`Jev labels the top-level consent decision. Procedure: ${procName}. ${globalTurns.length} turns.`);
         await runJevComparison(globalTurns, procName);
+        await confirmGeminiPatientCitations(globalTurns, [subPrelude.index, ...subPrelude.subs].filter(Boolean));
         await jevCheckGeminiClaims(globalTurns, [subPrelude.index, ...subPrelude.subs]);
         const jevRegions = jevTreeFromGemini(globalTurns, procName, [subPrelude.index, ...subPrelude.subs]);
         if (jevRegions[0]) jevRegions[0].jev_checks = subPrelude.index?.jev_checks || [];
@@ -5970,6 +6338,7 @@ async function runAnalysis() {
         regions.forEach(alignDecisionOptions);
 
         await attachInformedConsent(apiKey, regions, globalTurns, procName);
+        releasePatientCoreRisks(regions, globalTurns);
         hydrateInformedConsent(regions, procName, globalTurns);
 
         logStatus("Pass C2: Choice turn for the informed-consent decision...");
@@ -5986,6 +6355,7 @@ async function runAnalysis() {
             if (!document.getElementById('jevKey')?.value.trim()) {
                 logStatus('Jev skipped: API key is empty.');
             } else {
+                await confirmGeminiPatientCitations(globalTurns, regions);
                 await runJevComparison(globalTurns, procName);
             }
             mountCompareCockpits(regions, globalTurns, procName, files[0]?.name);
@@ -6646,7 +7016,7 @@ function collectTimelineEvents(regions) {
     const events = [];
     const pushEvent = (e) => {
         const spec = e.riskName || e.optionName || (e.optionA ? `${e.optionA}::${e.optionB}` : '') || e.label || '';
-        e.id = `${e.decisionId}::${e.key}::${e.turn}::${spec}`;
+        e.id = `${e.decisionId}::${e.key}::${e.turn}::${spec}${e.patientSpeaker ? '::patient' : ''}`;
         events.push(e);
     };
     (regions || []).forEach(r => {
@@ -6664,6 +7034,7 @@ function collectTimelineEvents(regions) {
                 quote: quoteAtTurn([opt.what_it_involves, opt.benefits, opt.risks, opt.burdens], turn),
                 conservative: optionIsConservative(opt.option_name),
                 chosen: optionIsChosen(r, opt.option_name),
+                ...citationPatientMeta(opt.what_it_involves, turn),
             }));
             const benefitTurns = allTurnIndices(opt.benefits);
             benefitTurns.forEach(turn => pushEvent({
@@ -6673,6 +7044,7 @@ function collectTimelineEvents(regions) {
                 optionName: opt.option_name,
                 turns: benefitTurns,
                 quote: quoteAtTurn([opt.benefits], turn),
+                ...citationPatientMeta(opt.benefits, turn),
             }));
             const burdenTurns = allTurnIndices(opt.burdens);
             burdenTurns.forEach(turn => pushEvent({
@@ -6682,6 +7054,7 @@ function collectTimelineEvents(regions) {
                 optionName: opt.option_name,
                 turns: burdenTurns,
                 quote: quoteAtTurn([opt.burdens], turn),
+                ...citationPatientMeta(opt.burdens, turn),
             }));
             const optionRiskTurns = allTurnIndices(opt.risks);
             optionRiskTurns.forEach(turn => pushEvent({
@@ -6691,6 +7064,7 @@ function collectTimelineEvents(regions) {
                 optionName: opt.option_name,
                 turns: optionRiskTurns,
                 quote: quoteAtTurn([opt.risks], turn),
+                ...citationPatientMeta(opt.risks, turn),
             }));
         });
         const rec = r.decision_overview?.clinician_recommendation;
@@ -6740,21 +7114,48 @@ function collectTimelineEvents(regions) {
         chosenConsentInterventions(r).forEach(intv => {
             ['core_risks', 'relevant_risks', 'context_dependent_risks'].forEach(tier => {
                 (intv[tier] || []).forEach(risk => {
-                    if (risk.detection_status !== 'Discussed') return;
-                    const turns = risk.turn_indices || [];
-                    turns.forEach(turn => pushEvent({
+                    if (risk.detection_status === 'Discussed') {
+                        const turns = risk.turn_indices || [];
+                        turns.forEach(turn => pushEvent({
+                            key: 'risk', turn, decisionId: r.decision_id,
+                            label: risk.risk_name,
+                            word: shortGlyphWord(risk.risk_name, 'risk'),
+                            riskName: risk.risk_name,
+                            turns,
+                            quote: risk.quote || '',
+                        }));
+                    }
+                    const mentions = risk.patient_turn_indices || [];
+                    mentions.forEach(turn => pushEvent({
                         key: 'risk', turn, decisionId: r.decision_id,
                         label: risk.risk_name,
                         word: shortGlyphWord(risk.risk_name, 'risk'),
                         riskName: risk.risk_name,
-                        turns,
-                        quote: risk.quote || '',
+                        turns: mentions,
+                        quote: jevTurnText(CURRENT_TURNS, turn) || risk.quote || '',
+                        patientSpeaker: true,
+                        patientCheck: (risk.patient_checks || {})[turn] || (risk.patient_checks || {})[String(turn)] || 'confirmed',
                     }));
                 });
             });
         });
     });
     return events;
+}
+
+function citationPatientMeta(field, turn) {
+    const checks = field?.patient_checks || {};
+    const status = checks[turn] ?? checks[String(turn)];
+    if (!status) return {};
+    return { patientSpeaker: true, patientCheck: status };
+}
+
+function renderPatientBehaviorNote(glyph) {
+    if (!glyph?.patientSpeaker) return '';
+    const unverified = glyph.patientCheck === 'quote_only'
+        ? '<span class="condensed-pill">not double-checked</span>'
+        : '';
+    return `<div class="card-title-row"><span class="condensed-pill">Patient</span>${unverified}</div>`;
 }
 
 function renderDecisionEventTimeline(regions, turns) {
@@ -6833,8 +7234,36 @@ function renderDecisionEventTimeline(regions, turns) {
     </div>`;
 }
 
+const STYLE_MARK_COLORS = {
+    glass: {
+        option: '#C4B5FD', benefit: '#67E8F9', burden: '#F9A8D4', risk: '#F472B6',
+        recommendation: '#FFFFFF', preference: '#FDE68A', question: '#A78BFA',
+        choiceFill: 'rgba(255,255,255,0.08)', choiceLine: 'rgba(255,255,255,0.45)',
+        turnLabel: 'rgba(255,255,255,0.72)', box: '#FFFFFF',
+    },
+    material: {
+        option: '#6750A4', benefit: '#7D5260', burden: '#625B71', risk: '#B3261E',
+        recommendation: '#21005D', preference: '#7D5260', question: '#4F378B',
+        choiceFill: '#E8DEF8', choiceLine: '#79747E',
+        turnLabel: '#49454F', box: '#6750A4',
+    },
+    swiss: {
+        option: '#111111', benefit: '#111111', burden: '#6B6B6B', risk: '#E10600',
+        recommendation: '#111111', preference: '#111111', question: '#6B6B6B',
+        choiceFill: '#F5F5F5', choiceLine: '#6B6B6B',
+        turnLabel: '#6B6B6B', box: '#111111',
+    },
+};
+
+function styleMark(name, fallback) {
+    const palette = STYLE_MARK_COLORS[document.body?.dataset?.styleTheme];
+    return (palette && palette[name]) || fallback;
+}
+
 function vocabFor(key) {
-    return TIMELINE_VOCAB.find(v => v.key === key) || TIMELINE_VOCAB[0];
+    const base = TIMELINE_VOCAB.find(v => v.key === key) || TIMELINE_VOCAB[0];
+    const color = styleMark(key, '');
+    return color ? { ...base, color } : base;
 }
 
 function renderGlyphMark(key, color, opacity, cx, cy) {
@@ -7000,10 +7429,10 @@ function renderTickGrid(r, opts) {
     const endpointLabels = [];
     if (turns.length && bodyH >= 22) {
         endpointLabels.push(`<text x="${SPINE_TURN_LABEL_W - 4}" y="9" text-anchor="end"
-            fill="#5d7691" style="font-size:8px;font-weight:800">${firstTurn}</text>`);
+            fill="${styleMark('turnLabel', '#5d7691')}" style="font-size:8px;font-weight:800">${firstTurn}</text>`);
         if (lastTurn !== firstTurn) {
             endpointLabels.push(`<text x="${SPINE_TURN_LABEL_W - 4}" y="${bodyH - 1}" text-anchor="end"
-                fill="#5d7691" style="font-size:8px;font-weight:800">${lastTurn}</text>`);
+                fill="${styleMark('turnLabel', '#5d7691')}" style="font-size:8px;font-weight:800">${lastTurn}</text>`);
         }
     }
     let yCursor = 0;
@@ -7048,7 +7477,7 @@ function renderTickGrid(r, opts) {
                 <rect x="${cx - SPINE_TICK_W / 2}" y="${y0}" width="${SPINE_TICK_W}" height="${rowH}"
                       fill="${vocabFor(col.key).color}" fill-opacity="${opacity}"></rect>
                 ${hatch ? `<rect x="${cx - SPINE_TICK_W / 2}" y="${y0}" width="${SPINE_TICK_W}" height="${rowH}" fill="url(#conservative-hatch)"></rect>` : ''}
-                ${boxed ? `<rect x="${cx - SPINE_TICK_W / 2}" y="${y0}" width="${SPINE_TICK_W}" height="${rowH}" fill="none" stroke="#0d2136" stroke-width="1.5"></rect>` : ''}
+                ${boxed ? `<rect x="${cx - SPINE_TICK_W / 2}" y="${y0}" width="${SPINE_TICK_W}" height="${rowH}" fill="none" stroke="${styleMark('box', '#0d2136')}" stroke-width="1.5"></rect>` : ''}
                 ${associated && !active && !ghost ? `<rect x="${cx - SPINE_TICK_W / 2}" y="${y0}" width="${SPINE_TICK_W}" height="${rowH}" fill="none" stroke="#0d2136" stroke-width="2"></rect>` : ''}
             </g>`;
         }).join('') : '';
@@ -7069,12 +7498,12 @@ function renderTickGrid(r, opts) {
     const choiceLineY = choiceRow ? choiceRow.y0 + choiceRow.rowH : null;
     const choiceFillH = choiceLineY != null ? Math.max(0, bodyH - choiceLineY) : 0;
     const choiceFill = choiceLineY != null && choiceFillH > 0
-        ? `<rect x="0" y="${choiceLineY}" width="${SPINE_TRACK_W}" height="${choiceFillH}" fill="#eef2f6"></rect>`
+        ? `<rect x="0" y="${choiceLineY}" width="${SPINE_TRACK_W}" height="${choiceFillH}" fill="${styleMark('choiceFill', '#eef2f6')}"></rect>`
         : '';
     const choiceLine = choiceLineY == null ? '' : `<g>
             <title>${escAttr(`Choice made · turn ${choiceTurn}${r.choice_made?.option_name ? ` · ${r.choice_made.option_name}` : ''}`)}</title>
             <line x1="0" y1="${choiceLineY}" x2="${SPINE_TRACK_W}" y2="${choiceLineY}"
-                stroke="#9aafc3" stroke-opacity="0.95" stroke-width="1.5" stroke-dasharray="1.5 3.5" stroke-linecap="round" shape-rendering="crispEdges"></line>
+                stroke="${styleMark('choiceLine', '#9aafc3')}" stroke-opacity="0.95" stroke-width="1.5" stroke-dasharray="1.5 3.5" stroke-linecap="round" shape-rendering="crispEdges"></line>
         </g>`;
     return `<div class="tick-grid${selected ? ' is-selected' : ''}" style="width:${SPINE_TRACK_W}px;height:${gridH}px">
         <div class="tick-grid-title" ${titleClick} style="${interactive ? '' : 'cursor:default;'}">
@@ -7188,6 +7617,20 @@ function highlightQuoteHtml(text, quote, color) {
     return `${escHtml(raw.slice(0, idx))}<span class="quote-hit" style="background:color-mix(in srgb, ${escAttr(color)} 22%, white)">${escHtml(raw.slice(idx, idx + q.length))}</span>${escHtml(raw.slice(idx + q.length))}`;
 }
 
+function turnSpeakerMark(speaker) {
+    if (document.body?.dataset?.stylePage !== 'true') return '';
+    const spoken = String(speaker || '').trim();
+    if (!spoken || /metadata/i.test(spoken)) return '';
+    const patient = isPatientSpeaker(speaker);
+    const side = patient ? 'patient' : 'clinician';
+    const label = patient ? 'Patient' : 'Clinician';
+    const line = patient
+        ? '<circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.5"></circle><path d="M6.2 19.2v-.8c0-2.6 2.6-4.6 5.8-4.6s5.8 2 5.8 4.6v.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>'
+        : '<circle cx="9.5" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.5"></circle><path d="M4.2 19.2v-.8c0-2.4 2.3-4.4 5.3-4.4s5.3 2 5.3 4.4v.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path><path d="M16.2 10.2v5.2M13.6 12.8h5.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>';
+    const symbol = patient ? 'person' : 'stethoscope';
+    return `<span class="turn-speaker is-${side}" title="${label}"><svg class="turn-speaker-line" viewBox="0 0 24 24" aria-hidden="true">${line}</svg><span class="turn-speaker-md" aria-hidden="true">${symbol}</span></span>`;
+}
+
 function renderTranscriptPane(turns, glyph) {
     if (!(turns || []).length) return '';
     const playhead = glyphTranscriptTurn(glyph);
@@ -7223,7 +7666,7 @@ function renderTranscriptPane(turns, glyph) {
             : isAsked ? '<span class="turn-role">Question</span>' : '';
         const body = (active || isRelated || isAnswer) ? highlightQuoteHtml(text, quoteFor(idx), cueColor) : escHtml(text);
         return `<div class="transcript-pane-row${cls}" id="turn-${idx}"${style}${jump}>
-            <div class="transcript-pane-meta">[${idx}] ${escHtml(t.speaker_line)}${role}</div>
+            <div class="transcript-pane-meta">${turnSpeakerMark(t.speaker_line)}<span>[${idx}] ${escHtml(t.speaker_line)}</span>${role}</div>
             <div>${body}</div>
         </div>`;
     }).join('');
@@ -7267,7 +7710,7 @@ function renderBehaviorCard(r) {
     if (!body) return '';
     return `<div class="behavior-card">
         <div class="behavior-card-head">${escHtml(sliceTitle(glyph.key))}</div>
-        <div class="behavior-card-body">${body}</div>
+        <div class="behavior-card-body">${renderPatientBehaviorNote(glyph)}${body}</div>
     </div>`;
 }
 
@@ -8382,6 +8825,8 @@ function selectGlyph(decisionId, key, turn, glyphId) {
         answerQuote,
         answerText,
         qStatus,
+        patientSpeaker: !!ev?.patientSpeaker,
+        patientCheck: ev?.patientCheck || null,
         focusAnswer: key === 'question' && answerTurn != null && clickedAsked,
     };
     if (ev?.optionName) NAV.optionName = ev.optionName;

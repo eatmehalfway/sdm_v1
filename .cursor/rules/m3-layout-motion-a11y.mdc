@@ -1,0 +1,115 @@
+---
+description: Material Design 3 layout (window size classes, canonical layouts), motion tokens and patterns, iconography, accessibility, content design, and review checklist. Apply when composing screens or pages in Material 3 style.
+globs:
+alwaysApply: false
+---
+
+# Material Design 3: Layout, Motion, Icons, Accessibility, Content
+
+Always combine with `m3-core-tokens.mdc` and `m3-components.mdc`.
+
+## Adaptive layout
+Window size classes (width): **Compact** < 600px, **Medium** 600-839px, **Expanded** 840-1199px, **Large** 1200-1599px, **Extra-large** >= 1600px. Build mobile-first and adapt by class, not by device type.
+
+| Class | Columns | Margins | Navigation | Panes |
+|---|---|---|---|---|
+| Compact | 4 | 16px | Navigation bar (bottom) | 1 (modal sheets, full-screen dialogs) |
+| Medium | 8 | 24px | Navigation rail | 1, optionally 2 |
+| Expanded | 12 | 24px | Rail or standard drawer | 2 (list-detail, supporting pane) |
+| Large+ | 12 | 24px+ | Standard drawer | 2-3; constrain content width (max ~1240px body) |
+
+- Gutters/spacing: 8px, 16px, 24px between regions; spacing in multiples of 4px.
+- **Canonical layouts:** *List-detail* (list left, detail right; on compact show list then navigate to detail), *Supporting pane* (main content + secondary pane at ~360px, becomes bottom sheet on compact), *Feed* (grid of cards that reflows 1 -> 2 -> 3+ columns).
+- Use CSS Grid/Flex with container or media queries at 600 / 840 / 1200 / 1600. Prefer container queries for components inside panes.
+- Keep primary action reachable: FAB bottom-right on compact (16px margin, above nav bar), top of rail on medium+.
+- Safe areas (`env(safe-area-inset-*)`) respected for bars and sheets on mobile.
+- Dialogs: basic dialog 280-560px wide centered; full-screen dialog on compact for complex forms.
+
+## Spacing and density
+- Base unit 4px. Touch target min 48x48px (visual size may be smaller, e.g. 24px icon in a 48px button).
+- Standard component heights: button 40, text field 56, list item 56/72/88, app bar 64, nav bar 80, chip 32, switch 52x32, FAB 56.
+- Default to comfortable density; use compact density only for data-heavy tables and desktop-only tools.
+
+## Motion
+`@material/web` has no motion tokens; define them (same names as the M3 spec) and use them consistently.
+```css
+:root {
+  --md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-sys-motion-easing-standard-decelerate: cubic-bezier(0, 0, 0, 1);
+  --md-sys-motion-easing-standard-accelerate: cubic-bezier(0.3, 0, 1, 1);
+  --md-sys-motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);               /* approximation of the M3 path curve */
+  --md-sys-motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --md-sys-motion-easing-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --md-sys-motion-duration-short1: 50ms;  --md-sys-motion-duration-short2: 100ms;
+  --md-sys-motion-duration-short3: 150ms; --md-sys-motion-duration-short4: 200ms;
+  --md-sys-motion-duration-medium1: 250ms; --md-sys-motion-duration-medium2: 300ms;
+  --md-sys-motion-duration-medium3: 350ms; --md-sys-motion-duration-medium4: 400ms;
+  --md-sys-motion-duration-long1: 450ms;  --md-sys-motion-duration-long2: 500ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --md-sys-motion-duration-short1: 0ms; --md-sys-motion-duration-short2: 0ms; --md-sys-motion-duration-short3: 0ms;
+          --md-sys-motion-duration-short4: 0ms; --md-sys-motion-duration-medium1: 0ms; --md-sys-motion-duration-medium2: 0ms;
+          --md-sys-motion-duration-medium3: 0ms; --md-sys-motion-duration-medium4: 0ms; --md-sys-motion-duration-long1: 0ms; --md-sys-motion-duration-long2: 0ms; }
+}
+```
+Guide:
+- Small, utility changes (hover, toggles, color, icon swaps): short2-short4, `standard`.
+- Elements entering the screen: `emphasized-decelerate`, medium1-medium3. Exiting: `emphasized-accelerate`, short3-short4 (exits are faster than enters).
+- Large transitions (page, container expansion): medium4-long2, `emphasized`.
+- Navigation patterns: **container transform** (card -> detail), **shared axis** (X for peers/tabs, Y for sequential steps, Z for hierarchy), **fade through** (unrelated destinations), **fade** (menus, dialogs: scale 0.8->1 + fade).
+- Animate `transform` and `opacity` only; avoid layout-affecting properties. Use the View Transitions API for page/route transitions where supported, with a no-animation fallback.
+- Never block interaction on animation; no looping decorative motion; respect `prefers-reduced-motion`.
+
+## Iconography
+- **Material Symbols** (Outlined default; Rounded for friendlier brands; Sharp for stricter). One style per product.
+- 24px default (20px dense), `FILL` 0 normally and `FILL` 1 for selected/active states, weight 400, grade 0, optical size 24.
+- Icon-only buttons require `aria-label` (+ tooltip). Decorative icons `aria-hidden="true"`. Don't pair every label with an icon; icons should aid recognition.
+- Custom icons: 24px grid, 2px keyline padding, 2px stroke, rounded caps, no gradients.
+
+## Imagery and illustration
+- Photography: natural, high quality, subject-centered; rounded to component shape (`medium`). Avoid heavy filters. Use `surface-container-highest` placeholders while loading and always provide `alt`.
+- Illustrations: flat, simple geometry using theme roles (`primary-container`, `tertiary-container`) so they follow the color scheme and dark mode.
+
+## Accessibility
+- Contrast: role + on-role pairs meet 4.5:1 for text (3:1 for large text and UI components) when generated by Material tools; re-check custom schemes in light AND dark.
+- Keyboard: every interactive element reachable and operable; logical tab order; visible focus (`md-focus-ring`, 3px, offset 2px) never removed; Escape closes dialogs/menus/sheets; arrow keys within tabs, menus, and radio groups.
+- Semantics: native elements first (`button`, `a`, `nav`, `main`, `header`, `form`, `label`); ARIA only to fill gaps (`aria-current`, `aria-expanded`, `aria-live`, `role="dialog"` handled by `md-dialog`). One `h1` per page; headings in order.
+- Targets 48x48px minimum; 8px between adjacent targets.
+- Don't rely on color alone (add icon/text for error, success, selected). Support 200% zoom and text resize without loss of content; avoid fixed-height text containers.
+- Forms: associated labels, error messages tied to fields, errors announced (`aria-live`/focus first invalid field).
+- Respect `prefers-color-scheme`, `prefers-reduced-motion`, `prefers-contrast` where feasible; provide user theme toggle persisted in `localStorage`.
+- Test with keyboard only and a screen reader on key flows.
+
+## Content design (UX writing)
+- Sentence case for titles, buttons, labels; no ALL CAPS, no trailing periods on headings/buttons.
+- Buttons: specific verbs ("Add to cart", "Save changes"), not "OK"/"Submit". Dialog actions mirror the dialog headline/question.
+- Concise and scannable: short sentences, lead with the key info, 1-2 line supporting text under list titles.
+- Errors: say what happened and how to fix it, in plain language, no blame ("Enter an email like name@example.com"). Empty states: explain + provide primary action.
+- Be consistent with terminology; numbers/dates localized; plural/gender-neutral phrasing.
+
+## Page composition recipe (when asked to build a screen)
+1. Choose layout by window class (see table); define regions and panes.
+2. Establish navigation (bar / rail / drawer) and the top app bar.
+3. Build sections on `surface` with `surface-container-*` groupings; use cards only where grouping helps.
+4. Apply one primary action (FAB or filled button); secondary actions tonal/outlined/text.
+5. Use typescale classes for all text; tokens for all color/shape/space.
+6. Add states: hover/focus/pressed/disabled, loading (skeleton or progress), empty, error.
+7. Verify light + dark, compact + expanded, keyboard navigation, and contrast.
+
+## Review checklist (self-check before finishing UI work)
+- [ ] No hardcoded colors, radii, or font sizes; all via tokens/typescale classes
+- [ ] Correct on-colors paired with every container
+- [ ] One clear primary action per area; button hierarchy respected
+- [ ] Navigation matches window size class; layouts adapt at 600 / 840 / 1200
+- [ ] State layers, focus rings, and disabled states present on interactive elements
+- [ ] Dark theme works (tokens overridden, no hardcoded light-only values)
+- [ ] 48px targets, labels on inputs and icon buttons, keyboard operable
+- [ ] Motion uses motion tokens and honors reduced motion
+- [ ] Copy is sentence case, specific, and action-oriented
+
+## Don't
+- Don't use more than one FAB or more than one filled button per area competing for attention.
+- Don't use shadows alone to separate surfaces; use tonal surface containers.
+- Don't center-align long text, nest cards inside cards, or stack more than 2 elevation levels.
+- Don't ship a theme with only a light scheme.
+- Don't use pure black (#000) or pure white text/backgrounds outside the scheme roles.

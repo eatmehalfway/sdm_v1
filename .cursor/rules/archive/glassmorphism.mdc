@@ -1,0 +1,93 @@
+---
+description: Glassmorphism design style (frosted translucent panels over vivid backgrounds). Apply when building or editing UI, pages, components, or styles in glass mode.
+globs:
+alwaysApply: false
+---
+
+# Design Style: Glassmorphism
+
+Frosted-glass surfaces floating over a colorful, blurred backdrop. Depth comes from translucency, blur, and soft light edges, not from heavy shadows or solid fills.
+
+## Principles
+1. Glass needs something behind it: always place panels over a vivid gradient, mesh, or image background.
+2. Layering conveys hierarchy: more important surfaces are more opaque and sit higher.
+3. Light edges (1px translucent white borders) define glass; shadows are soft and diffuse.
+4. Legibility beats effect. If text contrast fails, increase panel opacity or add a tint.
+5. Use glass for containers (cards, nav, modals, sidebars), not for every element.
+
+## Design tokens (use CSS variables / Tailwind theme; never hardcode)
+```css
+:root {
+  /* Backdrop */
+  --bg-gradient: radial-gradient(at 20% 20%, #7C3AED 0%, transparent 50%),
+                 radial-gradient(at 80% 10%, #06B6D4 0%, transparent 50%),
+                 radial-gradient(at 50% 90%, #F472B6 0%, transparent 50%),
+                 #0F172A;
+
+  /* Glass surfaces */
+  --glass-bg: rgba(255, 255, 255, 0.12);
+  --glass-bg-strong: rgba(255, 255, 255, 0.22);   /* modals, focused/elevated */
+  --glass-border: rgba(255, 255, 255, 0.28);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  --glass-blur: 16px;        /* 8 subtle / 16 default / 24 modals */
+  --glass-saturate: 140%;
+
+  --text: #FFFFFF;
+  --text-muted: rgba(255, 255, 255, 0.72);
+  --accent: #A78BFA;
+  --accent-contrast: #0F172A;
+
+  --font-sans: "Inter", "SF Pro Display", system-ui, sans-serif;
+  --radius-sm: 12px; --radius-md: 20px; --radius-lg: 28px;
+}
+```
+
+## Core glass recipe
+```css
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow), var(--glass-highlight);
+}
+/* Fallback when backdrop-filter is unsupported */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass { background: rgba(30, 41, 59, 0.92); }
+}
+```
+
+## Typography
+- Sans-serif, weights 400-600. Slightly larger body (16-17px) and generous line-height (1.5-1.6) for legibility on translucent surfaces.
+- White or near-white text on dark backdrops. Use `--text-muted` for secondary text, never below 0.65 opacity.
+- Subtle text-shadow (`0 1px 2px rgba(0,0,0,0.25)`) is allowed on text over busy areas.
+
+## Layout
+- Rounded, floating layout with 16-24px gaps between panels; panels never touch the viewport edge (leave 16px+ margin).
+- Layer deliberately: background -> glass cards -> elevated glass (modals/popovers using `--glass-bg-strong` and larger blur).
+- Keep the backdrop visible in the gaps; don't cover it with full-width glass.
+
+## Components
+- **Cards/panels:** `.glass` with `--radius-md`, 24px padding.
+- **Navbar:** Sticky, `.glass` with lower opacity, `--radius-lg` pill or full-width bar with margin.
+- **Buttons:** Primary = solid `--accent` with `--accent-contrast` text (keep one solid element for strong affordance). Secondary = `.glass` with hover raising to `--glass-bg-strong`. Pill or `--radius-sm`.
+- **Inputs:** Translucent fill (`rgba(255,255,255,0.08)`), 1px `--glass-border`, focus = 2px `--accent` ring + slightly higher opacity.
+- **Modals:** `--glass-bg-strong`, 24px blur, dim the page with `rgba(0,0,0,0.35)` scrim.
+- **Icons:** Line icons, white at 85-100% opacity.
+
+## Motion
+- Smooth 200-300ms ease transitions on background opacity, transform (translateY -2px on hover), and border brightness. Gentle, slow background gradient drift is OK (20s+ loop). Respect `prefers-reduced-motion`.
+
+## Accessibility and performance
+- Text contrast >= 4.5:1 against the *actual* rendered panel; verify against the lightest part of the backdrop. Raise panel opacity or add a dark tint if needed.
+- `backdrop-filter` is GPU-heavy: limit to ~3-5 simultaneous blurred layers per view; avoid it on large scrolling lists and on low-power/mobile where possible.
+- Provide the `@supports not` solid fallback and visible focus states.
+
+## Don't
+- Don't use glass on a plain white or flat backdrop. The effect disappears.
+- Don't stack more than two glass layers on top of each other.
+- Don't use heavy black shadows, hard 1px dark borders, or fully opaque panels everywhere.
+- Don't put small body text on low-opacity glass without checking contrast.
+- Don't introduce colors outside the tokens; extend tokens first.

@@ -10,6 +10,8 @@ import psycopg
 from department_data import (
     CLINICIANS,
     DEPARTMENT_NAME,
+    annotate_behavior_speakers,
+    empty_behavior_counts,
     get_demo_episode_detail,
     get_demo_episodes,
     metrics_from_regions,
@@ -64,6 +66,34 @@ def demo():
 @app.route('/compare')
 def compare():
     return render_template('index.html', demo_page=False, compare_page=True)
+
+
+@app.route('/styles')
+def styles_gallery():
+    """Style gallery: glass, the CSS Material skin, Swiss, and a Material Web cockpit."""
+    return render_template('styles.html')
+
+
+@app.route('/styles/<theme>')
+def styles_frame(theme):
+    if theme == 'm3':
+        run = request.args.get('run', '')
+        if run and not str(run).isdigit():
+            run = ''
+        return render_template('m3_cockpit.html', style_run=run)
+    if theme not in ('glass', 'material', 'swiss'):
+        return jsonify({"error": "Unknown style"}), 404
+    run = request.args.get('run', '')
+    if run and not str(run).isdigit():
+        run = ''
+    return render_template(
+        'index.html',
+        demo_page=False,
+        compare_page=False,
+        style_page=True,
+        style_theme=theme,
+        style_run=run,
+    )
 
 
 @app.route('/api/jev/systemone', methods=['POST'])
@@ -135,6 +165,9 @@ def get_run(run_id):
 @app.route('/api/save', methods=['POST'])
 def save_run():
     data = request.get_json(silent=True) or {}
+    turns = data.get('turns', [])
+    regions = data.get('regions', [])
+    annotate_behavior_speakers(regions, turns)
     with get_db() as conn, conn.cursor() as cursor:
         cursor.execute('''
         INSERT INTO runs (filename, run_date, raw_text, turns_json, regions_json, total_encounters)
@@ -144,8 +177,8 @@ def save_run():
         data.get('filename', 'Unknown'),
         datetime.now().astimezone(),
         data.get('raw_text', ''),
-        json.dumps(data.get('turns', [])),
-        json.dumps(data.get('regions', [])),
+        json.dumps(turns),
+        json.dumps(regions),
         data.get("total_encounters"),
         ))
         run_id = cursor.fetchone()[0]
@@ -172,13 +205,15 @@ def _db_episodes():
             regions = json.loads(regions_json)
         except Exception:
             continue
-        metrics = metrics_from_regions(regions)
-        if not metrics:
-            continue
         try:
             turns = json.loads(turns_json)
         except Exception:
             turns = []
+        if turns:
+            annotate_behavior_speakers(regions, turns)
+        metrics = metrics_from_regions(regions)
+        if not metrics:
+            continue
         transcribed_encounters = len({
             turn.get("encounter") for turn in turns
             if isinstance(turn, dict) and turn.get("encounter")
@@ -211,6 +246,7 @@ def _db_episodes():
             "recommendation_explained": metrics.get("recommendation_explained", False),
             "questions_answered_count": metrics.get("questions_answered_count", 0),
             "questions_total_count": metrics.get("questions_total_count", 0),
+            "behavior_counts": metrics.get("behavior_counts") or empty_behavior_counts(),
             "transcribed_encounters": transcribed_encounters,
             "total_encounters": total_encounters,
             "completeness_pct": round(100 * transcribed_encounters / total_encounters),
@@ -316,12 +352,15 @@ def department_episode(episode_id):
             row = cursor.fetchone()
         if not row:
             return jsonify({"error": "Not found"}), 404
+        turns = json.loads(row[0])
+        regions = json.loads(row[1])
+        annotate_behavior_speakers(regions, turns)
         return jsonify({
             "episode_id": episode_id,
             "source": "db",
             "run_id": run_id,
-            "turns": json.loads(row[0]),
-            "regions": json.loads(row[1]),
+            "turns": turns,
+            "regions": regions,
         })
 
     detail = get_demo_episode_detail(episode_id)

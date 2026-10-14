@@ -1,0 +1,145 @@
+---
+description: Material Design 3 foundations for web - color, typography, shape, elevation, state layers, dark mode, and token usage with @material/web naming. Apply for any UI work in Material 3 style.
+globs:
+alwaysApply: false
+---
+
+# Material Design 3: Core Tokens and Foundations
+
+This project uses Material Design 3 as its design language. Use the official `@material/web` token names so custom components and `<md-*>` components theme together. Never hardcode hex colors, radii, font sizes, or shadows in components; always reference a token.
+
+Companion rules: `m3-components.mdc` (components) and `m3-layout-motion-a11y.mdc` (layout, motion, accessibility, content).
+
+## Token hierarchy
+Reference tokens (concrete values) -> System tokens (roles/decisions) -> Component tokens (per-component overrides).
+- Reference: `--md-ref-typeface-brand`, `--md-ref-typeface-plain`
+- System: `--md-sys-color-*`, `--md-sys-typescale-*`, `--md-sys-shape-corner-*`
+- Component: e.g. `--md-filled-button-container-shape` (component tokens are NOT prefixed with `comp`)
+- Tokens are CSS custom properties and can be scoped with any selector. Prefer changing system tokens globally; use component tokens only for deliberate one-off variants.
+
+## Color
+Every role has a matching `on-` role for content placed on it. Pair them; never mix (e.g. don't put `on-surface` text on `primary` backgrounds).
+
+Roles: `primary`, `secondary`, `tertiary`, `error` (each with `-container`), `background`, `surface`, `surface-dim`, `surface-bright`, `surface-container-lowest|low|(none)|high|highest`, `surface-variant`, `outline`, `outline-variant`, `inverse-surface`, `inverse-on-surface`, `inverse-primary`, `surface-tint`, `shadow`, `scrim`.
+
+Baseline scheme (replace with a scheme generated from the brand seed color using Material Theme Builder or `@material/material-color-utilities`):
+```css
+:root {
+  --md-sys-color-primary: #6750A4;           --md-sys-color-on-primary: #FFFFFF;
+  --md-sys-color-primary-container: #EADDFF; --md-sys-color-on-primary-container: #21005D;
+  --md-sys-color-secondary: #625B71;         --md-sys-color-on-secondary: #FFFFFF;
+  --md-sys-color-secondary-container: #E8DEF8; --md-sys-color-on-secondary-container: #1D192B;
+  --md-sys-color-tertiary: #7D5260;          --md-sys-color-on-tertiary: #FFFFFF;
+  --md-sys-color-tertiary-container: #FFD8E4; --md-sys-color-on-tertiary-container: #31111D;
+  --md-sys-color-error: #B3261E;             --md-sys-color-on-error: #FFFFFF;
+  --md-sys-color-error-container: #F9DEDC;   --md-sys-color-on-error-container: #410E0B;
+  --md-sys-color-background: #FEF7FF;        --md-sys-color-on-background: #1D1B20;
+  --md-sys-color-surface: #FEF7FF;           --md-sys-color-on-surface: #1D1B20;
+  --md-sys-color-surface-variant: #E7E0EC;   --md-sys-color-on-surface-variant: #49454F;
+  --md-sys-color-surface-dim: #DED8E1;       --md-sys-color-surface-bright: #FEF7FF;
+  --md-sys-color-surface-container-lowest: #FFFFFF;
+  --md-sys-color-surface-container-low: #F7F2FA;
+  --md-sys-color-surface-container: #F3EDF7;
+  --md-sys-color-surface-container-high: #ECE6F0;
+  --md-sys-color-surface-container-highest: #E6E0E9;
+  --md-sys-color-outline: #79747E;           --md-sys-color-outline-variant: #CAC4D0;
+  --md-sys-color-inverse-surface: #322F35;   --md-sys-color-inverse-on-surface: #F5EFF7;
+  --md-sys-color-inverse-primary: #D0BCFF;   --md-sys-color-surface-tint: #6750A4;
+  --md-sys-color-shadow: #000000;            --md-sys-color-scrim: #000000;
+}
+/* Dark: material-web does not switch schemes automatically. Override the same tokens. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { /* ...dark tokens below... */ }
+}
+:root[data-theme="dark"] { /* ...dark tokens below... */ }
+```
+Dark scheme values (apply inside both dark selectors above):
+```css
+--md-sys-color-primary: #D0BCFF;           --md-sys-color-on-primary: #381E72;
+--md-sys-color-primary-container: #4F378B; --md-sys-color-on-primary-container: #EADDFF;
+--md-sys-color-secondary: #CCC2DC;         --md-sys-color-on-secondary: #332D41;
+--md-sys-color-secondary-container: #4A4458; --md-sys-color-on-secondary-container: #E8DEF8;
+--md-sys-color-tertiary: #EFB8C8;          --md-sys-color-on-tertiary: #492532;
+--md-sys-color-tertiary-container: #633B48; --md-sys-color-on-tertiary-container: #FFD8E4;
+--md-sys-color-error: #F2B8B5;             --md-sys-color-on-error: #601410;
+--md-sys-color-error-container: #8C1D18;   --md-sys-color-on-error-container: #F9DEDC;
+--md-sys-color-background: #141218;        --md-sys-color-on-background: #E6E0E9;
+--md-sys-color-surface: #141218;           --md-sys-color-on-surface: #E6E0E9;
+--md-sys-color-surface-variant: #49454F;   --md-sys-color-on-surface-variant: #CAC4D0;
+--md-sys-color-surface-dim: #141218;       --md-sys-color-surface-bright: #3B383E;
+--md-sys-color-surface-container-lowest: #0F0D13;
+--md-sys-color-surface-container-low: #1D1B20;
+--md-sys-color-surface-container: #211F26;
+--md-sys-color-surface-container-high: #2B2930;
+--md-sys-color-surface-container-highest: #36343B;
+--md-sys-color-outline: #938F99;           --md-sys-color-outline-variant: #49454F;
+--md-sys-color-inverse-surface: #E6E0E9;   --md-sys-color-inverse-on-surface: #322F35;
+--md-sys-color-inverse-primary: #6750A4;   --md-sys-color-surface-tint: #D0BCFF;
+```
+
+### Color usage rules
+- Page background: `surface` (or `background`). Grouped content: `surface-container-*` (lower = recessed, higher = raised).
+- Body text: `on-surface`. Secondary text and icons: `on-surface-variant`. Disabled: `on-surface` at 38%.
+- Borders/dividers: `outline` (strong, e.g. outlined buttons/fields), `outline-variant` (subtle, e.g. dividers, card outlines).
+- Emphasis ladder for actions: filled `primary` (one per area) > filled tonal `secondary-container` > outlined > text.
+- `tertiary` is for contrasting accents that balance primary (badges, highlights), not a third brand color for everything.
+- `error` only for errors/destructive states. Never use color alone to convey meaning; add icon or text.
+- Dynamic color: when theming from a user/brand seed, regenerate the entire scheme (light + dark); don't tweak single roles by hand.
+
+## Typography
+Load fonts: default is Roboto 400/500/700. If you change typeface, load all three weights.
+```css
+:root {
+  --md-ref-typeface-brand: 'Roboto';   /* headings: display, headline, title */
+  --md-ref-typeface-plain: 'Roboto';   /* body, label */
+}
+```
+Apply type with `.md-typescale-<scale>-<size>` classes (import `@material/web/typography/md-typescale-styles.js` and add `typescaleStyles.styleSheet` to `document.adoptedStyleSheets`), or with tokens: `--md-sys-typescale-<scale>-<size>-(font|size|line-height|weight)`. Scales: display, headline, title, body, label; sizes: small, medium, large.
+
+| Style | Size / line-height | Weight | Use |
+|---|---|---|---|
+| display-large / medium / small | 57/64, 45/52, 36/44 | 400 | Hero numbers, short expressive text |
+| headline-large / medium / small | 32/40, 28/36, 24/32 | 400 | Page and section headings |
+| title-large | 22/28 | 400 | App bar title, dialog headline |
+| title-medium / small | 16/24, 14/20 | 500 | Card titles, list headlines, tabs |
+| body-large / medium / small | 16/24, 14/20, 12/16 | 400 | Paragraphs, supporting text |
+| label-large / medium / small | 14/20, 12/16, 11/16 | 500 | Buttons, chips, captions, nav labels |
+
+Rules: sentence case everywhere (no ALL CAPS buttons); max line length ~60-75ch for body; use heading level semantics (`h1`-`h6`) independently of typescale class; don't invent sizes outside this scale.
+
+## Shape
+```css
+:root {
+  --md-sys-shape-corner-none: 0px;
+  --md-sys-shape-corner-extra-small: 4px;
+  --md-sys-shape-corner-small: 8px;
+  --md-sys-shape-corner-medium: 12px;
+  --md-sys-shape-corner-large: 16px;
+  --md-sys-shape-corner-extra-large: 28px;
+  --md-sys-shape-corner-full: 9999px;
+}
+```
+Guide: buttons, chips-as-pills, switches, search = full; chips = small; cards = medium; FAB = large; dialogs, bottom sheets (top corners), navigation drawer = extra-large; text field container (filled) = extra-small top corners; images in cards = medium; badges = full. Nested shapes: inner radius = outer radius minus padding.
+
+## Elevation
+In M3, hierarchy comes primarily from tonal surface color; shadows are secondary. Use `<md-elevation>` or these levels:
+```css
+:root {
+  --m3-elev-0: none;
+  --m3-elev-1: 0 1px 2px rgb(0 0 0 / .30), 0 1px 3px 1px rgb(0 0 0 / .15);
+  --m3-elev-2: 0 1px 2px rgb(0 0 0 / .30), 0 2px 6px 2px rgb(0 0 0 / .15);
+  --m3-elev-3: 0 1px 3px rgb(0 0 0 / .30), 0 4px 8px 3px rgb(0 0 0 / .15);
+  --m3-elev-4: 0 2px 3px rgb(0 0 0 / .30), 0 6px 10px 4px rgb(0 0 0 / .15);
+  --m3-elev-5: 0 4px 4px rgb(0 0 0 / .30), 0 8px 12px 6px rgb(0 0 0 / .15);
+}
+```
+Level 0: page, filled/outlined cards at rest. 1: elevated cards, elevated buttons, nav drawer/rail (modal). 2: menus, nav bar, scrolled app bar. 3: FAB, dialogs, search bar, date picker. 4-5: only for drag/hover emphasis. Pair elevation with `surface-container*` tone, not black overlays.
+
+## State layers (interaction feedback)
+Overlay `currentColor`/the on-color on the container: hover 8%, focus 10%, pressed 10%, dragged 16%. Disabled: content 38% opacity, container 12%. Use `<md-ripple>` + `<md-focus-ring>` in custom interactive elements, or an equivalent `::before`/`::after` overlay. Never change a component's base color to indicate hover.
+
+## Token usage rules for generated code
+1. Colors: `var(--md-sys-color-*)` only. Radii: `var(--md-sys-shape-corner-*)`. Text: typescale class or tokens.
+2. Spacing in multiples of 4px (common: 4, 8, 12, 16, 24, 32, 48).
+3. If a needed value has no token, add a documented token to `:root` first (prefix custom ones `--app-*`), then use it.
+4. Tailwind projects: map in `theme.extend` (`colors.primary: 'var(--md-sys-color-primary)'`, `colors['on-primary']`, `borderRadius.md: 'var(--md-sys-shape-corner-medium)'`) and use semantic class names, never raw palette classes.

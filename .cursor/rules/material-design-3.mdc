@@ -1,0 +1,129 @@
+---
+description: Material Design 3 (Material You) design style. Apply when building or editing UI, pages, components, or styles in Material 3 mode.
+globs:
+alwaysApply: false
+---
+
+# Design Style: Material Design 3 (Material You)
+
+Expressive, accessible, adaptive UI built on color roles, tonal surfaces, a shape scale, and a fixed type scale. Always use semantic role tokens, never raw hex values, in components.
+
+## Principles
+1. Color is role-based: every color has a purpose (primary, secondary, tertiary, surface, error) and a paired "on-" color for content placed on it.
+2. Elevation is mostly tonal: higher surfaces get a tinted surface-container color; shadows are subtle and secondary.
+3. Shapes are rounded and use a defined scale. Don't invent radii.
+4. Interaction feedback uses state layers (translucent overlays), not color swaps.
+5. Layouts adapt across window size classes (compact / medium / expanded).
+6. Motion is purposeful, with emphasized easing for large transitions.
+
+## Color tokens (baseline palette; regenerate from a brand seed color with Material Theme Builder, then replace these values)
+```css
+:root {
+  --md-primary: #6750A4;            --md-on-primary: #FFFFFF;
+  --md-primary-container: #EADDFF;  --md-on-primary-container: #21005D;
+  --md-secondary: #625B71;          --md-on-secondary: #FFFFFF;
+  --md-secondary-container: #E8DEF8;--md-on-secondary-container: #1D192B;
+  --md-tertiary: #7D5260;           --md-on-tertiary: #FFFFFF;
+  --md-tertiary-container: #FFD8E4; --md-on-tertiary-container: #31111D;
+  --md-error: #B3261E;              --md-on-error: #FFFFFF;
+  --md-error-container: #F9DEDC;    --md-on-error-container: #410E0B;
+
+  --md-surface: #FEF7FF;            --md-on-surface: #1D1B20;
+  --md-surface-variant: #E7E0EC;    --md-on-surface-variant: #49454F;
+  --md-surface-container-lowest: #FFFFFF;
+  --md-surface-container-low: #F7F2FA;
+  --md-surface-container: #F3EDF7;
+  --md-surface-container-high: #ECE6F0;
+  --md-surface-container-highest: #E6E0E9;
+  --md-outline: #79747E;            --md-outline-variant: #CAC4D0;
+  --md-scrim: #000000;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --md-primary: #D0BCFF;            --md-on-primary: #381E72;
+    --md-primary-container: #4F378B;  --md-on-primary-container: #EADDFF;
+    --md-secondary: #CCC2DC;          --md-on-secondary: #332D41;
+    --md-secondary-container: #4A4458;--md-on-secondary-container: #E8DEF8;
+    --md-tertiary: #EFB8C8;           --md-on-tertiary: #492532;
+    --md-tertiary-container: #633B48; --md-on-tertiary-container: #FFD8E4;
+    --md-error: #F2B8B5;              --md-on-error: #601410;
+    --md-error-container: #8C1D18;    --md-on-error-container: #F9DEDC;
+    --md-surface: #141218;            --md-on-surface: #E6E0E9;
+    --md-surface-variant: #49454F;    --md-on-surface-variant: #CAC4D0;
+    --md-surface-container-lowest: #0F0D13;
+    --md-surface-container-low: #1D1B20;
+    --md-surface-container: #211F26;
+    --md-surface-container-high: #2B2930;
+    --md-surface-container-highest: #36343B;
+    --md-outline: #938F99;            --md-outline-variant: #49454F;
+  }
+}
+```
+Usage: page background = `surface`; cards/sheets = `surface-container*`; text on surface = `on-surface`; secondary text = `on-surface-variant`; borders = `outline` / `outline-variant`. Use `primary` for the single most important action, `secondary-container` for tonal/less prominent controls, `tertiary` for accents. Support dynamic color via a seed when the user asks for theming.
+
+## Typography (Roboto, or a system sans fallback; size / line-height px, weight)
+| Role | Size/LH | Weight |
+|---|---|---|
+| Display L / M / S | 57/64, 45/52, 36/44 | 400 |
+| Headline L / M / S | 32/40, 28/36, 24/32 | 400 |
+| Title L | 22/28 | 400 |
+| Title M / S | 16/24, 14/20 | 500 |
+| Body L / M / S | 16/24, 14/20, 12/16 | 400 |
+| Label L / M / S | 14/20, 12/16, 11/16 | 500 |
+
+Define these as classes/tokens (e.g. `.md-title-medium`) and use them instead of ad hoc sizes. Sentence case for labels and buttons, not ALL CAPS.
+
+## Shape scale
+```css
+:root {
+  --md-shape-none: 0;  --md-shape-xs: 4px;  --md-shape-sm: 8px;
+  --md-shape-md: 12px; --md-shape-lg: 16px; --md-shape-xl: 28px; --md-shape-full: 9999px;
+}
+```
+Buttons/chips/FAB-extended/search = full or sm per component; cards = md; dialogs/sheets = xl; text fields = xs (top corners when filled).
+
+## Elevation
+- Level 0: surface. Level 1: cards (`surface-container-low`). Level 2: menus, nav bar (`surface-container`). Level 3: FAB, dialogs, search (`surface-container-high`). Prefer tonal color; add only soft shadows, e.g. `0 1px 3px rgba(0,0,0,.3), 0 1px 2px rgba(0,0,0,.15)` for level 1-2.
+
+## State layers
+Overlay the content color on the container: hover 8%, focus 10%, pressed 10%, dragged 16%. Disabled: content 38% opacity, container 12%. Implement with a `::before` pseudo-element using `currentColor` or `--md-on-surface` and the opacity above.
+
+## Components
+- **Buttons:** Filled (primary, highest emphasis), Filled tonal (secondary-container), Outlined (1px `outline`), Text (no container), Elevated. Height 40px, full radius, 24px horizontal padding, Label Large. One filled button per view area.
+- **FAB:** 56px, `primary-container` / `on-primary-container`, radius `lg` (16px), level 3. Extended FAB includes a label.
+- **Cards:** Elevated (`surface-container-low`), Filled (`surface-container-highest`), Outlined (1px `outline-variant`). Radius `md`, 16px padding.
+- **Text fields:** Filled (default; `surface-container-highest`, bottom indicator) or Outlined; floating label; error uses `error` for label, indicator, and supporting text.
+- **Navigation:** Compact = bottom navigation bar (3-5 destinations, active = `secondary-container` pill indicator); Medium = navigation rail; Expanded = navigation drawer. Top app bar: small/center-aligned, or large collapsing for hero screens.
+- **Chips, switches, checkboxes, sliders, dialogs, snackbars, tabs, menus:** follow standard M3 patterns (pill indicators, 52x32 switch, dialogs with `surface-container-high` at `xl` radius and a scrim at 32% opacity).
+- **Icons:** Material Symbols (Rounded or Outlined), 24px, optical size matched, filled style for the active state.
+- **Lists:** 56-72px rows, leading icon/avatar, headline + supporting text, dividers via `outline-variant` only when needed.
+
+## Layout and adaptivity
+- Window size classes: Compact < 600px (1 pane, bottom nav, 16px margins), Medium 600-839px (rail, 24px margins), Expanded >= 840px (drawer or rail, multi-pane/list-detail, 24px margins).
+- 4-column grid on compact, 8 on medium, 12 on expanded. Spacing in multiples of 4px (8 / 16 / 24 are most common).
+- Minimum touch target 48x48px.
+
+## Motion
+```css
+:root {
+  --md-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-ease-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --md-ease-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --md-dur-short: 150ms; --md-dur-medium: 300ms; --md-dur-long: 500ms;
+}
+```
+Small state changes 100-200ms standard easing; entering elements use emphasized-decelerate, exiting use emphasized-accelerate (about 200-400ms); shared-axis / container-transform patterns for navigation. Respect `prefers-reduced-motion`.
+
+## Accessibility
+- Pairings of role + on-role colors are designed for >= 4.5:1 contrast; preserve them when customizing and verify custom seeds.
+- Visible focus indicator (state layer plus 3px outline in `secondary`/`primary` offset 2px for keyboard focus). Don't rely on color alone for error or selected states.
+
+## Implementation notes
+- Prefer the official `@material/web` components (`md-filled-button`, etc.) or Material UI (MUI v6+ with an M3 theme) when the stack allows; otherwise implement with the tokens above.
+- Tailwind: map tokens in `theme.extend.colors` (e.g. `primary: 'var(--md-primary)'`) so classes like `bg-primary text-on-primary` work.
+
+## Don't
+- Don't hardcode hex values or arbitrary radii/font sizes in components; use tokens.
+- Don't use pure-black shadows for depth in place of tonal surface colors.
+- Don't use ALL CAPS buttons (that's Material 2), sharp corners, or more than one filled primary button competing in the same area.
+- Don't mix M2 patterns (raised buttons, elevation-by-shadow, bottom app bar with cradle) into M3 screens.

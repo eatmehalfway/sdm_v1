@@ -5,7 +5,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from department_data import metrics_from_regions, risk_frequency_rows
+from department_data import (
+    annotate_behavior_speakers,
+    metrics_from_regions,
+    risk_frequency_rows,
+    speaker_side,
+)
 from procedure_analytics import risk_category_gap_stats
 
 
@@ -86,11 +91,70 @@ def test_not_assessed_leaves_gap_stats():
     assert by_name["Nerve"]["gap_rate"] == 100.0
 
 
+def test_patient_mention_stays_not_discussed():
+    metrics = metrics_from_regions(region([
+        {
+            "risk_name": "Infection",
+            "detection_status": "Not detected",
+            "patient_turn_indices": [4],
+        },
+    ], pass_c="ok"))
+    assert metrics["core_risk_pct"] == 0
+    assert metrics["core_risk_items"][0]["detection_status"] == "Not detected"
+    assert frequency(metrics) == {"Infection": 1}
+
+
+def test_speaker_sides_split_patient_and_clinician():
+    payload = region([
+        {
+            "risk_name": "Infection",
+            "detection_status": "Discussed",
+            "turn_indices": [2],
+            "patient_turn_indices": [4],
+        },
+    ], pass_c="ok")
+    decision = payload["decisions"][0]
+    decision["decision_overview"]["options_considered"] = [{
+        "option_name": "Surgery",
+        "benefits": {"text": "relief", "quote": "relief", "turn_indices": [2, 4]},
+    }]
+    decision["decision_overview"]["patient_considerations"] = {
+        "questions": [{
+            "question": "What about infection?",
+            "turn_indices": [4],
+            "response_turn_indices": [5],
+        }],
+    }
+    turns = [
+        {"index": 2, "speaker_line": "SURGEON"},
+        {"index": 4, "speaker_line": "PATIENT"},
+        {"index": 5, "speaker_line": "FAMILY"},
+    ]
+    annotate_behavior_speakers(payload, turns)
+    risk = decision["informed_consent_analysis"]["interventions"][0]["core_risks"][0]
+    assert risk["speaker_sides"] == {"2": "clinician", "4": "patient"}
+    benefit = decision["decision_overview"]["options_considered"][0]["benefits"]
+    assert benefit["speaker_sides"] == {"2": "clinician", "4": "patient"}
+    question = decision["decision_overview"]["patient_considerations"]["questions"][0]
+    assert question["speaker_sides"] == {"4": "patient", "5": "patient"}
+    assert speaker_side("CAREGIVER") == "patient"
+    assert speaker_side("SURGEON") == "clinician"
+    metrics = metrics_from_regions(payload)
+    assert metrics["core_risk_pct"] == 100
+    assert metrics["core_risk_items"][0]["clinician_turns"] == 1
+    assert metrics["core_risk_items"][0]["patient_turns"] == 1
+    assert metrics["behavior_counts"]["benefit"] == {"clinician": 1, "patient": 1}
+    assert metrics["behavior_counts"]["risk"] == {"clinician": 1, "patient": 1}
+    assert metrics["behavior_counts"]["question"] == {"clinician": 0, "patient": 2}
+
+
 def main():
     test_failed_pass_does_not_count()
     test_missing_status_keeps_discussed_and_drops_not_detected()
     test_ok_pass_counts_real_gaps()
     test_not_assessed_leaves_gap_stats()
+    test_patient_mention_stays_not_discussed()
+    test_speaker_sides_split_patient_and_clinician()
     print("OK: pass status stays out of the not-discussed counts")
 
 

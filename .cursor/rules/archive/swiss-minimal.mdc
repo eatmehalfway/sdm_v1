@@ -1,0 +1,73 @@
+---
+description: Minimal / Swiss (International Typographic) design style. Apply when building or editing UI, pages, components, or styles in Swiss/minimal mode.
+globs:
+alwaysApply: false
+---
+
+# Design Style: Minimal / Swiss
+
+Clarity through grid, type, and restraint. Content is the interface. If an element doesn't help the user read or act, remove it.
+
+## Principles
+1. Typography does the heavy lifting: size, weight, and spacing create hierarchy, not decoration.
+2. Everything aligns to a grid. No arbitrary positioning.
+3. Generous whitespace is a feature. Never fill space just because it's empty.
+4. Flat. No shadows, gradients, blurs, or glows. Borders are 1px hairlines.
+5. One accent color, used sparingly for actions and key information only.
+6. Asymmetric, left-aligned layouts are preferred over centered ones.
+
+## Design tokens (use CSS variables / Tailwind theme; never hardcode)
+```css
+:root {
+  --bg: #FFFFFF;
+  --surface: #F5F5F5;       /* rare; only for subtle grouping */
+  --text: #111111;
+  --text-muted: #6B6B6B;
+  --border: #E2E2E2;
+  --accent: #E10600;        /* single accent: swap per brand, keep only one */
+  --accent-contrast: #FFFFFF;
+
+  --font-sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --radius: 0px;            /* square corners; max 2px if softening is required */
+
+  /* 4px base spacing scale */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-6: 24px; --space-8: 32px; --space-12: 48px; --space-16: 64px; --space-24: 96px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#0E0E0E; --surface:#1A1A1A; --text:#F2F2F2; --text-muted:#9A9A9A; --border:#2C2C2C; }
+}
+```
+
+## Typography
+- One typeface family (sans-serif). Use weight (400/500/700) for contrast.
+- Scale: 12 / 14 / 16 / 24 / 40 / 64 px. Display headings may go large (64px+) with tight tracking (-0.02em) and line-height 1.05-1.1.
+- Body: 16px, line-height 1.5, max line length 60-70ch.
+- Left-aligned, ragged-right. Never justify. Avoid ALL CAPS except small labels (12px, +0.08em tracking).
+
+## Layout
+- 12-column grid, 24px gutters, max content width 1200px.
+- Use asymmetry: e.g., a 4-col label column beside an 8-col content column.
+- Section spacing: 96px+ on desktop, 64px on mobile.
+- Mobile-first; collapse to a single column with unchanged hierarchy.
+
+## Components
+- **Buttons:** Primary = solid `--accent` or `--text` fill, `--radius`, 12px 20px padding, no shadow. Secondary = 1px `--text` border, transparent. Hover = invert or darken 8%, no movement/scale.
+- **Inputs:** 1px bottom border or full 1px border, no fill, no radius. Focus = 2px `--text` outline offset 2px.
+- **Cards:** No shadow. Separate with a 1px border or whitespace only. Prefer lists and rules over boxed cards.
+- **Dividers:** 1px `--border` hairlines to structure sections.
+- **Navigation:** Plain text links, active state = underline or bold. No pills, no icon-only nav without labels.
+- **Imagery:** Full-bleed or grid-aligned, high contrast, no rounded corners, no decorative overlays.
+- **Icons:** Sparse. Use 1.5px stroke line icons only when they add meaning.
+
+## Motion
+- Minimal and functional: 120-180ms ease-out opacity/color transitions only. No bounces, parallax, or scroll-jacking. Respect `prefers-reduced-motion`.
+
+## Accessibility
+- Text contrast >= 4.5:1 (7:1 for body when possible). Visible focus states always. Hit targets >= 44px.
+
+## Don't
+- No drop shadows, gradients, glassmorphism, glows, or emoji decoration.
+- No more than one accent color. No more than two font weights per view beyond headings.
+- No centered hero text blocks unless explicitly requested.
+- Don't introduce new colors/sizes outside the tokens above; extend tokens first.
