@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cockpit styles</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+            color: #111;
+            background: #f7f7f7;
+        }
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 24px;
+            background: #fff;
+            border-bottom: 1px solid #e2e2e2;
+        }
+        h1 { margin: 0; font-size: 16px; font-weight: 600; }
+        label { font-size: 14px; }
+        select {
+            min-width: 280px;
+            font: inherit;
+            padding: 8px 10px;
+            border: 1px solid #111;
+            background: #fff;
+        }
+        main { padding: 24px; display: grid; gap: 28px; }
+        section h2 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
+        iframe {
+            width: 100%;
+            height: 920px;
+            border: 1px solid #e2e2e2;
+            background: #fff;
+        }
+        .empty { margin: 0; color: #555; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Cockpit styles</h1>
+        <label for="runSelect">Saved run</label>
+        <select id="runSelect">
+            <option value="">Loading runs…</option>
+        </select>
+    </header>
+    <main>
+        <p class="empty" id="emptyNote" hidden>No saved runs yet. Analyze an episode on the main page, then come back here.</p>
+        <section>
+            <h2>Glass</h2>
+            <iframe id="frame-glass" title="Glass cockpit" src="about:blank"></iframe>
+        </section>
+        <section>
+            <h2>Material 3</h2>
+            <iframe id="frame-material" title="Material 3 cockpit" src="about:blank"></iframe>
+        </section>
+        <section>
+            <h2>Swiss</h2>
+            <iframe id="frame-swiss" title="Swiss cockpit" src="about:blank"></iframe>
+        </section>
+        <section>
+            <h2>Material Web</h2>
+            <iframe id="frame-m3" title="Material Web cockpit" src="about:blank"></iframe>
+        </section>
+    </main>
+    <script>
+        const select = document.getElementById('runSelect');
+        const emptyNote = document.getElementById('emptyNote');
+        const frames = ['glass', 'material', 'swiss', 'm3'];
+
+        function showRun(id) {
+            const query = id ? `?run=${encodeURIComponent(id)}` : '';
+            frames.forEach(theme => {
+                document.getElementById(`frame-${theme}`).src = `/styles/${theme}${query}`;
+            });
+            const url = id ? `/styles?run=${encodeURIComponent(id)}` : '/styles';
+            history.replaceState(null, '', url);
+        }
+
+        select.addEventListener('change', () => showRun(select.value));
+
+        fetch('/api/history')
+            .then(res => res.json())
+            .then(rows => {
+                const runs = Array.isArray(rows) ? rows : [];
+                select.innerHTML = '';
+                if (!runs.length) {
+                    select.innerHTML = '<option value="">No saved runs</option>';
+                    emptyNote.hidden = false;
+                    showRun('');
+                    return;
+                }
+                runs.forEach(run => {
+                    const option = document.createElement('option');
+                    option.value = String(run.id);
+                    const when = run.run_date ? String(run.run_date).replace('T', ' ').slice(0, 16) : '';
+                    option.textContent = `#${run.id} ${run.filename || 'Untitled'}${when ? ` · ${when}` : ''}`;
+                    select.appendChild(option);
+                });
+                const requested = new URLSearchParams(location.search).get('run');
+                const match = runs.find(run => String(run.id) === requested);
+                select.value = match ? String(match.id) : String(runs[0].id);
+                showRun(select.value);
+            })
+            .catch(() => {
+                select.innerHTML = '<option value="">Could not load runs</option>';
+                emptyNote.hidden = false;
+                emptyNote.textContent = 'Could not load saved runs.';
+            });
+    </script>
+</body>
+</html>

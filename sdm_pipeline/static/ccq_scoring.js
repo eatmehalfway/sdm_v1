@@ -52,5 +52,91 @@
         return 'is-unscored';
     }
 
-    return { passCScoresGaps, detectMissingCoreRiskHit, riskGapBucket, coreRiskRailTone };
+    const CLINICIAN_BEHAVIOR_NOUL = 0.5;
+    const PATIENT_BEHAVIOR_NOUL = 0.7;
+
+    function isPatientSpeaker(speaker) {
+        return /patient|family|caregiver/i.test(String(speaker || ''));
+    }
+
+    function foldQuoteText(s) {
+        return String(s || '')
+            .toLowerCase()
+            .replace(/[\u2018\u2019\u201A\u2032]/g, "'")
+            .replace(/[\u201C\u201D\u201E\u2033]/g, '"')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function quoteInTurn(quote, turnText) {
+        const folded = foldQuoteText(quote);
+        if (!folded) return false;
+        return foldQuoteText(turnText).includes(folded);
+    }
+
+    function clinicianBehaviorKept(noul) {
+        const n = Number(noul);
+        return Number.isFinite(n) && n >= CLINICIAN_BEHAVIOR_NOUL;
+    }
+
+    function patientBehaviorKept(firstNoul, assertionNoul) {
+        const first = Number(firstNoul);
+        const assertion = Number(assertionNoul);
+        return Number.isFinite(first) && Number.isFinite(assertion)
+            && first >= PATIENT_BEHAVIOR_NOUL
+            && assertion >= PATIENT_BEHAVIOR_NOUL;
+    }
+
+    function patientAssertionKept(assertionNoul) {
+        const n = Number(assertionNoul);
+        return Number.isFinite(n) && n >= PATIENT_BEHAVIOR_NOUL;
+    }
+
+    function riskDetectionStatus(clinicianSupported) {
+        return clinicianSupported ? 'Discussed' : 'Not detected';
+    }
+
+    function gatePatientBehavior(spec) {
+        const patient = isPatientSpeaker(spec?.speaker);
+        if (!patient) {
+            const kept = clinicianBehaviorKept(spec?.noul);
+            return {
+                kept,
+                patient: false,
+                discussed: spec?.kind === 'risk' && kept,
+                patientCheck: null,
+            };
+        }
+        if (!quoteInTurn(spec?.quote, spec?.turnText)) {
+            return { kept: false, patient: true, discussed: false, patientCheck: null };
+        }
+        if (!spec?.jevAvailable) {
+            return { kept: true, patient: true, discussed: false, patientCheck: 'quote_only' };
+        }
+        const kept = spec.firstNoul == null
+            ? patientAssertionKept(spec.assertionNoul)
+            : patientBehaviorKept(spec.firstNoul, spec.assertionNoul);
+        return {
+            kept,
+            patient: true,
+            discussed: false,
+            patientCheck: kept ? 'confirmed' : null,
+        };
+    }
+
+    return {
+        passCScoresGaps,
+        detectMissingCoreRiskHit,
+        riskGapBucket,
+        coreRiskRailTone,
+        CLINICIAN_BEHAVIOR_NOUL,
+        PATIENT_BEHAVIOR_NOUL,
+        isPatientSpeaker,
+        quoteInTurn,
+        clinicianBehaviorKept,
+        patientBehaviorKept,
+        patientAssertionKept,
+        riskDetectionStatus,
+        gatePatientBehavior,
+    };
 });

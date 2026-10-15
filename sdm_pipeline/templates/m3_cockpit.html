@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Material Web cockpit</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap">
+    <link rel="stylesheet" href="{{ url_for('static', filename='m3_cockpit.css') }}">
+    <script src="{{ url_for('static', filename='ccq_scoring.js') }}"></script>
+</head>
+<body data-run="{{ style_run or '' }}">
+    <md-linear-progress id="loading" indeterminate aria-label="Loading episode"></md-linear-progress>
+    <main id="main"></main>
+    <script type="module" src="{{ url_for('static', filename='m3_cockpit.js') }}"></script>
+</body>
+</html>

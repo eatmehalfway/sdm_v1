@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Clinical communication quality</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='department_plots.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='v2_home.css') }}">
+</head>
+<body>
+    <md-linear-progress id="loading" indeterminate aria-label="Loading department"></md-linear-progress>
+    <header class="app-bar">
+        <div class="app-bar-title">
+            <a class="brand-row" href="/v2" aria-label="Clinical communication quality">
+                <span class="brand-logo" role="img" aria-label="Clinical communication quality"></span>
+            </a>
+            <h1 class="md-typescale-title-large">Orthopedics</h1>
+        </div>
+        <div class="app-bar-actions">
+            <md-filled-button id="newAnalysis">New analysis</md-filled-button>
+            <md-icon-button id="themeToggle" aria-label="Switch to dark theme">
+                <md-icon>dark_mode</md-icon>
+            </md-icon-button>
+        </div>
+    </header>
+    <main id="main"></main>
+    <div id="runDialog" class="run-dialog" hidden>
+        <div class="run-scrim" id="runScrim"></div>
+        <div class="run-sheet" role="dialog" aria-modal="true" aria-labelledby="runTitle">
+            <h2 id="runTitle" class="md-typescale-headline-small">New analysis</h2>
+            <p class="md-typescale-body-medium">Gemini extracts the decisions, then Jev checks them. The episode is saved on this page.</p>
+            <form id="runForm">
+                <div class="run-grid">
+                    <label class="run-field">Gemini API key
+                        <input id="runGeminiKey" type="password" autocomplete="off" required>
+                    </label>
+                    <label class="run-field">Jev API key
+                        <input id="runJevKey" type="password" autocomplete="off" required>
+                    </label>
+                    <label class="run-field">Gemini model
+                        <input id="runGeminiModel" type="text" value="gemini-3.8-flash">
+                    </label>
+                    <label class="run-field">Jev model
+                        <input id="runJevModel" type="text" value="jev-latest">
+                    </label>
+                    <label class="run-field">Gemini API base
+                        <input id="runGeminiEndpoint" type="url" value="https://generativelanguage.googleapis.com/v1beta">
+                    </label>
+                    <label class="run-field">Jev endpoint
+                        <input id="runJevEndpoint" type="url" value="https://api.typesafe.ai/v1/systemone">
+                    </label>
+                    <label class="run-field">Risk mapping
+                        <input id="runExcel" type="file" accept=".xlsx,.xls">
+                    </label>
+                    <label class="run-field">Procedure
+                        <select id="runProcedure"><option value="AUTO">Auto-detect</option></select>
+                    </label>
+                    <label class="run-field">Transcripts
+                        <input id="runTranscripts" type="file" accept=".txt" multiple required>
+                    </label>
+                    <label class="run-field">Known encounters
+                        <input id="runEncounters" type="number" min="1" placeholder="Defaults to uploaded files">
+                    </label>
+                </div>
+                <p id="runError" class="run-error md-typescale-body-medium" hidden></p>
+                <div id="runLog" class="run-log md-typescale-body-small" role="status" aria-live="polite"></div>
+                <div class="run-actions">
+                    <button type="button" id="cancelRun" class="text-button">Cancel</button>
+                    <button type="submit" id="startRun" class="run-primary">Run Gemini and Jev</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <iframe id="analysisEngine" title="Analysis engine" hidden></iframe>
+    <section id="cockpitSlot" class="cockpit-slot" hidden>
+        <div class="cockpit-bar">
+            <button type="button" id="closeCockpit" class="text-button">Close</button>
+        </div>
+        <iframe id="cockpitFrame" title="Episode cockpit"></iframe>
+    </section>
+    <script src="{{ url_for('static', filename='ccq_scoring.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12/dist/d3-sankey.min.js"></script>
+    <script src="{{ url_for('static', filename='department_plots.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='v2_home.js') }}"></script>
+</body>
+</html>

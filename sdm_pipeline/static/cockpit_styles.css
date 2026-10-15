@@ -1,0 +1,397 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap');
+
+/* Shared frame: the department chrome stays off this page. */
+body.style-page .topbar,
+body.style-page #department-content,
+body.style-page .episode-overlay-backdrop,
+body.style-page #settingsPopover,
+body.style-page .run-panel-backdrop,
+body.style-page .episode-inline-close {
+    display: none !important;
+}
+body.style-page #view-department { padding: 0; max-height: none; }
+body.style-page #episodeInlineDetail {
+    display: block !important;
+    margin: 0;
+    border: 0;
+    background: transparent;
+}
+body.style-page #episodeInlineBody { padding: 16px; }
+body.style-page .episode-inline-header {
+    background: transparent;
+    border: 0;
+    padding: 8px 16px 0;
+}
+body.style-page .episode-cockpit { background: transparent; }
+body.style-page .transcript-pane-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+body.style-page .turn-speaker {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+body.style-page .turn-speaker-line { display: block; }
+body.style-page .turn-speaker-md { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+    body.style-page *,
+    body.style-page *::before,
+    body.style-page *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* ---------- Glass ---------- */
+body.style-glass {
+    --bg-gradient: radial-gradient(at 20% 20%, #7C3AED 0%, transparent 50%),
+        radial-gradient(at 80% 10%, #06B6D4 0%, transparent 50%),
+        radial-gradient(at 50% 90%, #F472B6 0%, transparent 50%),
+        #0F172A;
+    --glass-bg: rgba(255, 255, 255, 0.12);
+    --glass-bg-strong: rgba(255, 255, 255, 0.22);
+    --glass-border: rgba(255, 255, 255, 0.28);
+    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    --glass-blur: 16px;
+    --navy: #ffffff;
+    --navy-soft: rgba(255, 255, 255, 0.86);
+    --primary: #A78BFA;
+    --secondary: #A78BFA;
+    --secondary-dark: #C4B5FD;
+    --secondary-soft: rgba(167, 139, 250, 0.22);
+    --text: #ffffff;
+    --muted: rgba(255, 255, 255, 0.72);
+    --surface: rgba(255, 255, 255, 0.12);
+    --paper: transparent;
+    --bg: transparent;
+    --border: rgba(255, 255, 255, 0.28);
+    --border-strong: rgba(255, 255, 255, 0.45);
+    --danger: #F9A8D4;
+    --success: #67E8F9;
+    --warning: #FDE68A;
+    font-family: Inter, "SF Pro Display", system-ui, sans-serif;
+    background: var(--bg-gradient);
+    background-attachment: fixed;
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1.55;
+}
+body.style-glass #appContainer,
+body.style-glass #view-department { background: transparent; min-height: 100vh; }
+body.style-glass h1,
+body.style-glass h2,
+body.style-glass h3,
+body.style-glass h4,
+body.style-glass .episode-inline-title { color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); }
+body.style-glass .cockpit-stats {
+    gap: 12px;
+    background: transparent;
+    margin: 0 0 16px;
+}
+body.style-glass .cockpit-stat,
+body.style-glass .spine-map,
+body.style-glass .tick-grid,
+body.style-glass .episode-dock,
+body.style-glass .transcript-pane,
+body.style-glass .decision-spine,
+body.style-glass .comm-opportunity,
+body.style-glass .pipeline-status,
+body.style-glass .core-risk-rail,
+body.style-glass .episode-inline-header {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    box-shadow: var(--glass-shadow), var(--glass-highlight);
+    color: #fff;
+}
+body.style-glass .tick-grid.is-selected {
+    background: var(--glass-bg-strong);
+    outline: 1px solid rgba(255, 255, 255, 0.55);
+}
+body.style-glass .cockpit-stat-label,
+body.style-glass .timeline-vocab-item,
+body.style-glass .turn-role { text-transform: none; letter-spacing: 0; font-weight: 500; }
+body.style-glass .spine-collapse-all {
+    background: #A78BFA;
+    color: #0F172A;
+    border: 0;
+    border-radius: 999px;
+    padding: 8px 16px;
+}
+body.style-glass .transcript-pane-row.is-playhead { background: rgba(167, 139, 250, 0.28); }
+body.style-glass .transcript-pane-row.is-related { background: rgba(255, 255, 255, 0.08); }
+body.style-glass .tree-node.is-selected { background: rgba(255, 255, 255, 0.14); }
+body.style-glass .core-risk-item.is-discussed { color: #67E8F9; }
+body.style-glass .core-risk-item.is-gap { color: #F9A8D4; }
+body.style-glass .comm-opportunity { margin-bottom: 12px; }
+@supports not (backdrop-filter: blur(1px)) {
+    body.style-glass .cockpit-stat,
+    body.style-glass .spine-map,
+    body.style-glass .tick-grid,
+    body.style-glass .episode-dock,
+    body.style-glass .transcript-pane,
+    body.style-glass .decision-spine,
+    body.style-glass .comm-opportunity,
+    body.style-glass .pipeline-status,
+    body.style-glass .core-risk-rail {
+        background: rgba(30, 41, 59, 0.92);
+    }
+}
+
+/* ---------- Material 3 ---------- */
+body.style-material {
+    --md-primary: #6750A4;
+    --md-on-primary: #FFFFFF;
+    --md-primary-container: #EADDFF;
+    --md-on-primary-container: #21005D;
+    --md-secondary: #625B71;
+    --md-on-secondary: #FFFFFF;
+    --md-secondary-container: #E8DEF8;
+    --md-on-secondary-container: #1D192B;
+    --md-tertiary: #7D5260;
+    --md-error: #B3261E;
+    --md-surface: #FEF7FF;
+    --md-on-surface: #1D1B20;
+    --md-on-surface-variant: #49454F;
+    --md-surface-container-low: #F7F2FA;
+    --md-surface-container: #F3EDF7;
+    --md-surface-container-high: #ECE6F0;
+    --md-surface-container-highest: #E6E0E9;
+    --md-outline: #79747E;
+    --md-outline-variant: #CAC4D0;
+    --navy: var(--md-on-surface);
+    --primary: var(--md-primary);
+    --secondary: var(--md-primary);
+    --secondary-dark: #4F378B;
+    --secondary-soft: var(--md-primary-container);
+    --text: var(--md-on-surface);
+    --muted: var(--md-on-surface-variant);
+    --surface: var(--md-surface-container-low);
+    --paper: var(--md-surface);
+    --bg: var(--md-surface);
+    --border: var(--md-outline-variant);
+    --border-strong: var(--md-outline);
+    --danger: var(--md-error);
+    --success: var(--md-primary);
+    font-family: Roboto, system-ui, sans-serif;
+    background: var(--md-surface);
+    color: var(--md-on-surface);
+}
+body.style-material #appContainer,
+body.style-material #view-department { background: var(--md-surface); }
+body.style-material h1,
+body.style-material h2,
+body.style-material h3,
+body.style-material h4,
+body.style-material .episode-inline-title {
+    color: var(--md-on-surface);
+    font-weight: 400;
+    letter-spacing: 0;
+}
+body.style-material .episode-inline-title { font-size: 22px; line-height: 28px; }
+body.style-material .cockpit-stats {
+    gap: 12px;
+    background: transparent;
+    margin: 0 0 16px;
+}
+body.style-material .cockpit-stat,
+body.style-material .spine-map,
+body.style-material .tick-grid,
+body.style-material .episode-dock,
+body.style-material .transcript-pane,
+body.style-material .decision-spine,
+body.style-material .comm-opportunity,
+body.style-material .pipeline-status,
+body.style-material .core-risk-rail {
+    background: var(--md-surface-container-low);
+    border: 0;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.15);
+    color: var(--md-on-surface);
+}
+body.style-material .tick-grid { outline: 0; }
+body.style-material .tick-grid.is-selected {
+    background: var(--md-primary-container);
+    outline: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+body.style-material .cockpit-stat-value { font-weight: 500; font-size: 22px; line-height: 28px; }
+body.style-material .cockpit-stat-label,
+body.style-material .timeline-vocab-item,
+body.style-material .turn-role,
+body.style-material .episode-dock-kicker {
+    text-transform: none;
+    letter-spacing: 0.01em;
+    font-weight: 500;
+    font-size: 12px;
+    line-height: 16px;
+}
+body.style-material .spine-collapse-all {
+    height: 40px;
+    padding: 0 24px;
+    border-radius: 999px;
+    border: 1px solid var(--md-outline);
+    background: transparent;
+    color: var(--md-primary);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+body.style-material .spine-collapse-all:hover { background: rgba(103, 80, 164, 0.08); }
+body.style-material .transcript-pane-row.is-playhead { background: var(--md-secondary-container); }
+body.style-material .transcript-pane-row.is-related { background: var(--md-surface-container-highest); }
+body.style-material .tree-node.is-selected {
+    background: var(--md-secondary-container);
+    outline: 0;
+    border-radius: 8px;
+}
+body.style-material .core-risk-item.is-discussed { color: var(--md-primary); }
+body.style-material .core-risk-item.is-gap { color: var(--md-error); }
+body.style-material .comm-opportunity { margin-bottom: 12px; }
+body.style-material .transcript-pane-head strong { font-weight: 500; font-size: 16px; }
+
+/* ---------- Swiss ---------- */
+body.style-swiss {
+    --bg: #FFFFFF;
+    --surface: #FFFFFF;
+    --text: #111111;
+    --text-muted: #6B6B6B;
+    --border: #E2E2E2;
+    --accent: #E10600;
+    --navy: #111111;
+    --navy-soft: #111111;
+    --primary: #111111;
+    --secondary: #E10600;
+    --secondary-dark: #E10600;
+    --secondary-soft: #FFFFFF;
+    --muted: #6B6B6B;
+    --paper: #FFFFFF;
+    --bg: #FFFFFF;
+    --border-strong: #111111;
+    --danger: #E10600;
+    --success: #111111;
+    --warning: #111111;
+    font-family: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: #fff;
+    color: #111;
+}
+body.style-swiss #appContainer,
+body.style-swiss #view-department,
+body.style-swiss #episodeInlineDetail { background: #fff; }
+body.style-swiss h1,
+body.style-swiss h2,
+body.style-swiss h3,
+body.style-swiss h4,
+body.style-swiss .episode-inline-title {
+    color: #111;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    text-shadow: none;
+}
+body.style-swiss .episode-inline-title { font-size: 24px; line-height: 1.1; }
+body.style-swiss #episodeInlineBody { padding: 24px; }
+body.style-swiss .cockpit-stats {
+    gap: 24px;
+    background: transparent;
+    margin: 0 0 32px;
+}
+body.style-swiss .cockpit-stat,
+body.style-swiss .spine-map,
+body.style-swiss .tick-grid,
+body.style-swiss .episode-dock,
+body.style-swiss .transcript-pane,
+body.style-swiss .decision-spine,
+body.style-swiss .comm-opportunity,
+body.style-swiss .pipeline-status,
+body.style-swiss .core-risk-rail {
+    background: #fff;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    outline: none;
+    color: #111;
+}
+body.style-swiss .spine-map,
+body.style-swiss .episode-dock,
+body.style-swiss .decision-spine,
+body.style-swiss .comm-opportunity {
+    border-top: 1px solid #E2E2E2;
+    padding-top: 24px;
+}
+body.style-swiss .tick-grid { outline: 1px solid #E2E2E2; }
+body.style-swiss .tick-grid.is-selected { outline: 1px solid #111; background: #fff; }
+body.style-swiss .cockpit-stat { padding: 0; }
+body.style-swiss .cockpit-stat-value {
+    font-weight: 500;
+    font-size: 24px;
+    letter-spacing: -0.02em;
+    color: #111;
+}
+body.style-swiss .cockpit-stat-label {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6B6B6B;
+}
+body.style-swiss .spine-collapse-all {
+    border: 1px solid #111;
+    border-radius: 0;
+    background: #fff;
+    color: #111;
+    box-shadow: none;
+    padding: 12px 20px;
+    font-weight: 500;
+}
+body.style-swiss .spine-collapse-all:hover { background: #111; color: #fff; }
+body.style-swiss .transcript-pane { border: 1px solid #E2E2E2; }
+body.style-swiss .transcript-pane-row.is-playhead { background: #F5F5F5; }
+body.style-swiss .transcript-pane-row.is-related { background: #fff; }
+body.style-swiss .tree-node.is-selected { background: #F5F5F5; outline: 0; }
+body.style-swiss .core-risk-item.is-discussed { color: #111; }
+body.style-swiss .core-risk-item.is-gap { color: #E10600; }
+body.style-swiss .comm-opportunity strong { color: #E10600; font-weight: 500; }
+body.style-swiss .timeline-vocab-item { font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+/* Turn speaker marks. Line icons for glass and Swiss; Material Symbols for Material 3. */
+body.style-glass .turn-speaker-line {
+    width: 18px;
+    height: 18px;
+    color: rgba(255, 255, 255, 0.92);
+}
+body.style-glass .turn-speaker.is-clinician .turn-speaker-line { color: #67E8F9; }
+body.style-glass .turn-speaker.is-patient .turn-speaker-line { color: #F9A8D4; }
+
+body.style-material .turn-speaker-line { display: none; }
+body.style-material .turn-speaker-md {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    font-family: "Material Symbols Outlined", sans-serif;
+    font-size: 24px;
+    font-weight: 400;
+    line-height: 1;
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+    color: var(--md-on-surface-variant);
+}
+body.style-material .turn-speaker.is-clinician .turn-speaker-md { color: var(--md-primary); }
+body.style-material .turn-speaker.is-patient .turn-speaker-md { color: var(--md-tertiary); }
+body.style-material .transcript-pane-row.is-playhead .turn-speaker-md {
+    font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+body.style-swiss .turn-speaker-line {
+    width: 16px;
+    height: 16px;
+    color: #111;
+}

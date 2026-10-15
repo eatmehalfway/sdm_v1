@@ -850,6 +850,244 @@ def risk_frequency_rows(episodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(rows, key=lambda row: (-row["not_discussed_count"], row["risk_name"]))
 
 
+_PATIENT_SPEAKER = re.compile(r"patient|family|caregiver", re.IGNORECASE)
+
+BEHAVIOR_KINDS = (
+    "option",
+    "benefit",
+    "burden",
+    "risk",
+    "recommendation",
+    "goal",
+    "preference",
+    "question",
+)
+
+
+def empty_behavior_counts() -> dict[str, dict[str, int]]:
+    return {kind: {"clinician": 0, "patient": 0} for kind in BEHAVIOR_KINDS}
+
+
+def speaker_side(speaker_line: str | None) -> str:
+    """Patient, family, and caregiver turns are patient. Every other speaker is clinician."""
+    if _PATIENT_SPEAKER.search(str(speaker_line or "")):
+        return "patient"
+    return "clinician"
+
+
+def _decision_list(regions_payload: Any) -> list[dict[str, Any]]:
+    if isinstance(regions_payload, dict) and "decisions" in regions_payload:
+        decisions = regions_payload.get("decisions") or []
+    elif isinstance(regions_payload, list):
+        decisions = regions_payload
+    else:
+        return []
+    return [decision for decision in decisions if isinstance(decision, dict)]
+
+
+def _turns_by_index(turns: Any) -> dict[int, dict[str, Any]]:
+    found: dict[int, dict[str, Any]] = {}
+    for turn in turns or []:
+        if not isinstance(turn, dict):
+            continue
+        index = turn.get("index")
+        if isinstance(index, bool) or not isinstance(index, int):
+            continue
+        found[index] = turn
+    return found
+
+
+def _stamp_speaker_sides(field: Any, turns_by_index: dict[int, dict[str, Any]], *index_keys: str) -> dict[str, str]:
+    """Record patient vs clinician for each cited turn. A known turn wins; a missing turn keeps a prior side."""
+    if not isinstance(field, dict):
+        return {}
+    keys = index_keys or ("turn_indices",)
+    prior = field.get("speaker_sides") if isinstance(field.get("speaker_sides"), dict) else {}
+    sides: dict[str, str] = {}
+    for key in keys:
+        for raw in field.get(key) or []:
+            try:
+                index = int(raw)
+            except (TypeError, ValueError):
+                continue
+            label = str(index)
+            turn = turns_by_index.get(index)
+            if turn is not None:
+                sides[label] = speaker_side(turn.get("speaker_line"))
+            elif prior.get(label) in ("patient", "clinician"):
+                sides[label] = prior[label]
+    if sides or prior:
+        field["speaker_sides"] = sides
+    return sides
+
+
+def _add_sides(counts: dict[str, dict[str, int]], kind: str, sides: dict[str, str]) -> None:
+    bucket = counts[kind]
+    for side in sides.values():
+        if side in bucket:
+            bucket[side] += 1
+
+
+def _option_field_turns(field: Any) -> list[int]:
+    if not isinstance(field, dict):
+        return []
+    found: list[int] = []
+    for raw in field.get("turn_indices") or []:
+        try:
+            found.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+    return found
+
+
+def _option_has_citation(option: dict[str, Any]) -> bool:
+    return any(_option_field_turns(option.get(key)) for key in ("what_it_involves", "benefits", "risks", "burdens"))
+
+
+def _turn_body(turn: dict[str, Any]) -> str:
+    lines = turn.get("text_lines") or []
+    if isinstance(lines, str):
+        return lines.strip()
+    return " ".join(str(line) for line in lines if line).strip()
+
+
+def _mentions_option(name: str, text: str) -> bool:
+    if re.search(r"\b" + re.escape(name) + r"\b", text, re.IGNORECASE):
+        return True
+    # "Conservative management" and "conservative care" are the same path in these transcripts.
+    if re.search(r"\bconservative\b", name, re.IGNORECASE) and re.search(
+        r"\bconservative\s+(care|management|treatment)\b", text, re.IGNORECASE
+    ):
+        return True
+    return False
+
+
+def bind_named_option_mentions(regions_payload: Any, turns: Any) -> None:
+    """Give a named option with no citation the clinician turn that actually says its name.
+
+    Gemini sometimes keeps the label (for example "Conservative care") and drops the
+    turn. The map only draws an option when a turn is stored.
+    """
+    ordered = [_turns_by_index(turns)[index] for index in sorted(_turns_by_index(turns))]
+    for decision in _decision_list(regions_payload):
+        overview = decision.get("decision_overview")
+        if not isinstance(overview, dict):
+            continue
+        for option in overview.get("options_considered") or []:
+            if not isinstance(option, dict) or _option_has_citation(option):
+                continue
+            name = str(option.get("option_name") or "").strip()
+            if len(name) < 6:
+                continue
+            hit = next(
+                (
+                    turn for turn in ordered
+                    if speaker_side(turn.get("speaker_line")) == "clinician"
+                    and _mentions_option(name, _turn_body(turn))
+                ),
+                None,
+            )
+            if hit is None:
+                continue
+            quote = _turn_body(hit)
+            option["what_it_involves"] = {
+                "text": quote,
+                "quote": quote,
+                "qualifying_language": [],
+                "turn_indices": [hit["index"]],
+            }
+            option["named_only"] = False
+
+
+def annotate_behavior_speakers(regions_payload: Any, turns: Any) -> dict[str, dict[str, int]]:
+    """Write speaker_sides onto each behavior and return citation counts split by side.
+
+    speaker_sides maps a turn index to "patient" or "clinician". Department
+    aggregates can filter on that without joining the transcript again.
+    Counts cover every decision in the payload.
+    """
+    bind_named_option_mentions(regions_payload, turns)
+    turns_by_index = _turns_by_index(turns)
+    counts = empty_behavior_counts()
+    for decision in _decision_list(regions_payload):
+        overview = decision.get("decision_overview") or {}
+        for option in overview.get("options_considered") or []:
+            if not isinstance(option, dict):
+                continue
+            _add_sides(counts, "option", _stamp_speaker_sides(option.get("what_it_involves"), turns_by_index))
+            _add_sides(counts, "benefit", _stamp_speaker_sides(option.get("benefits"), turns_by_index))
+            _add_sides(counts, "burden", _stamp_speaker_sides(option.get("burdens"), turns_by_index))
+            _add_sides(counts, "risk", _stamp_speaker_sides(option.get("risks"), turns_by_index))
+        _add_sides(
+            counts,
+            "recommendation",
+            _stamp_speaker_sides(overview.get("clinician_recommendation"), turns_by_index),
+        )
+        considerations = overview.get("patient_considerations") or {}
+        for goal in considerations.get("goals_priorities") or []:
+            _add_sides(counts, "goal", _stamp_speaker_sides(goal, turns_by_index))
+        for preference in considerations.get("preferences") or []:
+            _add_sides(counts, "preference", _stamp_speaker_sides(preference, turns_by_index))
+        for question in considerations.get("questions") or []:
+            _add_sides(
+                counts,
+                "question",
+                _stamp_speaker_sides(question, turns_by_index, "turn_indices", "response_turn_indices"),
+            )
+        interventions = (decision.get("informed_consent_analysis") or {}).get("interventions") or []
+        for intervention in interventions:
+            if not isinstance(intervention, dict):
+                continue
+            for tier in ("core_risks", "relevant_risks", "context_dependent_risks"):
+                for risk in intervention.get(tier) or []:
+                    _add_sides(
+                        counts,
+                        "risk",
+                        _stamp_speaker_sides(risk, turns_by_index, "turn_indices", "patient_turn_indices"),
+                    )
+    return counts
+
+
+def behavior_counts_from_sides(regions_payload: Any) -> dict[str, dict[str, int]]:
+    """Count speaker_sides already stored on behaviors. Does not require the transcript."""
+    counts = empty_behavior_counts()
+    for decision in _decision_list(regions_payload):
+        overview = decision.get("decision_overview") or {}
+        for option in overview.get("options_considered") or []:
+            if not isinstance(option, dict):
+                continue
+            for kind, field in (
+                ("option", option.get("what_it_involves")),
+                ("benefit", option.get("benefits")),
+                ("burden", option.get("burdens")),
+                ("risk", option.get("risks")),
+            ):
+                sides = field.get("speaker_sides") if isinstance(field, dict) else None
+                if isinstance(sides, dict):
+                    _add_sides(counts, kind, sides)
+        recommendation = overview.get("clinician_recommendation")
+        if isinstance(recommendation, dict) and isinstance(recommendation.get("speaker_sides"), dict):
+            _add_sides(counts, "recommendation", recommendation["speaker_sides"])
+        considerations = overview.get("patient_considerations") or {}
+        for kind, items in (
+            ("goal", considerations.get("goals_priorities") or []),
+            ("preference", considerations.get("preferences") or []),
+            ("question", considerations.get("questions") or []),
+        ):
+            for item in items:
+                if isinstance(item, dict) and isinstance(item.get("speaker_sides"), dict):
+                    _add_sides(counts, kind, item["speaker_sides"])
+        interventions = (decision.get("informed_consent_analysis") or {}).get("interventions") or []
+        for intervention in interventions:
+            if not isinstance(intervention, dict):
+                continue
+            for tier in ("core_risks", "relevant_risks", "context_dependent_risks"):
+                for risk in intervention.get(tier) or []:
+                    if isinstance(risk, dict) and isinstance(risk.get("speaker_sides"), dict):
+                        _add_sides(counts, "risk", risk["speaker_sides"])
+    return counts
+
+
 def select_index_decision(
     decisions: list[dict[str, Any]], default_procedure: str | None = None
 ) -> dict[str, Any] | None:
@@ -920,6 +1158,7 @@ def metrics_from_regions(regions_payload: Any) -> dict[str, Any]:
             "recommendation_explained": False,
             "questions_answered_count": 0,
             "questions_total_count": 0,
+            "behavior_counts": empty_behavior_counts(),
         }
 
     framing_scores = {
@@ -957,9 +1196,12 @@ def metrics_from_regions(regions_payload: Any) -> dict[str, Any]:
             bucket = core_risk_gap_bucket(status, pass_c)
             if bucket is None:
                 continue
+            sides = risk.get("speaker_sides") if isinstance(risk.get("speaker_sides"), dict) else {}
             core_risk_items.append({
                 "risk_name": risk.get("risk_name") or "Unnamed risk",
                 "detection_status": "Discussed" if bucket == "discussed" else "Not detected",
+                "clinician_turns": sum(1 for side in sides.values() if side == "clinician"),
+                "patient_turns": sum(1 for side in sides.values() if side == "patient"),
             })
             core_total += 1
             if bucket == "discussed":
@@ -995,4 +1237,5 @@ def metrics_from_regions(regions_payload: Any) -> dict[str, Any]:
         "recommendation_explained": clinician_response.get("recommendation_explained") == "Explained",
         "questions_answered_count": clinician_response.get("questions_answered_count") or 0,
         "questions_total_count": clinician_response.get("questions_total_count") or 0,
+        "behavior_counts": behavior_counts_from_sides({"decisions": [decision]}),
     }

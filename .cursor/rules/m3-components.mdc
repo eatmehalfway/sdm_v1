@@ -1,0 +1,143 @@
+---
+description: Material Design 3 component usage for the web - @material/web element tags, setup, theming components, and specs for components you must build yourself (card, nav bar, rail, drawer, top app bar, snackbar, search, badge, tooltip, bottom sheet).
+globs:
+alwaysApply: false
+---
+
+# Material Design 3: Components
+
+Always combine with `m3-core-tokens.mdc`. Prefer official `@material/web` (`<md-*>`) elements where they exist. Note that `@material/web` is in maintenance mode, does not implement every M3 component, and has no motion tokens. Where it has no element, build the component from tokens + semantic HTML using the specs below. Check the repo's docs/components folder if unsure whether an element exists, and don't invent `<md-*>` tags.
+
+## Setup
+```bash
+npm install @material/web
+```
+```js
+// import only what you use (smaller bundles); bare specifiers need a bundler (Vite, Rollup + node-resolve)
+import '@material/web/button/filled-button.js';
+import '@material/web/button/outlined-button.js';
+import '@material/web/textfield/outlined-text-field.js';
+import '@material/web/icon/icon.js';
+import {styles as typescaleStyles} from '@material/web/typography/md-typescale-styles.js';
+document.adoptedStyleSheets.push(typescaleStyles.styleSheet);
+// Prototyping only: import '@material/web/all.js';
+```
+Also load Roboto (400/500/700) and the Material Symbols font (Outlined or Rounded) for `<md-icon>`. Using Angular? Prefer Angular Material. React/Vue/Svelte: use the web components directly (React needs refs/event wiring or a wrapper) or implement the specs below with the CSS tokens.
+
+## Available in @material/web (verify tag names in the repo docs before using)
+- **Buttons:** `md-filled-button`, `md-filled-tonal-button`, `md-outlined-button`, `md-text-button`, `md-elevated-button`
+- **Icon buttons:** `md-icon-button` (standard), `md-filled-icon-button`, `md-filled-tonal-icon-button`, `md-outlined-icon-button` (toggle with `toggle` + `selected`)
+- **FAB:** `md-fab` (`size`: small | medium | large; `variant`: surface | primary | secondary | tertiary; `label` for extended), `md-branded-fab`
+- **Segmented buttons:** `md-outlined-segmented-button-set` + `md-outlined-segmented-button`
+- **Inputs:** `md-filled-text-field`, `md-outlined-text-field`, `md-filled-select` / `md-outlined-select` + `md-select-option`, `md-checkbox`, `md-radio`, `md-switch`, `md-slider`
+- **Chips:** `md-chip-set` with `md-assist-chip`, `md-filter-chip`, `md-input-chip`, `md-suggestion-chip`
+- **Containment/overlay:** `md-dialog`, `md-menu` + `md-menu-item` / `md-sub-menu`
+- **Structure:** `md-list` + `md-list-item`, `md-tabs` + `md-primary-tab` / `md-secondary-tab`, `md-divider`
+- **Feedback/utilities:** `md-circular-progress`, `md-linear-progress`, `md-icon`, `md-ripple`, `md-focus-ring`, `md-elevation`
+
+### Usage patterns
+```html
+<!-- Buttons: icon goes in slot="icon" (leading); trailing-icon attribute moves it -->
+<md-filled-button>Save<md-icon slot="icon">check</md-icon></md-filled-button>
+<md-outlined-button>Cancel</md-outlined-button>
+<md-text-button>Learn more</md-text-button>
+
+<!-- Icon buttons need an accessible name -->
+<md-icon-button aria-label="Settings"><md-icon>settings</md-icon></md-icon-button>
+
+<!-- Text field with supporting + error text; form-associated -->
+<md-outlined-text-field label="Email" type="email" name="email" required
+  supporting-text="We'll never share it" error-text="Enter a valid email"></md-outlined-text-field>
+
+<!-- Select -->
+<md-outlined-select label="Role">
+  <md-select-option value="admin"><div slot="headline">Admin</div></md-select-option>
+  <md-select-option value="member" selected><div slot="headline">Member</div></md-select-option>
+</md-outlined-select>
+
+<!-- Dialog (always modal): headline, content, actions slots; close with a method=dialog form -->
+<md-dialog id="confirm">
+  <div slot="headline">Discard draft?</div>
+  <form slot="content" id="form" method="dialog">Your changes will be lost.</form>
+  <div slot="actions">
+    <md-text-button form="form" value="cancel">Cancel</md-text-button>
+    <md-text-button form="form" value="discard" autofocus>Discard</md-text-button>
+  </div>
+</md-dialog>
+<!-- open with dialog.show(); closed event gives dialog.returnValue -->
+
+<!-- Menu anchored to a button -->
+<md-icon-button id="menu-anchor" aria-label="More"><md-icon>more_vert</md-icon></md-icon-button>
+<md-menu anchor="menu-anchor">
+  <md-menu-item><div slot="headline">Edit</div></md-menu-item>
+  <md-menu-item><div slot="headline">Delete</div></md-menu-item>
+</md-menu>
+<!-- toggle with menu.open = !menu.open -->
+
+<!-- Tabs: provide your own tab panels with ARIA wiring -->
+<md-tabs><md-primary-tab>Overview</md-primary-tab><md-primary-tab>Activity</md-primary-tab></md-tabs>
+
+<!-- Chips -->
+<md-chip-set><md-filter-chip label="Open" selected></md-filter-chip><md-assist-chip label="Share"></md-assist-chip></md-chip-set>
+```
+
+### Theming components
+```css
+/* Global shape change for a component family */
+:root { --md-filled-button-container-shape: 8px; }
+/* Scoped variant */
+md-filled-button.danger {
+  --md-filled-button-container-color: var(--md-sys-color-error);
+  --md-filled-button-label-text-color: var(--md-sys-color-on-error);
+}
+```
+Rules: set `--md-sys-*` tokens first; use component tokens only for intentional exceptions; find token names in each component's doc page; style layout (margins, width) with normal CSS on the host, not internals. Use `::part()`/slots where exposed instead of reaching into shadow DOM.
+
+### Component rules
+- One filled (primary) button per section; destructive confirm uses `error` colors via component tokens; dialogs: 1-2 actions, text buttons, dismiss on the left, confirm on the right.
+- Buttons: 40px tall, label-large, sentence case, verbs ("Save changes"), icon optional (18px).
+- Forms: label every field (`label` attr); use `supporting-text` for hints and `error-text` + `error` for validation; place submit as filled button; keep fields at least 56px tall; prefer outlined fields for dense forms, filled for standalone/prominent ones. Don't mix filled and outlined fields in one form.
+- Lists: 56px (one-line), 72px (two-line), 88px (three-line); leading icon/avatar, trailing meta or action; `md-divider` or whitespace between, not both.
+- Menus: 3-7 items; destructive item last, separated by a divider.
+- Chips: 32px tall, radius small; filter chips for filtering, assist for smart actions, input for user-entered tokens, suggestion for quick replies.
+- Progress: use linear for page/section load or determinate tasks; circular for compact/inline; don't show a spinner and skeleton for the same content.
+
+## Components to build yourself (no `<md-*>` element)
+Use semantic HTML, tokens from `m3-core-tokens.mdc`, state layers, and ARIA. Specs:
+
+### Card
+- Variants: **Elevated** (`surface-container-low`, elev 1), **Filled** (`surface-container-highest`, elev 0), **Outlined** (`surface`, 1px `outline-variant`, elev 0).
+- Radius `medium` (12px); padding 16px; media at top with `medium` radius; title (`title-large` or `title-medium`) + supporting text (`body-medium`, `on-surface-variant`); actions row at bottom (button + 8px gap). Entire card clickable = single `<a>`/`<button>` with state layer; don't nest interactive controls inside a clickable card.
+
+### Top app bar
+- Small (64px, title-large, nav icon left, up to 3 action icons right), center-aligned, medium (112px) and large (152px) collapsing variants. Background `surface`; on scroll switch to `surface-container` (elev 2 tonal). Use `<header>`; title in `<h1>`.
+
+### Navigation (adaptive; see layout rule)
+- **Navigation bar** (bottom, compact): 80px; 3-5 destinations; icon 24px + label-medium; active indicator = 64x32 pill in `secondary-container`, icon `on-secondary-container`, label bold; background `surface-container`.
+- **Navigation rail** (medium): 80px wide; optional FAB/menu at top; items stacked, indicator 56x32 pill.
+- **Navigation drawer** (expanded): standard (inline, 360px) or modal (scrim + slide-in); items 56px tall, full-radius pill indicator `secondary-container`, label-large; section headers title-small.
+- Use `<nav aria-label>`, `aria-current="page"` on active item.
+
+### Snackbar
+- Single line (or two), bottom-left/center (above FAB/nav bar), `inverse-surface` bg, `inverse-on-surface` text (body-medium), optional action `inverse-primary` text button, radius `extra-small`, elev 3, auto-dismiss 4-10s; `role="status"` (`aria-live="polite"`). One at a time; never use for critical errors needing action.
+
+### Search bar
+- 56px tall, full radius, `surface-container-high`, leading search icon, `body-large` input, optional trailing avatar/action; expands to full-screen search view (`surface-container-high`) on compact.
+
+### Bottom sheet / Side sheet
+- Modal bottom sheet: `surface-container-low`, top radius `extra-large`, drag handle (32x4, `on-surface-variant` 40%), scrim 32%; Standard side sheet for expanded screens. Provide close affordance and Escape key; trap focus when modal.
+
+### Badge, Tooltip, Divider
+- Badge: small = 6px dot, large = 16px min with label-small count, `error` bg / `on-error` text; position at icon top-right.
+- Tooltip: plain = `inverse-surface`/`inverse-on-surface`, body-small, radius `extra-small`, shows on hover/focus after ~500ms; use for icon-only buttons (in addition to `aria-label`); rich tooltips for longer content.
+- Divider: 1px `outline-variant`; inset variants align with list text.
+
+### Date/time pickers, carousel
+- Prefer native `<input type="date|time">` styled to tokens, or a well-supported library themed with `--md-sys-color-*`; don't hand-roll complex pickers.
+- Carousel: horizontal scroll-snap container; items `extra-large` radius, hero/multi-browse layouts; keyboard and swipe accessible.
+
+## Don't
+- Don't use another design system's components (Bootstrap, Tailwind UI, shadcn defaults) inside M3 screens without re-skinning to tokens.
+- Don't mix M2 patterns (raised/contained buttons with uppercase labels, elevation-only hierarchy, bottom app bar cradle, linear tab underline-only styles).
+- Don't style by overriding internals of shadow DOM; use tokens, parts, or slots.
+- Don't fabricate component tokens; look them up in the component docs.
