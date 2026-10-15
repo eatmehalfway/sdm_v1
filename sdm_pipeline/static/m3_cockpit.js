@@ -289,6 +289,32 @@ function relatedNames(event, decision) {
     return names;
 }
 
+function quoteInText(quote, text) {
+    const left = String(quote || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const right = String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    if (left.length < 12 || !right) return false;
+    return right.includes(left.slice(0, 80));
+}
+
+function preferredRiskEvent(events, turn, hintQuote) {
+    const named = events.filter(event => event.key === 'risk' && event.riskName && event.turn === Number(turn));
+    if (!named.length) return null;
+    if (state.riskName) {
+        const current = named.find(event => event.riskName === state.riskName && !event.patient)
+            || named.find(event => event.riskName === state.riskName);
+        if (current) return current;
+    }
+    const turnText = turnBody(turnRow(turn));
+    const score = event => {
+        const quote = event.quote || '';
+        let value = event.patient ? 0 : 1;
+        if (quoteInText(quote, turnText)) value += 4;
+        if (quoteInText(quote, hintQuote) || quoteInText(hintQuote, quote)) value += 2;
+        return value;
+    };
+    return [...named].sort((a, b) => score(b) - score(a) || String(a.riskName).localeCompare(String(b.riskName)))[0];
+}
+
 function mapBudget() {
     const pane = document.querySelector('.map-pane');
     if (pane && pane.clientHeight > 200) return pane.clientHeight - 28;
@@ -381,6 +407,13 @@ function renderTickGrid(decision) {
             if (!cells.has(key)) cells.set(key, { event, labels: [event.label] });
         });
     }
+    cells.forEach(cell => {
+        if (cell.event.key !== 'risk') return;
+        const preferred = preferredRiskEvent(events, cell.event.turn, cell.event.quote);
+        if (!preferred || preferred.id === cell.event.id) return;
+        cell.labels = [preferred.label, ...cell.labels.filter(label => label !== preferred.label)];
+        cell.event = preferred;
+    });
     const first = metrics.turns[0];
     const last = metrics.turns[metrics.turns.length - 1];
     const cols = COLUMNS.map(col => `<span class="tick-col col-${col.key}" title="${esc(col.label)}">${esc(col.short)}</span>`).join('');
@@ -448,9 +481,6 @@ function renderTickGrid(decision) {
         ? `<text class="tick-turn" x="${LABEL_W - 4}" y="11" text-anchor="end">${first}</text>${last === first ? '' : `<text class="tick-turn" x="${LABEL_W - 4}" y="${metrics.bodyH - 2}" text-anchor="end">${last}</text>`}`
         : '';
     return `<div class="tick-grid">
-        <div class="tick-grid-title" role="button" tabindex="0" aria-label="Clear map selection">
-            <strong class="md-typescale-title-small" title="${esc(decision.decision_label)}">${esc(decision.decision_label || 'Decision')}</strong>
-        </div>
         <div class="tick-grid-cols"><span class="tick-col-gutter"></span>${cols}</div>
         <div class="tick-grid-body">
             <svg viewBox="0 0 ${TRACK_W} ${metrics.bodyH}" width="${TRACK_W}" height="${metrics.bodyH}" role="group" aria-label="Behavior map">
@@ -475,14 +505,16 @@ function turnBody(turn) {
 }
 
 function speakerIcon(side, filled, slot = 'start') {
-    if (!side) return '';
+    if (!side) return '<span class="turn-icon-slot" aria-hidden="true"></span>';
     const name = side === 'patient' ? 'person' : 'stethoscope';
     const label = side === 'patient' ? 'Patient' : 'Clinician';
     return `<md-icon class="${side}${filled ? ' filled' : ''}" slot="${slot}" aria-label="${label}">${name}</md-icon>`;
 }
 
-function card(title, body, extra = '') {
-    return `<article class="card"><h2 class="md-typescale-title-medium">${esc(title)}</h2><p class="md-typescale-body-medium">${esc(body)}</p>${extra}</article>`;
+function card(title, body, extra = '', note = '') {
+    const heading = `<h2 class="md-typescale-title-medium">${esc(title)}</h2>`;
+    const head = note ? `<div class="card-head">${heading}${note}</div>` : heading;
+    return `<article class="card">${head}<p class="md-typescale-body-medium">${esc(body)}</p>${extra}</article>`;
 }
 
 function selectedEvent(decision) {
@@ -494,6 +526,34 @@ function selectedEvent(decision) {
     return events.find(event => event.turn === state.turn && event.key === state.behaviorKey) || null;
 }
 
+function riskMentionTurns(decision, name) {
+    if (!decision || !name) return [];
+    const risk = coreRisks(decision).find(item => item.risk_name === name);
+    const stored = risk ? [...turnList(risk), ...(risk.patient_turn_indices || []).map(Number)] : [];
+    const drawn = mapEvents(decision).filter(event => event.riskName === name).map(event => event.turn);
+    return [...new Set([...stored, ...drawn].map(Number).filter(turn => Number.isInteger(turn)))].sort((a, b) => a - b);
+}
+
+function riskNav(decision, name, turn) {
+    const turns = riskMentionTurns(decision, name);
+    const index = turns.indexOf(Number(turn));
+    if (turns.length < 2 || index < 0) return '';
+    return `<div class="detail-nav">
+        <button type="button" id="riskPrev" ${index === 0 ? 'disabled' : ''}>Previous</button>
+        <span class="md-typescale-label-medium">${index + 1} of ${turns.length}</span>
+        <button type="button" id="riskNext" ${index === turns.length - 1 ? 'disabled' : ''}>Next</button>
+    </div>`;
+}
+
+function transcriptQuote(text) {
+    let clean = String(text || '').trim();
+    const wrapped = (clean.startsWith('"') && clean.endsWith('"'))
+        || (clean.startsWith('“') && clean.endsWith('”'));
+    if (wrapped) clean = clean.slice(1, -1).trim();
+    if (!clean) return '';
+    return `<p class="md-typescale-body-medium transcript-quote">“${esc(clean)}”</p>`;
+}
+
 function detailHtml(decision) {
     const selected = selectedEvent(decision);
     if (!selected && state.riskName) {
@@ -502,16 +562,18 @@ function detailHtml(decision) {
         return `<article class="detail">
             <h2 class="md-typescale-title-medium">${esc(risk.risk_name || 'Risk')}</h2>
             <p class="md-typescale-label-medium">${esc(risk.detection_status || 'Not assessed')}</p>
-            ${risk.quote ? `<p class="md-typescale-body-large">${esc(risk.quote)}</p>` : ''}
+            ${transcriptQuote(risk.quote)}
         </article>`;
     }
     if (!selected) return '';
     const who = selected.patient ? 'Patient' : 'Clinician';
     const kind = selected.isAnswer ? 'Answer' : behaviorMeta(selected.key).label;
+    const nav = selected.key === 'risk' ? riskNav(decision, selected.riskName, selected.turn) : '';
     return `<article class="detail">
-        <h2 class="md-typescale-title-medium">${esc(kind)} · turn ${selected.turn}</h2>
+        <h2 class="md-typescale-title-medium">${esc(kind)} · <em class="detail-turn">Turn ${selected.turn}</em></h2>
         <p class="md-typescale-label-medium">${esc(who)} · ${esc(selected.label)}</p>
-        <p class="md-typescale-body-large">${esc(selected.quote || turnBody(turnRow(selected.turn)) || 'No quote stored for this turn.')}</p>
+        ${transcriptQuote(selected.quote || turnBody(turnRow(selected.turn))) || '<p class="md-typescale-body-medium">No quote stored for this turn.</p>'}
+        ${nav}
     </article>`;
 }
 
@@ -692,11 +754,10 @@ function communicationHits(decision) {
 }
 
 function renderCockpit(decision) {
-    const idn = identity(`run_${document.body.dataset.run || decision?.decision_id || 'episode'}`);
+    const idn = identity(episodeKey || decision?.decision_id || 'episode');
     const summary = decision?.generative_layer?.decision_summary
         || decision?.decision_label
         || 'No decision summary for this run.';
-    const framing = decision?.communication_analysis?.decision_framing || '';
     const fact = (label, value) => `<p class="md-typescale-label-medium">${esc(label)}</p><p class="md-typescale-title-medium">${esc(value)}</p>`;
     const decisions = payload.decisions.length > 1
         ? `<md-chip-set id="decisionFilters" aria-label="Decisions">${payload.decisions.map(item =>
@@ -705,9 +766,8 @@ function renderCockpit(decision) {
         : '';
     const hits = communicationHits(decision);
     const opportunities = hits.length ? `<section class="opportunities" aria-label="Communication opportunities">
-        <h2 class="md-typescale-label-large">Communication opportunities</h2>
+        <h2 class="md-typescale-headline-small">Communication opportunities</h2>
         <div class="opportunity-row">${hits.map(hit => `<article class="card">
-            <p class="md-typescale-label-medium">${esc(hit.priority)} priority</p>
             <h3 class="md-typescale-title-small">${esc(hit.type)}</h3>
             <p class="md-typescale-body-medium">${esc(hit.text)}</p>
             ${hit.rule === 5 ? '<div class="actions"><md-filled-button id="reviewRisks">Review missing risks</md-filled-button></div>' : ''}
@@ -728,18 +788,22 @@ function renderCockpit(decision) {
         </button>`;
     };
     const riskList = coreRisks(decision);
-    const riskGroup = (label, items) => items.length
-        ? `<div class="risk-group"><h2 class="md-typescale-label-medium">${label}</h2><div class="risk-names">${items.map(riskChip).join('')}</div></div>`
+    const observedRisks = riskList.filter(risk => risk.detection_status === 'Discussed');
+    const missingRisks = riskList.filter(risk => risk.detection_status !== 'Discussed');
+    const riskGroup = (label, items, tone) => items.length
+        ? `<div class="risk-group ${tone}" style="flex-grow: ${items.length}"><h2 class="md-typescale-title-small">${label}</h2><div class="risk-names">${items.map(riskChip).join('')}</div></div>`
         : '';
-    const risks = `${riskGroup('Observed', riskList.filter(risk => risk.detection_status === 'Discussed'))}${riskGroup('Not observed', riskList.filter(risk => risk.detection_status !== 'Discussed'))}`;
+    const risks = observedRisks.length || missingRisks.length
+        ? `${riskGroup('Core risks observed', observedRisks, 'is-observed')}${riskGroup('Core risks not observed', missingRisks, 'is-missing')}`
+        : '<div class="risk-names"><span class="risk-chip is-note"><span class="md-typescale-label-medium">No core risks on this decision.</span></span></div>';
     const transcriptRows = payload.turns.map(turn => {
         const side = speakerSide(turn.speaker_line);
         const selected = state.turn === Number(turn.index);
         const who = String(turn.speaker_line || '').trim() || (side === 'patient' ? 'Patient' : side === 'clinician' ? 'Clinician' : 'Note');
-        return `<button type="button" class="turn-line${selected ? ' is-selected' : ''}" data-turn="${Number(turn.index)}">
-            ${speakerIcon(side, selected)}
-            <span class="turn-index md-typescale-label-small">${Number(turn.index)}</span>
-            <span class="turn-who md-typescale-label-small">${esc(who)}</span>
+        const related = state.riskName && riskMentionTurns(decision, state.riskName).includes(Number(turn.index));
+        return `<button type="button" class="turn-line${selected ? ' is-selected' : ''}${related && !selected ? ' is-related' : ''}" data-turn="${Number(turn.index)}">
+            <span class="turn-index">${Number(turn.index)}</span>
+            <span class="turn-speaker">${speakerIcon(side, selected)}<span class="turn-who md-typescale-label-small">${esc(who)}</span></span>
             <span class="turn-text md-typescale-body-medium">${esc(turnBody(turn) || ' ')}</span>
         </button>`;
     }).join('');
@@ -747,16 +811,16 @@ function renderCockpit(decision) {
         <div class="top-band">
             <section class="identity" aria-label="Episode">
                 <div>${fact('Clinician', idn.clinician)}${fact('Patient', idn.patient)}</div>
-                <div>${fact('Start date', idn.startDate)}${fact('End date', idn.endDate)}${fact('Medical record number', idn.mrn)}</div>
+                <div>${fact('Start date', idn.startDate)}${fact('End date', idn.endDate)}</div>
+                <div class="identity-mrn">${fact('Medical record number', idn.mrn)}</div>
             </section>
             <div class="summary-col">
-                ${card(decision?.decision_label || 'Decision', summary, framing ? `<p class="md-typescale-body-medium">${esc(framing)}</p>` : '')}
+                ${card(decision?.decision_label || 'Decision', summary, '', String(decision?.selected_option || '').trim() ? `<p class="summary-selected md-typescale-label-large">Option selected · ${esc(decision.selected_option)}</p>` : '')}
             </div>
         </div>
         ${decisions}
         <div class="map-head">
             <div class="map-legend" aria-label="Map legend">${legend}</div>
-            <p class="md-typescale-body-small">Select a mark to reveal later mentions of that behavior. A dashed line is the choice.</p>
         </div>
         <div class="workspace">
             <section class="map-pane" aria-label="Behavior map">
@@ -768,7 +832,6 @@ function renderCockpit(decision) {
                         ${risks || '<p class="md-typescale-body-medium">No core risks on this decision.</p>'}
                     </section>
                     <div id="selectionDetail">${detailHtml(decision)}</div>
-                    <h2 class="md-typescale-label-large">Transcript</h2>
                 </div>
                 <div class="transcript-scroll">
                     <div id="transcriptList">${transcriptRows || '<p class="md-typescale-body-medium">This run has no turns.</p>'}</div>
@@ -781,10 +844,6 @@ function renderCockpit(decision) {
 
 function render() {
     const decision = currentDecision();
-    const title = document.getElementById('title');
-    const kicker = document.getElementById('kicker');
-    if (title) title.textContent = decision?.decision_label || 'Episode';
-    if (kicker) kicker.textContent = decision?.selected_option ? `Selected · ${decision.selected_option}` : 'Episode';
     const main = document.getElementById('main');
     if (!main) return;
     const kept = document.querySelector('.transcript-scroll')?.scrollTop || 0;
@@ -792,11 +851,28 @@ function render() {
     const pane = document.querySelector('.transcript-scroll');
     if (pane) pane.scrollTop = kept;
     bindMain(main);
+    alignSpeakerColumn();
+    document.fonts?.ready.then(alignSpeakerColumn);
     requestAnimationFrame(() => {
         if (!document.getElementById('episodeMap')) return;
         repaintMap();
         if (state.turn != null) scrollTranscript(state.turn);
     });
+}
+
+function alignSpeakerColumn() {
+    const list = document.getElementById('transcriptList');
+    const labels = [...document.querySelectorAll('#transcriptList .turn-who')];
+    if (!list || !labels.length) return;
+    const width = Math.ceil(Math.max(...labels.map(label => {
+        const probe = label.cloneNode(true);
+        probe.style.cssText = 'position:absolute;visibility:hidden;width:max-content;white-space:nowrap;';
+        label.parentElement.appendChild(probe);
+        const size = probe.getBoundingClientRect().width;
+        probe.remove();
+        return size;
+    })));
+    list.style.setProperty('--speaker-width', `${width}px`);
 }
 
 function clearSelection() {
@@ -874,10 +950,6 @@ function bindMain(main) {
             if (match) applySelection(match);
             return;
         }
-        if (event.target.closest('.tick-grid-title')) {
-            applySelection(null);
-            return;
-        }
         const row = event.target.closest('.tick-row');
         if (!row) return;
         clearSelection();
@@ -888,14 +960,10 @@ function bindMain(main) {
     main.querySelector('.map-pane')?.addEventListener('keydown', event => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
         const mark = event.target.closest('.tick-mark');
-        const title = event.target.closest('.tick-grid-title');
-        if (!mark && !title) return;
+        if (!mark) return;
         event.preventDefault();
-        if (title) applySelection(null);
-        else {
-            const match = mapEvents(currentDecision()).find(item => item.id === mark.dataset.id);
-            if (match) applySelection(match);
-        }
+        const match = mapEvents(currentDecision()).find(item => item.id === mark.dataset.id);
+        if (match) applySelection(match);
     });
     main.querySelector('#transcriptList')?.addEventListener('click', event => {
         const item = event.target.closest('.turn-line[data-turn]');
@@ -913,15 +981,40 @@ function bindMain(main) {
     });
 }
 
+function selectRiskTurn(name, turn) {
+    const events = mapEvents(currentDecision()).filter(item => item.riskName === name && item.turn === Number(turn));
+    const match = events.find(item => !item.patient) || events[0];
+    if (match) applySelection(match);
+    else {
+        state.turn = Number(turn);
+        state.behaviorKey = 'risk';
+        state.eventId = null;
+        state.riskName = name;
+        repaintMap();
+        refreshSelection();
+    }
+}
+
 function refreshSelection() {
     const decision = currentDecision();
+    const related = new Set(state.riskName ? riskMentionTurns(decision, state.riskName) : []);
     document.querySelectorAll('#transcriptList .turn-line[data-turn]').forEach(item => {
-        const on = Number(item.dataset.turn) === state.turn;
+        const turn = Number(item.dataset.turn);
+        const on = turn === state.turn;
         item.classList.toggle('is-selected', on);
+        item.classList.toggle('is-related', related.has(turn) && !on);
         item.querySelector('md-icon')?.classList.toggle('filled', on);
     });
     const slot = document.getElementById('selectionDetail');
     if (slot) slot.innerHTML = detailHtml(decision);
+    const turns = state.riskName ? riskMentionTurns(decision, state.riskName) : [];
+    const index = turns.indexOf(state.turn);
+    document.getElementById('riskPrev')?.addEventListener('click', () => {
+        if (index > 0) selectRiskTurn(state.riskName, turns[index - 1]);
+    });
+    document.getElementById('riskNext')?.addEventListener('click', () => {
+        if (index >= 0 && index < turns.length - 1) selectRiskTurn(state.riskName, turns[index + 1]);
+    });
     scrollTranscript(state.turn);
 }
 
@@ -943,24 +1036,28 @@ window.addEventListener('resize', () => {
 });
 
 function applyTheme(theme) {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem(THEME_KEY, theme);
-    const button = document.getElementById('themeToggle');
-    const icon = button?.querySelector('md-icon');
-    const dark = theme === 'dark';
-    if (icon) icon.textContent = dark ? 'light_mode' : 'dark_mode';
-    if (button) button.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
+    document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light';
+}
+
+let episodeKey = '';
+
+function requestedEpisode() {
+    const params = new URLSearchParams(location.search);
+    const episode = params.get('episode');
+    if (episode) return episode;
+    const run = document.body.dataset.run || params.get('run') || '';
+    return run ? `run_${run}` : '';
 }
 
 async function load() {
-    const run = document.body.dataset.run;
+    episodeKey = requestedEpisode();
     const bar = document.getElementById('loading');
-    if (!run) {
+    if (!episodeKey) {
         if (bar) bar.hidden = true;
         document.getElementById('main').innerHTML = card('Choose a saved run', 'Pick a run from the styles page to open this cockpit.');
         return;
     }
-    const response = await fetch(`/api/department/episode/run_${encodeURIComponent(run)}`);
+    const response = await fetch(`/api/department/episode/${encodeURIComponent(episodeKey)}`);
     if (!response.ok) throw new Error('This run could not be opened.');
     const data = await response.json();
     payload = { decisions: decisionsFrom(data.regions), turns: data.turns || [] };
@@ -972,8 +1069,12 @@ async function load() {
 const stored = localStorage.getItem(THEME_KEY);
 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 applyTheme(stored || (prefersDark ? 'dark' : 'light'));
-document.getElementById('themeToggle')?.addEventListener('click', () => {
-    applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+window.addEventListener('storage', event => {
+    if (event.key === THEME_KEY && event.newValue) applyTheme(event.newValue);
+});
+window.addEventListener('message', event => {
+    if (event.origin !== location.origin) return;
+    if (event.data?.type === 'v2-theme') applyTheme(event.data.theme);
 });
 
 load().catch(error => {

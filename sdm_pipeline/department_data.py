@@ -928,6 +928,77 @@ def _add_sides(counts: dict[str, dict[str, int]], kind: str, sides: dict[str, st
             bucket[side] += 1
 
 
+def _option_field_turns(field: Any) -> list[int]:
+    if not isinstance(field, dict):
+        return []
+    found: list[int] = []
+    for raw in field.get("turn_indices") or []:
+        try:
+            found.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+    return found
+
+
+def _option_has_citation(option: dict[str, Any]) -> bool:
+    return any(_option_field_turns(option.get(key)) for key in ("what_it_involves", "benefits", "risks", "burdens"))
+
+
+def _turn_body(turn: dict[str, Any]) -> str:
+    lines = turn.get("text_lines") or []
+    if isinstance(lines, str):
+        return lines.strip()
+    return " ".join(str(line) for line in lines if line).strip()
+
+
+def _mentions_option(name: str, text: str) -> bool:
+    if re.search(r"\b" + re.escape(name) + r"\b", text, re.IGNORECASE):
+        return True
+    # "Conservative management" and "conservative care" are the same path in these transcripts.
+    if re.search(r"\bconservative\b", name, re.IGNORECASE) and re.search(
+        r"\bconservative\s+(care|management|treatment)\b", text, re.IGNORECASE
+    ):
+        return True
+    return False
+
+
+def bind_named_option_mentions(regions_payload: Any, turns: Any) -> None:
+    """Give a named option with no citation the clinician turn that actually says its name.
+
+    Gemini sometimes keeps the label (for example "Conservative care") and drops the
+    turn. The map only draws an option when a turn is stored.
+    """
+    ordered = [_turns_by_index(turns)[index] for index in sorted(_turns_by_index(turns))]
+    for decision in _decision_list(regions_payload):
+        overview = decision.get("decision_overview")
+        if not isinstance(overview, dict):
+            continue
+        for option in overview.get("options_considered") or []:
+            if not isinstance(option, dict) or _option_has_citation(option):
+                continue
+            name = str(option.get("option_name") or "").strip()
+            if len(name) < 6:
+                continue
+            hit = next(
+                (
+                    turn for turn in ordered
+                    if speaker_side(turn.get("speaker_line")) == "clinician"
+                    and _mentions_option(name, _turn_body(turn))
+                ),
+                None,
+            )
+            if hit is None:
+                continue
+            quote = _turn_body(hit)
+            option["what_it_involves"] = {
+                "text": quote,
+                "quote": quote,
+                "qualifying_language": [],
+                "turn_indices": [hit["index"]],
+            }
+            option["named_only"] = False
+
+
 def annotate_behavior_speakers(regions_payload: Any, turns: Any) -> dict[str, dict[str, int]]:
     """Write speaker_sides onto each behavior and return citation counts split by side.
 
@@ -935,6 +1006,7 @@ def annotate_behavior_speakers(regions_payload: Any, turns: Any) -> dict[str, di
     aggregates can filter on that without joining the transcript again.
     Counts cover every decision in the payload.
     """
+    bind_named_option_mentions(regions_payload, turns)
     turns_by_index = _turns_by_index(turns)
     counts = empty_behavior_counts()
     for decision in _decision_list(regions_payload):

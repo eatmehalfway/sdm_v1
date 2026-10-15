@@ -1,0 +1,23 @@
+---
+description: Display direct transcript quotes in quotation marks and italics
+alwaysApply: true
+---
+
+# Transcript quotes
+
+A direct quote from a transcript is the speaker’s words, not a label, status, or summary.
+
+Whenever a direct quote is shown:
+
+- Wrap it in quotation marks: “quote”
+- Italicize it
+- Do not add a second pair of marks if the stored text already has them
+- Leave non-quotes in roman type with no marks. That includes behavior names, turn labels, “No quote stored,” and generated summaries
+
+```html
+<p class="transcript-quote">“Then there’s the risk that we simply don’t get the degree of symptom relief you’re hoping for.”</p>
+```
+
+```css
+.transcript-quote { font-style: italic; }
+```

@@ -148,6 +148,29 @@ def test_speaker_sides_split_patient_and_clinician():
     assert metrics["behavior_counts"]["question"] == {"clinician": 0, "patient": 2}
 
 
+def test_named_conservative_option_picks_up_the_clinician_mention():
+    payload = region([], pass_c="ok")
+    decision = payload["decisions"][0]
+    decision["decision_overview"]["options_considered"] = [
+        {"option_name": "Hip replacement", "what_it_involves": {"quote": "The ball and the socket both get replaced.", "turn_indices": [43]}},
+        {"option_name": "Conservative care", "named_only": True},
+    ]
+    turns = [
+        {"index": 35, "speaker_line": "SURGEON", "text_lines": [
+            "I'd recommend a hip replacement rather than continuing with conservative care.",
+        ]},
+        {"index": 40, "speaker_line": "PATIENT", "text_lines": ["So I can still choose not to have surgery?"]},
+    ]
+    annotate_behavior_speakers(payload, turns)
+    conservative = decision["decision_overview"]["options_considered"][1]
+    assert conservative["named_only"] is False
+    assert conservative["what_it_involves"]["turn_indices"] == [35]
+    assert "conservative care" in conservative["what_it_involves"]["quote"]
+    assert conservative["what_it_involves"]["speaker_sides"] == {"35": "clinician"}
+    surgery = decision["decision_overview"]["options_considered"][0]
+    assert surgery["what_it_involves"]["turn_indices"] == [43]
+
+
 def main():
     test_failed_pass_does_not_count()
     test_missing_status_keeps_discussed_and_drops_not_detected()
@@ -155,6 +178,7 @@ def main():
     test_not_assessed_leaves_gap_stats()
     test_patient_mention_stays_not_discussed()
     test_speaker_sides_split_patient_and_clinician()
+    test_named_conservative_option_picks_up_the_clinician_mention()
     print("OK: pass status stays out of the not-discussed counts")
 
 

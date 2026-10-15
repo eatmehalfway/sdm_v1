@@ -1395,6 +1395,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
     if (document.body?.dataset?.comparePage === 'true') {
+        if (new URLSearchParams(location.search).get('v2engine') === '1') {
+            window.__v2Embed = true;
+            return;
+        }
         const geminiKey = document.getElementById('compareGeminiKey');
         if (geminiKey) geminiKey.value = savedKey || '';
         const jevKey = document.getElementById('jevKey');
@@ -4556,6 +4560,38 @@ function alignDecisionOptions(r) {
     overview.options_considered = considered;
 }
 
+function optionHasCitation(opt) {
+    return ['what_it_involves', 'benefits', 'risks', 'burdens'].some(key => allTurnIndices(opt?.[key]).length);
+}
+
+function mentionsOptionName(name, text) {
+    const label = String(name || '').trim();
+    const body = String(text || '');
+    if (label.length >= 6 && new RegExp(`\\b${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(body)) return true;
+    return /\bconservative\b/i.test(label) && /\bconservative\s+(care|management|treatment)\b/i.test(body);
+}
+
+function bindNamedOptionMentions(region, turns) {
+    const options = region?.decision_overview?.options_considered || [];
+    const ordered = [...(turns || [])].filter(turn => Number.isInteger(Number(turn.index)))
+        .sort((a, b) => Number(a.index) - Number(b.index));
+    options.forEach(opt => {
+        const name = String(opt?.option_name || '').trim();
+        if (!name || name.length < 6 || optionHasCitation(opt)) return;
+        const hit = ordered.find(turn => !isPatientSpeaker(turn.speaker_line)
+            && mentionsOptionName(name, (turn.text_lines || []).join(' ')));
+        if (!hit) return;
+        const quote = (hit.text_lines || []).join(' ').trim();
+        opt.what_it_involves = {
+            text: quote,
+            quote,
+            qualifying_language: [],
+            turn_indices: [Number(hit.index)],
+        };
+        opt.named_only = false;
+    });
+}
+
 function pickStructuralConsentDecision(regions, defaultProcedure) {
     const list = regions || [];
     const byId = Object.fromEntries(list.filter(r => r.decision_id).map(r => [r.decision_id, r]));
@@ -4942,8 +4978,26 @@ function isLegacyRegion(region) {
 
 function logStatus(msg) {
     const log = document.getElementById("statusLog");
-    log.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
-    log.scrollTop = log.scrollHeight;
+    if (log) {
+        log.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+        log.scrollTop = log.scrollHeight;
+    }
+    if (window.__v2Embed && window.parent !== window) {
+        window.parent.postMessage({ type: 'v2-run-status', message: String(msg) }, location.origin);
+    }
+}
+
+async function saveAnalysisRun(files, totalEncounters, globalTurns, procName, regions) {
+    const payload = {
+        filename: files.map(f => f.name).join(" + "),
+        total_encounters: totalEncounters,
+        turns: globalTurns,
+        regions: { schema_version: CCQ_SCHEMA_VERSION, default_procedure: procName, decisions: regions }
+    };
+    const saveRes = await fetch("/api/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const saveJson = await saveRes.json().catch(() => ({}));
+    if (!saveRes.ok || !saveJson.id) throw new Error(saveJson.error || 'Could not save this analysis.');
+    return saveJson.id;
 }
 
 function escAttr(str) {
@@ -6078,6 +6132,7 @@ async function geminiSubdecisionRegions(apiKey, files, globalTurns) {
         n += 1;
     }
     subs.forEach(alignDecisionOptions);
+    subs.forEach(region => bindNamedOptionMentions(region, globalTurns));
     const label = index?.decision_label || 'the top-level decision';
     logStatus(subs.length
         ? `Gemini found ${subs.length} subdecision${subs.length === 1 ? '' : 's'} under "${label}". Jev labels that top-level decision.`
@@ -6293,9 +6348,16 @@ async function runAnalysis() {
 
     errBox.innerText = "";
     document.getElementById("statusLog").innerHTML = "";
-    if (!apiKey) return (errBox.innerText = "API Key required");
-    if (!fileInput.files.length) return (errBox.innerText = "At least one transcript file required");
-    if (Object.keys(GLOBAL_RISK_DB).length === 0) return (errBox.innerText = "Taxonomy Database is empty.");
+    const rejectRun = message => {
+        if (window.__v2Embed) {
+            window.parent.postMessage({ type: 'v2-run-error', message }, location.origin);
+            return;
+        }
+        errBox.innerText = message;
+    };
+    if (!apiKey) return rejectRun("API Key required");
+    if (!fileInput.files.length) return rejectRun("At least one transcript file required");
+    if (Object.keys(GLOBAL_RISK_DB).length === 0) return rejectRun("Taxonomy Database is empty.");
 
     localStorage.setItem("gemini_api_key", apiKey);
     loader.style.display = "block";
@@ -6336,6 +6398,7 @@ async function runAnalysis() {
         regions.length = 0;
         regions.push(...collapsedRegions);
         regions.forEach(alignDecisionOptions);
+        regions.forEach(region => bindNamedOptionMentions(region, globalTurns));
 
         await attachInformedConsent(apiKey, regions, globalTurns, procName);
         releasePatientCoreRisks(regions, globalTurns);
@@ -6357,6 +6420,14 @@ async function runAnalysis() {
             } else {
                 await confirmGeminiPatientCitations(globalTurns, regions);
                 await runJevComparison(globalTurns, procName);
+            }
+            if (window.__v2Embed) {
+                if (!document.getElementById('jevKey')?.value.trim()) throw new Error('Jev API key required');
+                logStatus('Saving to database...');
+                const savedId = await saveAnalysisRun(files, totalEncounters, globalTurns, procName, regions);
+                logStatus('Saved successfully.');
+                window.parent.postMessage({ type: 'v2-run-done', id: savedId }, location.origin);
+                return;
             }
             mountCompareCockpits(regions, globalTurns, procName, files[0]?.name);
             logStatus('Decision analysis and raw outputs are below.');
@@ -6405,6 +6476,10 @@ async function runAnalysis() {
         loadDepartmentOverview();
     } catch (error) {
         console.error(error);
+        if (window.__v2Embed) {
+            window.parent.postMessage({ type: 'v2-run-error', message: error.message || 'The analysis failed.' }, location.origin);
+            return;
+        }
         errBox.innerText = "Error: " + error.message;
         if (COMPARE_PAGE && compareTurns && !JEV_RAW.length && document.getElementById('jevKey')?.value.trim()) {
             try {

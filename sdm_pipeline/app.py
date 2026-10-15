@@ -68,6 +68,12 @@ def compare():
     return render_template('index.html', demo_page=False, compare_page=True)
 
 
+@app.route('/v2')
+def home_v2():
+    """Department home in the Material Design 3 language."""
+    return render_template('v2_home.html')
+
+
 @app.route('/styles')
 def styles_gallery():
     """Style gallery: glass, the CSS Material skin, Swiss, and a Material Web cockpit."""

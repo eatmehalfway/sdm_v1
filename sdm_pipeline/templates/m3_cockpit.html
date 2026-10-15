@@ -10,15 +10,6 @@
 </head>
 <body data-run="{{ style_run or '' }}">
     <md-linear-progress id="loading" indeterminate aria-label="Loading episode"></md-linear-progress>
-    <header class="app-bar">
-        <div>
-            <p id="kicker" class="md-typescale-label-medium">Episode</p>
-            <h1 id="title" class="md-typescale-title-large">Loading episode</h1>
-        </div>
-        <md-icon-button id="themeToggle" aria-label="Switch to dark theme">
-            <md-icon>dark_mode</md-icon>
-        </md-icon-button>
-    </header>
     <main id="main"></main>
     <script type="module" src="{{ url_for('static', filename='m3_cockpit.js') }}"></script>
 </body>
