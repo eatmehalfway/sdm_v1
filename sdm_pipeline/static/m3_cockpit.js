@@ -64,7 +64,7 @@ function identity(episodeId) {
         patient: NAMES[h % NAMES.length],
         startDate: fmt(start),
         endDate: fmt(end),
-        mrn: String(1000000 + (h % 9000000)),
+        mrn: 'MRN0123456',
     };
 }
 
@@ -710,7 +710,6 @@ function renderCockpit(decision) {
         <div class="opportunity-row">${hits.map(hit => `<article class="card">
             <h3 class="md-typescale-title-small">${esc(hit.type)}</h3>
             <p class="md-typescale-body-medium">${esc(hit.text)}</p>
-            ${hit.rule === 5 ? '<div class="actions"><md-filled-button id="reviewRisks">Review missing risks</md-filled-button></div>' : ''}
         </article>`).join('')}</div>
     </section>` : '';
     const legend = COLUMNS.map(col =>
@@ -740,7 +739,7 @@ function renderCockpit(decision) {
         const side = speakerSide(turn.speaker_line);
         const selected = state.turn === Number(turn.index);
         const who = String(turn.speaker_line || '').trim() || (side === 'patient' ? 'Patient' : side === 'clinician' ? 'Clinician' : 'Note');
-        return `<button type="button" class="turn-line" data-turn="${Number(turn.index)}">
+        return `<button type="button" class="turn-line${selected ? ' is-current' : ''}" data-turn="${Number(turn.index)}">
             <span class="turn-index">${Number(turn.index)}</span>
             <span class="turn-speaker">${speakerIcon(side, selected)}<span class="turn-who md-typescale-label-small">${esc(who)}</span></span>
             <span class="turn-text md-typescale-body-medium">${esc(turnBody(turn) || ' ')}</span>
@@ -847,19 +846,6 @@ function repaintMap() {
 }
 
 function bindMain(main) {
-    main.querySelector('#reviewRisks')?.addEventListener('click', () => {
-        const missing = coreRisks(currentDecision()).find(risk => risk.detection_status === 'Not detected');
-        document.getElementById('coreRisks')?.scrollIntoView({ block: 'nearest' });
-        if (!missing) return;
-        const match = mapEvents(currentDecision()).find(event => event.riskName === missing.risk_name && !event.patient);
-        if (match) applySelection(match);
-        else {
-            clearSelection();
-            state.riskName = missing.risk_name;
-            repaintMap();
-            refreshSelection();
-        }
-    });
     main.querySelector('#decisionFilters')?.addEventListener('click', event => {
         const chip = event.target.closest('md-filter-chip');
         if (!chip?.dataset.decision || chip.dataset.decision === state.decisionId) return;
@@ -922,6 +908,7 @@ function bindMain(main) {
 function refreshSelection() {
     document.querySelectorAll('#transcriptList .turn-line[data-turn]').forEach(item => {
         const on = Number(item.dataset.turn) === state.turn;
+        item.classList.toggle('is-current', on);
         item.querySelector('md-icon')?.classList.toggle('filled', on);
     });
     scrollTranscript(state.turn);

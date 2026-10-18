@@ -572,12 +572,11 @@ function renderMapCharts() {
                         <p class="section-kicker">Alternatives discussion flow</p>
                         <div class="chart-heading-row">
                             <h3 class="chart-heading" id="flow-heading">${DEMO_PAGE ? 'Episode flow' : 'Whether alternatives to the proposed intervention were presented and how they were compared'}</h3>
-                            <span class="info-icon" tabindex="0" data-tip="Follows one intervention's episodes from left to right: whether a single option was presented, and if alternatives came up, how thoroughly they were compared.">i</span>
+                            <span class="info-icon" tabindex="0" data-tip="Follows the intervention selected above. All interventions shows every episode in the current filters. A single intervention shows only that one. The flow is whether a single option was presented, and if alternatives came up, how thoroughly they were compared.">i</span>
                         </div>
                         ${DEMO_PAGE
                             ? '<p class="demo-chart-desc">Whether alternatives to the proposed intervention were presented and how they were compared</p>'
-                            : '<p class="jitter-hint">Pick an intervention to trace.</p>'}
-                        <div class="chart-controls-row" id="sankeyControls"></div>
+                            : ''}
                     </div>
                     <div id="sankeyPlot"></div>
                 </div>
@@ -772,29 +771,8 @@ function categoryPercents(episodes) {
     return { counts, percents };
 }
 
-function setSankeyFocus(name) {
-    navGoTo('procedure', name);
-}
-
-function setSankeyCompare(scope) {
-    SANKEY_COMPARE_SCOPE = scope;
-    renderSankeyDelta(sankeyEligibleEpisodes());
-}
-
-function renderSankeyControls(allProcedures) {
-    const el = document.getElementById('sankeyControls');
-    if (!el) return;
-    el.innerHTML = `
-        <label class="chart-control">View
-            <select class="control-select" onchange="setSankeyFocus(this.value)">
-                ${allProcedures.map(p => `<option value="${escAttr(p)}" ${p === SANKEY_FOCUS_PROCEDURE ? 'selected' : ''}>${escHtml(p)}</option>`).join('')}
-            </select>
-        </label>`;
-}
-
-// Sankey with benchmark deltas: shows one procedure's discussion-framing
-// flow, with each node annotated by how it compares (in percentage points)
-// to a chosen benchmark (all other procedures, or one specific peer).
+// The flow follows the Intervention filter: every episode when All interventions
+// is selected, otherwise only the selected intervention.
 function renderSankeyDelta(episodes) {
     const el = document.getElementById('sankeyPlot');
     if (!el || typeof d3 === 'undefined') return;
@@ -804,18 +782,8 @@ function renderSankeyDelta(episodes) {
         el.innerHTML = '<p class="jitter-hint">No intervention-level episodes yet.</p>';
         return;
     }
-    const demoAll = DEMO_PAGE && !NAV.procedure;
-    if (!demoAll && (!SANKEY_FOCUS_PROCEDURE || SANKEY_FOCUS_IS_AUTO || !allProcedures.includes(SANKEY_FOCUS_PROCEDURE))) {
-        const volumeByProc = new Map();
-        episodes.forEach(ep => ep.procedure && volumeByProc.set(ep.procedure, (volumeByProc.get(ep.procedure) || 0) + 1));
-        SANKEY_FOCUS_PROCEDURE = [...volumeByProc.entries()].sort((a, b) => b[1] - a[1])[0][0];
-        SANKEY_FOCUS_IS_AUTO = true;
-    }
-    if (SANKEY_COMPARE_SCOPE !== 'all' && (SANKEY_COMPARE_SCOPE === SANKEY_FOCUS_PROCEDURE || !allProcedures.includes(SANKEY_COMPARE_SCOPE))) SANKEY_COMPARE_SCOPE = 'all';
-
-    if (!DEMO_PAGE) renderSankeyControls(allProcedures);
-
-    const focusEpisodes = demoAll ? episodes : episodes.filter(ep => ep.procedure === SANKEY_FOCUS_PROCEDURE);
+    const focusName = NAV.procedure || '';
+    const focusEpisodes = focusName ? episodes.filter(ep => ep.procedure === focusName) : episodes;
 
     el.innerHTML = '';
     if (!focusEpisodes.length) {
@@ -827,9 +795,9 @@ function renderSankeyDelta(episodes) {
     const { counts, links } = buildSankeyData(focusEpisodes);
     const categories = discussionCategories();
     const altLaneCats = DEMO_PAGE ? ['Limited comparison', 'Meaningful comparison'] : ['Minimally compared', 'Meaningfully compared'];
-    const rootLabel = demoAll
-        ? `All interventions (${focusEpisodes.length} episodes)`
-        : `${demoProcedureLabel(SANKEY_FOCUS_PROCEDURE)} (${focusEpisodes.length} episodes)`;
+    const rootLabel = focusName
+        ? `${demoProcedureLabel(focusName)} (${focusEpisodes.length} episodes)`
+        : `All interventions (${focusEpisodes.length} episodes)`;
 
     const laneX = chartLaneScale(width);
     const nodes = new Map();
@@ -1459,6 +1427,8 @@ function renderRiskGapBubbleChart(rows) {
 
     rows = rows || bubbleChartRows();
     const yField = RISK_BUBBLE_Y_METRIC;
+    const splitBy = bubbleSplitBy();
+    const splitLabel = splitBy === 'procedure' ? 'intervention' : 'clinician';
     const yLabel = yField === 'procedure_variation' ? 'Variation across interventions' : 'Variation across clinicians';
     const zoomed = NAV.bubbleCategory;
     const isolate = mapIsolate();
@@ -1598,7 +1568,7 @@ function renderRiskGapBubbleChart(rows) {
                 `<strong>${escHtml(row.risk_category)}</strong>${filterLabel ? ` · ${escHtml(filterLabel)}` : ''}<br>` +
                 `${row.gap_rate}% gap · ${row.applicable_episodes} episodes<br>` +
                 `Clinician rates: ${rangeText}<br>` +
-                `<em>${isolate ? 'Click to see episodes' : `Click to split by ${splitBy}`}</em>`
+                `<em>${isolate ? 'Click to see episodes' : `Click to split by ${splitLabel}`}</em>`
             ).style('left', `${event.clientX - rect.left + 12}px`).style('top', `${event.clientY - rect.top - 18}px`).style('opacity', 1);
         })
         .on('mouseleave', () => tooltip.style('opacity', 0))

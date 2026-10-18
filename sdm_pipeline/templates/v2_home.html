@@ -18,12 +18,11 @@
             <a class="brand-row" href="/v2" aria-label="Clinical communication quality">
                 <span class="brand-logo" role="img" aria-label="Clinical communication quality"></span>
             </a>
-            <label class="dept-select">
-                <span class="visually-hidden">Department</span>
-                <select id="departmentSelect" aria-label="Department">
-                    <option>Orthopedic Surgery</option>
-                </select>
-            </label>
+            <md-outlined-select id="departmentSelect" label="Department">
+                <md-select-option selected value="Orthopedic Surgery">
+                    <div slot="headline">Orthopedic Surgery</div>
+                </md-select-option>
+            </md-outlined-select>
         </div>
         <div class="app-bar-actions">
             <md-icon-button id="refreshDepartment" aria-label="Refresh">
@@ -63,9 +62,11 @@
                     <label class="run-field">Risk mapping
                         <input id="runExcel" type="file" accept=".xlsx,.xls">
                     </label>
-                    <label class="run-field">Procedure
-                        <select id="runProcedure"><option value="AUTO">Auto-detect</option></select>
-                    </label>
+                    <md-outlined-select id="runProcedure" label="Procedure">
+                        <md-select-option selected value="AUTO">
+                            <div slot="headline">Auto-detect</div>
+                        </md-select-option>
+                    </md-outlined-select>
                     <label class="run-field">Transcripts
                         <input id="runTranscripts" type="file" accept=".txt" multiple required>
                     </label>
