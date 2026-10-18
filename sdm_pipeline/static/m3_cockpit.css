@@ -399,13 +399,10 @@ main {
     overflow-wrap: anywhere;
 }
 .turn-line:hover { background: var(--md-sys-color-surface-container); }
-.turn-line.is-related { background: color-mix(in srgb, var(--md-sys-color-primary) 10%, var(--md-sys-color-surface-container-lowest)); }
-.turn-line.is-selected { background: var(--md-sys-color-surface-container-high); }
 .turn-line:focus-visible {
     outline: 3px solid var(--md-sys-color-secondary);
     outline-offset: 2px;
 }
-#selectionDetail:empty { display: none; }
 md-list-item.is-selected {
     background: var(--md-sys-color-surface-container-high);
     color: var(--md-sys-color-on-surface);
@@ -480,39 +477,7 @@ md-list-item.is-selected {
 .opportunities h3 { margin: 0; }
 
 md-list { background: transparent; }
-.detail {
-    margin: 0;
-    padding: 8px 12px;
-    border-radius: var(--md-sys-shape-corner-medium);
-    background: var(--md-sys-color-surface-container-high);
-    flex: none;
-}
-.detail p { margin: 8px 0 0; }
-.detail-turn { font-style: italic; font-weight: 400; }
 .transcript-quote { font-style: italic; }
-.detail-nav {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 8px;
-}
-.detail-nav span { color: var(--md-sys-color-on-surface-variant); }
-.detail-nav button {
-    min-height: 40px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: var(--md-sys-shape-corner-full);
-    background: transparent;
-    color: var(--md-sys-color-primary);
-    font: 500 14px/20px var(--md-ref-typeface-plain);
-    cursor: pointer;
-}
-.detail-nav button:hover { background: color-mix(in srgb, var(--md-sys-color-primary) 8%, transparent); }
-.detail-nav button:focus-visible {
-    outline: 3px solid var(--md-sys-color-primary);
-    outline-offset: 2px;
-}
-.detail-nav button:disabled { opacity: 0.38; cursor: default; background: transparent; }
 
 @media (max-width: 839px) {
     body { height: auto; overflow: auto; display: block; }

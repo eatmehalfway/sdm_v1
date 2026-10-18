@@ -517,66 +517,6 @@ function card(title, body, extra = '', note = '') {
     return `<article class="card">${head}<p class="md-typescale-body-medium">${esc(body)}</p>${extra}</article>`;
 }
 
-function selectedEvent(decision) {
-    const events = mapEvents(decision);
-    if (state.eventId) {
-        const hit = events.find(event => event.id === state.eventId);
-        if (hit) return hit;
-    }
-    return events.find(event => event.turn === state.turn && event.key === state.behaviorKey) || null;
-}
-
-function riskMentionTurns(decision, name) {
-    if (!decision || !name) return [];
-    const risk = coreRisks(decision).find(item => item.risk_name === name);
-    const stored = risk ? [...turnList(risk), ...(risk.patient_turn_indices || []).map(Number)] : [];
-    const drawn = mapEvents(decision).filter(event => event.riskName === name).map(event => event.turn);
-    return [...new Set([...stored, ...drawn].map(Number).filter(turn => Number.isInteger(turn)))].sort((a, b) => a - b);
-}
-
-function riskNav(decision, name, turn) {
-    const turns = riskMentionTurns(decision, name);
-    const index = turns.indexOf(Number(turn));
-    if (turns.length < 2 || index < 0) return '';
-    return `<div class="detail-nav">
-        <button type="button" id="riskPrev" ${index === 0 ? 'disabled' : ''}>Previous</button>
-        <span class="md-typescale-label-medium">${index + 1} of ${turns.length}</span>
-        <button type="button" id="riskNext" ${index === turns.length - 1 ? 'disabled' : ''}>Next</button>
-    </div>`;
-}
-
-function transcriptQuote(text) {
-    let clean = String(text || '').trim();
-    const wrapped = (clean.startsWith('"') && clean.endsWith('"'))
-        || (clean.startsWith('“') && clean.endsWith('”'));
-    if (wrapped) clean = clean.slice(1, -1).trim();
-    if (!clean) return '';
-    return `<p class="md-typescale-body-medium transcript-quote">“${esc(clean)}”</p>`;
-}
-
-function detailHtml(decision) {
-    const selected = selectedEvent(decision);
-    if (!selected && state.riskName) {
-        const risk = coreRisks(decision).find(item => item.risk_name === state.riskName);
-        if (!risk) return '';
-        return `<article class="detail">
-            <h2 class="md-typescale-title-medium">${esc(risk.risk_name || 'Risk')}</h2>
-            <p class="md-typescale-label-medium">${esc(risk.detection_status || 'Not assessed')}</p>
-            ${transcriptQuote(risk.quote)}
-        </article>`;
-    }
-    if (!selected) return '';
-    const who = selected.patient ? 'Patient' : 'Clinician';
-    const kind = selected.isAnswer ? 'Answer' : behaviorMeta(selected.key).label;
-    const nav = selected.key === 'risk' ? riskNav(decision, selected.riskName, selected.turn) : '';
-    return `<article class="detail">
-        <h2 class="md-typescale-title-medium">${esc(kind)} · <em class="detail-turn">Turn ${selected.turn}</em></h2>
-        <p class="md-typescale-label-medium">${esc(who)} · ${esc(selected.label)}</p>
-        ${transcriptQuote(selected.quote || turnBody(turnRow(selected.turn))) || '<p class="md-typescale-body-medium">No quote stored for this turn.</p>'}
-        ${nav}
-    </article>`;
-}
-
 function plainText(field) {
     if (!field) return '';
     if (typeof field === 'string') return field.trim();
@@ -800,8 +740,7 @@ function renderCockpit(decision) {
         const side = speakerSide(turn.speaker_line);
         const selected = state.turn === Number(turn.index);
         const who = String(turn.speaker_line || '').trim() || (side === 'patient' ? 'Patient' : side === 'clinician' ? 'Clinician' : 'Note');
-        const related = state.riskName && riskMentionTurns(decision, state.riskName).includes(Number(turn.index));
-        return `<button type="button" class="turn-line${selected ? ' is-selected' : ''}${related && !selected ? ' is-related' : ''}" data-turn="${Number(turn.index)}">
+        return `<button type="button" class="turn-line" data-turn="${Number(turn.index)}">
             <span class="turn-index">${Number(turn.index)}</span>
             <span class="turn-speaker">${speakerIcon(side, selected)}<span class="turn-who md-typescale-label-small">${esc(who)}</span></span>
             <span class="turn-text md-typescale-body-medium">${esc(turnBody(turn) || ' ')}</span>
@@ -831,7 +770,6 @@ function renderCockpit(decision) {
                     <section id="coreRisks" class="risk-groups" aria-label="Core risks">
                         ${risks || '<p class="md-typescale-body-medium">No core risks on this decision.</p>'}
                     </section>
-                    <div id="selectionDetail">${detailHtml(decision)}</div>
                 </div>
                 <div class="transcript-scroll">
                     <div id="transcriptList">${transcriptRows || '<p class="md-typescale-body-medium">This run has no turns.</p>'}</div>
@@ -981,39 +919,10 @@ function bindMain(main) {
     });
 }
 
-function selectRiskTurn(name, turn) {
-    const events = mapEvents(currentDecision()).filter(item => item.riskName === name && item.turn === Number(turn));
-    const match = events.find(item => !item.patient) || events[0];
-    if (match) applySelection(match);
-    else {
-        state.turn = Number(turn);
-        state.behaviorKey = 'risk';
-        state.eventId = null;
-        state.riskName = name;
-        repaintMap();
-        refreshSelection();
-    }
-}
-
 function refreshSelection() {
-    const decision = currentDecision();
-    const related = new Set(state.riskName ? riskMentionTurns(decision, state.riskName) : []);
     document.querySelectorAll('#transcriptList .turn-line[data-turn]').forEach(item => {
-        const turn = Number(item.dataset.turn);
-        const on = turn === state.turn;
-        item.classList.toggle('is-selected', on);
-        item.classList.toggle('is-related', related.has(turn) && !on);
+        const on = Number(item.dataset.turn) === state.turn;
         item.querySelector('md-icon')?.classList.toggle('filled', on);
-    });
-    const slot = document.getElementById('selectionDetail');
-    if (slot) slot.innerHTML = detailHtml(decision);
-    const turns = state.riskName ? riskMentionTurns(decision, state.riskName) : [];
-    const index = turns.indexOf(state.turn);
-    document.getElementById('riskPrev')?.addEventListener('click', () => {
-        if (index > 0) selectRiskTurn(state.riskName, turns[index - 1]);
-    });
-    document.getElementById('riskNext')?.addEventListener('click', () => {
-        if (index >= 0 && index < turns.length - 1) selectRiskTurn(state.riskName, turns[index + 1]);
     });
     scrollTranscript(state.turn);
 }

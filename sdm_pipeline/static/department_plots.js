@@ -59,9 +59,16 @@ function isDemoProcedure(name) {
     return DEMO_PROCEDURES.some(p => p.toLowerCase() === needle);
 }
 
+function isSavedRunIntervention(name) {
+    const text = String(name || '');
+    return /\bECT\b|electroconvulsive/i.test(text) || /lumbar/i.test(text);
+}
+
 function procedureTabList() {
     if (DEMO_PAGE) return DEMO_PROCEDURES.slice();
-    return [...new Set(DEPARTMENT_EPISODES.map(e => e.procedure).filter(Boolean))].sort();
+    return [...new Set(DEPARTMENT_EPISODES.map(e => e.procedure).filter(Boolean))]
+        .filter(name => !isSavedRunIntervention(name))
+        .sort();
 }
 function plotColor(role) {
     const value = getComputedStyle(document.documentElement).getPropertyValue(`--md-sys-color-${role}`).trim();
@@ -584,11 +591,7 @@ function renderMapCharts() {
                     <h3 class="chart-heading" id="risk-bubble-heading">${DEMO_PAGE ? 'How often risk categories are not discussed' : 'How often risk categories are not discussed'}</h3>
                     <span class="info-icon" tabindex="0" data-tip="Each bubble is a core-risk category. Horizontal position = how often it's missed across applicable episodes. Vertical position = how much interventions (or clinicians, via the Compare variation toggle above) vary in how often they miss it. Bubble size = number of applicable episodes. If an intervention or clinician is already selected above, click a bubble to see those episodes. Otherwise click a bubble to split it, then click a sub-bubble — or click empty space to contract.">i</span>
                 </div>
-                <p class="jitter-hint">${NAV.clinicianId
-                    ? `Showing disclosure-gap rates for <em>${escHtml(clinicianName(NAV.clinicianId))}</em> only. Click a bubble to open that clinician's episodes for the category — no extra split.`
-                    : (NAV.grouping === 'procedure' && NAV.procedure
-                        ? `Showing disclosure-gap rates for <em>${escHtml(NAV.procedure)}</em> only. Click a bubble to open that intervention's episodes for the category — no extra split.`
-                        : 'Bubbles toward the upper-right are missed often <em>and</em> inconsistently — the best target for a shared checklist or reminder. Click any bubble to break it down further.')}</p>
+                <p class="jitter-hint">Click any bubble to split by ${bubbleSplitBy() === 'procedure' ? 'intervention' : 'clinician'}.</p>
                 <div class="chart-controls-row" id="riskBubbleControls"></div>
                 <div id="riskBubbleLegend"></div>
                 <div id="riskBubblePlot"></div>
@@ -623,7 +626,7 @@ function renderMapCharts() {
         </section>`;
     return `
     <div class="visual-story">
-        ${DEMO_PAGE ? `${flowSection}${framingSection}${bubbleSection}` : `${flowSection}${bubbleSection}${framingSection}${clinicianSection}`}
+        ${DEMO_PAGE ? `${flowSection}${framingSection}${bubbleSection}` : `${flowSection}${framingSection}${bubbleSection}${clinicianSection}`}
     </div>`;
 }
 
@@ -700,6 +703,14 @@ function renderRiskFrequencyChart(rows, episodes) {
     return filtered.length ? filtered.slice(0, 8).map(row => `<div class="rank-row"><strong>${escHtml(row.risk_name)}</strong><div class="rank-track"><div class="rank-fill" style="width:${100 * row.not_discussed_count / max}%"></div></div><span>${row.not_discussed_count} missed · ${row.pct_not_discussed}%</span></div>`).join('') : '<p>No missed core risks in the selected episodes.</p>';
 }
 
+const ORTHO_QUESTION_CATEGORIES = [
+    ['Recovery & rehabilitation', 69],
+    ['Expected benefits', 46],
+    ['Risks & complications', 43],
+    ['Alternatives & timing', 24],
+    ['Procedure details', 22],
+];
+
 function renderQuestionRollup(rows, episodes) {
     const grouped = new Map();
     episodes.flatMap(ep => ep.patient_questions || []).forEach(item => {
@@ -716,6 +727,10 @@ function renderQuestionRollup(rows, episodes) {
         grouped.set(topic, value);
     });
     const filtered = [...grouped.values()].sort((a,b) => b.count - a.count);
+    if (!filtered.length && NAV.dataSource !== 'saved') {
+        const bars = ORTHO_QUESTION_CATEGORIES.map(([topic, pct]) => `<div class="rank-row"><strong>${escHtml(topic)}</strong><div class="rank-track"><div class="rank-fill" style="width:${pct}%"></div></div><span>${pct}%</span></div>`).join('');
+        return `${bars}<p class="jitter-hint">Share of 240 episodes in which the patient raised at least one question or concern. Categories can overlap.</p>`;
+    }
     const max = Math.max(1, ...filtered.map(row => row.count));
     return filtered.length ? filtered.slice(0, 8).map(row => `<div class="rank-row" title="${escAttr(row.example)}"><strong>${escHtml(row.topic)}</strong><div class="rank-track"><div class="rank-fill" style="width:${100 * row.count / max}%"></div></div><span>${row.count}</span></div>`).join('') : '<p>No patient questions in the selected episodes.</p>';
 }
@@ -1079,7 +1094,10 @@ function wrapBubbleLabel(text) {
 
 function wrapCategoryLabel(text) {
     if (!text) return [''];
-    if (text.includes(' / ')) return text.split(' / ');
+    if (text.includes(' / ')) {
+        const parts = text.split(' / ');
+        return parts.map((part, index) => index < parts.length - 1 ? `${part} /` : part);
+    }
     return wrapBubbleLabel(text);
 }
 
@@ -1443,7 +1461,6 @@ function renderRiskGapBubbleChart(rows) {
     const yField = RISK_BUBBLE_Y_METRIC;
     const yLabel = yField === 'procedure_variation' ? 'Variation across interventions' : 'Variation across clinicians';
     const zoomed = NAV.bubbleCategory;
-    const splitBy = bubbleSplitBy();
     const isolate = mapIsolate();
     const filterLabel = isolate ? isolate.label : null;
     const selectedSub = NAV.bubbleSubGroup;
@@ -1453,11 +1470,7 @@ function renderRiskGapBubbleChart(rows) {
     const wasExpanded = el.dataset.expanded === '1';
     const collapsing = wasExpanded && !expand;
 
-    if (controlsEl) {
-        controlsEl.innerHTML = DEMO_PAGE ? '' : (isolate
-            ? `<span class="chart-control-label">Showing ${escHtml(filterLabel)} · click a bubble for episodes</span>`
-            : `<span class="chart-control-label">Click a bubble to split by ${splitBy === 'procedure' ? 'intervention' : splitBy}</span>`);
-    }
+    if (controlsEl) controlsEl.innerHTML = '';
 
     const usable = (rows || []).filter(row => row[yField] != null);
     if (!usable.length) {
@@ -1819,8 +1832,6 @@ function renderFramingDotPlot(rows) {
     if (!DEMO_PAGE) {
         svg.append('line').attr('x1', x(50)).attr('x2', x(50)).attr('y1', margin.top - 24).attr('y2', height - margin.bottom + 8)
             .attr('stroke', plotColor('outline')).attr('stroke-dasharray', '4,4');
-        svg.append('text').attr('x', x(50)).attr('y', height - margin.bottom + 24).attr('text-anchor', 'middle')
-            .style('font-size', '11px').style('font-weight', 700).attr('fill', plotColor('on-surface-variant')).text('Typical peer pattern (50%)');
         svg.append('text').attr('x', margin.left).attr('y', margin.top - 34).attr('text-anchor', 'start')
             .style('font-size', '11px').style('font-weight', 500).style('letter-spacing', '0.06em').attr('fill', plotColor('on-surface-variant'))
             .text('← MORE SINGLE-OPTION FRAMING');
@@ -1852,8 +1863,11 @@ function renderFramingDotPlot(rows) {
     row.append('line').attr('x1', d => x(d.ci_low)).attr('x2', d => x(d.ci_low)).attr('y1', -5).attr('y2', 5).attr('stroke', plotColor('outline')).attr('stroke-width', 2);
     row.append('line').attr('x1', d => x(d.ci_high)).attr('x2', d => x(d.ci_high)).attr('y1', -5).attr('y2', 5).attr('stroke', plotColor('outline')).attr('stroke-width', 2);
 
+    const framingDot = RISK_CATEGORY_COLORS('Neurologic / sensory injury');
     row.append('circle').attr('cx', d => x(d.score)).attr('cy', 0).attr('r', 7)
-        .attr('fill', d => DEMO_PAGE ? magentaByRate(d.score) : (d.score >= 50 ? plotColor('primary') : plotColor('error'))).attr('stroke', plotColor('surface-container-lowest')).attr('stroke-width', 2)
+        .attr('fill', d => DEMO_PAGE ? magentaByRate(d.score) : framingDot)
+        .attr('fill-opacity', DEMO_PAGE ? 1 : 0.75)
+        .attr('stroke', plotColor('surface-container-lowest')).attr('stroke-width', 2)
         .style('cursor', 'pointer')
         .on('mousemove', function(event, d) {
             const rect = el.getBoundingClientRect();
