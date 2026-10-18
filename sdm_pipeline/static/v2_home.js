@@ -31,11 +31,14 @@ function filterRow(title, html) {
 }
 
 function episodeRows(episodes) {
-    const sorted = [...episodes].sort((a, b) => String(b.episode_date || '').localeCompare(String(a.episode_date || '')));
+    const sorted = [...episodes].sort((a, b) => {
+        if ((a.source === 'db') !== (b.source === 'db')) return a.source === 'db' ? -1 : 1;
+        return String(b.episode_date || '').localeCompare(String(a.episode_date || ''));
+    });
     if (!sorted.length) return '<p class="empty md-typescale-body-medium">No episodes match these filters.</p>';
     const body = sorted.map(episode => `
         <tr tabindex="0" data-episode="${esc(episode.episode_id)}" class="${episode.episode_id === openEpisodeId ? 'is-open' : ''}">
-            <td class="md-typescale-body-medium">${esc(episode.patient_label || 'Patient')}</td>
+            <td class="md-typescale-body-medium">${esc(episode.patient_label || 'Patient')}${episode.source === 'db' ? ' <span class="saved-mark">Saved</span>' : ''}</td>
             <td class="md-typescale-body-medium">${esc(episode.clinician_name || '—')}</td>
             <td class="md-typescale-body-medium">${esc(episode.procedure || '—')}</td>
             <td class="md-typescale-body-medium">${episode.core_risk_pct == null ? '—' : `${episode.core_risk_pct}%`}</td>
@@ -62,6 +65,8 @@ function render() {
     const snap = window.departmentPlotState();
     const episodes = snap.episodes || [];
     const clinicians = snap.clinicians || [];
+    const savedCount = episodes.filter(episode => episode.source === 'db').length;
+    const countLabel = `${episodes.length} episode${episodes.length === 1 ? '' : 's'}${savedCount ? ` · ${savedCount} saved` : ''}`;
     document.getElementById('main').innerHTML = `
         <section class="filters" aria-label="Filters">
             ${filterRow('Time', [
@@ -88,7 +93,7 @@ function render() {
         <section class="card episode-card${episodesExpanded ? ' is-open' : ''}" aria-label="Episodes">
             <h2>
                 <button type="button" class="episode-toggle" aria-expanded="${episodesExpanded ? 'true' : 'false'}" aria-controls="episodeList">
-                    <span class="md-typescale-title-medium">${episodes.length} episode${episodes.length === 1 ? '' : 's'}</span>
+                    <span class="md-typescale-title-medium">${countLabel}</span>
                     <md-icon aria-hidden="true">${episodesExpanded ? 'expand_less' : 'expand_more'}</md-icon>
                 </button>
             </h2>
@@ -367,6 +372,7 @@ window.addEventListener('message', async event => {
         document.getElementById('startRun').disabled = false;
         document.getElementById('loading').hidden = true;
         document.getElementById('runDialog').hidden = true;
+        episodesExpanded = true;
         await window.loadDepartmentPlots();
         render();
         if (data.id) openCockpit(`run_${data.id}`, true);

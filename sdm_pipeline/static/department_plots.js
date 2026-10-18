@@ -298,14 +298,26 @@ function matchesDataSource(ep) {
     return true;
 }
 
+function passesListFilters(ep) {
+    return (ep.completeness_pct ?? 100) >= COMPLETENESS_THRESHOLD
+        && (!DEMO_PAGE || ep.source === 'db' || isDemoProcedure(ep.procedure))
+        && (!SELECTED_PROCEDURES.size || SELECTED_PROCEDURES.has(ep.procedure))
+        && withinDateRange(ep)
+        && matchesDataSource(ep);
+}
+
 function scopeFilteredEpisodes() {
     return DEPARTMENT_EPISODES
         .filter(ep => ep.has_index_decision)
-        .filter(ep => (ep.completeness_pct ?? 100) >= COMPLETENESS_THRESHOLD)
-        .filter(ep => !DEMO_PAGE || isDemoProcedure(ep.procedure))
-        .filter(ep => !SELECTED_PROCEDURES.size || SELECTED_PROCEDURES.has(ep.procedure))
-        .filter(withinDateRange)
-        .filter(matchesDataSource);
+        .filter(ep => NAV.dataSource === 'saved' || ep.source !== 'db')
+        .filter(passesListFilters);
+}
+
+function listEpisodes() {
+    return DEPARTMENT_EPISODES
+        .filter(ep => ep.source === 'db' || ep.has_index_decision)
+        .filter(passesListFilters)
+        .filter(ep => !NAV.clinicianId || ep.clinician_id === NAV.clinicianId);
 }
 
 function baseFilteredEpisodes() {
@@ -2039,7 +2051,7 @@ function departmentPlotState() {
     const selected = [...SELECTED_PROCEDURES];
     return {
         data: DEPARTMENT_DATA,
-        episodes: filteredDepartmentEpisodes(),
+        episodes: listEpisodes(),
         clinicians: DEPARTMENT_CLINICIANS,
         procedures: procedureTabList(),
         days: DATE_RANGE_DAYS,
