@@ -15,8 +15,11 @@ function esc(value) {
 }
 
 function categoryOf(episode) {
-    if (episode.decision_framing === 'Single option presented') return 'Single option presented';
-    return episode.tradeoff_level || null;
+    const level = episode.tradeoff_level || episode.decision_framing || '';
+    if (level === 'Single option' || level === 'Single option presented') return 'Single option';
+    if (level === 'Minimally compared' || level === 'Not compared' || level === 'Limited comparison') return 'Minimally compared';
+    if (level === 'Meaningfully compared' || level === 'Meaningful comparison') return 'Meaningfully compared';
+    return level || null;
 }
 
 function chip(group, value, label, selected) {
@@ -45,7 +48,7 @@ function episodeRows(episodes) {
         <thead><tr>
             <th class="md-typescale-label-medium" scope="col">Patient</th>
             <th class="md-typescale-label-medium" scope="col">Clinician</th>
-            <th class="md-typescale-label-medium" scope="col">Procedure</th>
+            <th class="md-typescale-label-medium" scope="col">Intervention</th>
             <th class="md-typescale-label-medium" scope="col">Core risks</th>
             <th class="md-typescale-label-medium" scope="col">Completeness</th>
             <th class="md-typescale-label-medium" scope="col">Discussion</th>
@@ -76,8 +79,8 @@ function render() {
                 chip('clinician', '', 'All clinicians', !snap.clinician),
                 ...clinicians.map(person => chip('clinician', person.id, person.name, snap.clinician === person.id)),
             ].join(''))}
-            ${filterRow('Procedure', [
-                chip('procedure', '', 'All procedures', !snap.procedure),
+            ${filterRow('Intervention', [
+                chip('procedure', '', 'All interventions', !snap.procedure),
                 ...(snap.procedures || []).map(name => chip('procedure', name, name, snap.procedure === name)),
             ].join(''))}
         </section>
@@ -131,10 +134,16 @@ function applyFilter(group, value) {
     else if (group === 'source') window.setHomeFilters({ source: value || 'all' });
     else if (group === 'procedure') window.setHomeFilters({ procedure: value });
     else if (group === 'clinician') window.setHomeFilters({ clinician: value });
+    else if (group === 'legend-clinician') window.toggleClinicianFilter(value);
 }
 
 function bind() {
     document.getElementById('main').addEventListener('click', event => {
+        if (event.target.closest('[data-action="new-analysis"]')) {
+            event.preventDefault();
+            openRunDialog();
+            return;
+        }
         if (event.target.closest('.episode-toggle')) {
             episodesExpanded = !episodesExpanded;
             const card = document.querySelector('.episode-card');
@@ -364,7 +373,6 @@ window.addEventListener('message', async event => {
     }
 });
 
-document.getElementById('newAnalysis')?.addEventListener('click', openRunDialog);
 document.getElementById('cancelRun')?.addEventListener('click', closeRunDialog);
 document.getElementById('runScrim')?.addEventListener('click', closeRunDialog);
 document.getElementById('runForm')?.addEventListener('submit', startAnalysis);
@@ -384,6 +392,20 @@ document.getElementById('runExcel')?.addEventListener('change', async () => {
 document.addEventListener('keydown', event => {
     if (event.key === 'Escape') closeRunDialog();
 });
+
+document.getElementById('refreshDepartment')?.addEventListener('click', async () => {
+    const bar = document.getElementById('loading');
+    if (bar) bar.hidden = false;
+    try {
+        await window.loadDepartmentPlots();
+        render();
+    } catch (error) {
+        document.getElementById('main').innerHTML = `<article class="card"><h2 class="md-typescale-title-medium">Could not load the department</h2><p class="md-typescale-body-medium">${esc(error.message)}</p></article>`;
+    } finally {
+        if (bar) bar.hidden = true;
+    }
+});
+
 document.getElementById('closeCockpit')?.addEventListener('click', closeCockpit);
 bind();
 

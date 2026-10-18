@@ -302,22 +302,20 @@ def _question_rollup(episodes):
 
 @app.route('/api/department/overview', methods=['GET'])
 def department_overview():
-    """Aggregate episode metrics for the department jitter plot.
+    """Aggregate episode metrics for the department charts.
 
-    Always includes synthetic demo episodes so the view is populated.
-    Saved CCQ runs (schema v2) are appended when present.
+    The orthopaedic workbook is the department dataset. Saved runs stay
+    available by id and are not mixed into these counts.
     """
-    demo = get_demo_episodes()
-    real = _db_episodes()
-    episodes = demo + real
+    episodes = get_demo_episodes()
     return jsonify({
         "department": DEPARTMENT_NAME,
         "clinicians": CLINICIANS,
         "episodes": episodes,
         "risk_frequency": _risk_frequency(episodes),
         "question_rollup": _question_rollup(episodes),
-        "demo_count": len(demo),
-        "db_count": len(real),
+        "demo_count": len(episodes),
+        "db_count": 0,
     })
 
 
@@ -326,11 +324,9 @@ def department_procedures():
     """Procedure-level analytics: risk-category gap/variation stats and
     ordinal decision-framing win-rate scores with bootstrap 95% CIs.
 
-    Uses the same demo + saved-run episode set as /api/department/overview.
+    Uses the same orthopaedic episode set as /api/department/overview.
     """
-    demo = get_demo_episodes()
-    real = _db_episodes()
-    episodes = demo + real
+    episodes = get_demo_episodes()
     eligible = [ep for ep in episodes if ep.get("has_index_decision") and ep.get("procedure")]
 
     procedure_ranks = defaultdict(list)

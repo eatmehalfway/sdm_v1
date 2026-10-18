@@ -404,8 +404,8 @@ function sankeyEligibleEpisodes() {
 
 function renderDepartmentShell(data, episodes) {
     const legend = (data.clinicians || []).map(c => {
-        const cls = NAV.clinicianId ? (NAV.clinicianId === c.id ? 'is-active' : 'is-muted') : '';
-        return `<span class="${cls}" onclick="toggleClinicianFilter('${escAttr(c.id)}')" title="Click to isolate ${escAttr(c.name)}"><i class="clinician-swatch" style="background:${c.color}"></i>${escHtml(c.name)}</span>`;
+        const selected = NAV.clinicianId === c.id ? 'selected' : '';
+        return `<md-filter-chip data-group="legend-clinician" data-value="${escAttr(c.id)}" label="${escAttr(c.name)}" ${selected}></md-filter-chip>`;
     }).join('');
     const allProcedures = procedureTabList();
     const procedureLabel = SELECTED_PROCEDURES.size === 0
@@ -502,20 +502,20 @@ function renderDepartmentShell(data, episodes) {
     <div class="map-mode-bar">
         <span class="chart-control-label">Compare variation</span>
         <div class="axis-toggle">
-            <button type="button" class="${RISK_BUBBLE_Y_METRIC === 'procedure_variation' ? 'active' : ''}" onclick="setRiskBubbleYMetric('procedure_variation')">Procedure variation</button>
+            <button type="button" class="${RISK_BUBBLE_Y_METRIC === 'procedure_variation' ? 'active' : ''}" onclick="setRiskBubbleYMetric('procedure_variation')">Intervention variation</button>
             <button type="button" class="${RISK_BUBBLE_Y_METRIC === 'clinician_variation' ? 'active' : ''}" onclick="setRiskBubbleYMetric('clinician_variation')">Clinician variation</button>
         </div>
-        <span class="info-icon" tabindex="0" data-tip="${RISK_BUBBLE_Y_METRIC === 'procedure_variation'
-            ? 'Procedure mode: episode flow, framing, and risk bubbles split by procedure. Use the Procedure filter above to isolate one procedure across the map.'
-            : 'Clinician mode: risk bubbles split by clinician, with the quality map below. Use the clinician filter below to isolate someone across that map.'}">i</span>
+        <button type="button" class="info-icon" data-action="new-analysis" data-tip="${RISK_BUBBLE_Y_METRIC === 'procedure_variation'
+            ? 'Intervention mode: episode flow, framing, and risk bubbles split by intervention. Use the Intervention filter above to isolate one intervention across the map.'
+            : 'Clinician mode: risk bubbles split by clinician, with the quality map below. Use the clinician filter below to isolate someone across that map.'}">i</button>
     </div>
     ${RISK_BUBBLE_Y_METRIC === 'clinician_variation' ? `
     <div class="legend-block">
-        <div class="legend-kicker-row">
-            <div class="legend-kicker">Filter by clinician</div>
+        <div class="filter-row">
+            <h2 class="md-typescale-label-large">Filter by clinician</h2>
             <span class="info-icon" tabindex="0" data-tip="This is the master filter for the clinician quality map below. Click a name to isolate that clinician — other clinicians stay visible but dimmed in the box plot. Click again to clear.">i</span>
+            <md-chip-set aria-label="Filter box plot and charts by clinician">${legend}</md-chip-set>
         </div>
-        <div class="legend-bar clinician-legend" aria-label="Filter box plot and charts by clinician">${legend}</div>
     </div>` : ''}
     <div class="map-charts" data-mode="${escAttr(mapMode())}">
         ${renderMapCharts()}
@@ -523,7 +523,7 @@ function renderDepartmentShell(data, episodes) {
     <div class="analytics-grid">
         <div class="analytics-card">
             <p class="section-kicker">Risk follow-up</p>
-            <div class="chart-heading-row"><h3 class="chart-heading" style="font-size:1.05rem;">Most Frequent Core Risks Not Discussed</h3><span class="info-icon" tabindex="0" data-tip="Core risks — the risks every patient should hear about for their chosen procedure — ranked by how often they were skipped across the episodes currently shown.">i</span></div>
+            <div class="chart-heading-row"><h3 class="chart-heading" style="font-size:1.05rem;">Most Frequent Core Risks Not Discussed</h3><span class="info-icon" tabindex="0" data-tip="Core risks — the risks every patient should hear about for their chosen intervention — ranked by how often they were skipped across the episodes currently shown.">i</span></div>
             ${renderRiskFrequencyChart(data.risk_frequency || [], episodes)}
         </div>
         <div class="analytics-card" id="questions-heading">
@@ -550,14 +550,14 @@ function renderMapCharts() {
             <div class="analytics-card">
                 <div class="flow-stage">
                     <div class="flow-caption">
-                        <p class="section-kicker">Episode flow comparison</p>
+                        <p class="section-kicker">Alternatives discussion flow</p>
                         <div class="chart-heading-row">
-                            <h3 class="chart-heading" id="flow-heading">${DEMO_PAGE ? 'Episode flow' : 'Episode Flow'}</h3>
-                            <span class="info-icon" tabindex="0" data-tip="Follows one procedure's episodes from left to right: whether a single option was presented, and if alternatives came up, how thoroughly they were compared. The % next to each step is that step's share of episodes; (Δ) shows how many points higher or lower that is than your chosen benchmark.">i</span>
+                            <h3 class="chart-heading" id="flow-heading">${DEMO_PAGE ? 'Episode flow' : 'Whether alternatives to the proposed intervention were presented and how they were compared'}</h3>
+                            <span class="info-icon" tabindex="0" data-tip="Follows one intervention's episodes from left to right: whether a single option was presented, and if alternatives came up, how thoroughly they were compared.">i</span>
                         </div>
                         ${DEMO_PAGE
                             ? '<p class="demo-chart-desc">Whether alternatives to the proposed intervention were presented and how they were compared</p>'
-                            : '<p class="jitter-hint">Pick a procedure to trace and a benchmark to compare it against below — the numbers on each step show the gap between them.</p>'}
+                            : '<p class="jitter-hint">Pick an intervention to trace.</p>'}
                         <div class="chart-controls-row" id="sankeyControls"></div>
                     </div>
                     <div id="sankeyPlot"></div>
@@ -567,15 +567,15 @@ function renderMapCharts() {
     const bubbleSection = `
         <section class="story-step" aria-labelledby="risk-bubble-heading">
             <div class="analytics-card">
-                <p class="section-kicker">Core risk disclosure gaps</p>
+                <p class="section-kicker">Risk discussion coverage</p>
                 <div class="chart-heading-row">
-                    <h3 class="chart-heading" id="risk-bubble-heading">${DEMO_PAGE ? 'How often risk categories are not discussed' : 'Which core risks get missed, and how consistently'}</h3>
-                    <span class="info-icon" tabindex="0" data-tip="Each bubble is a core-risk category. Horizontal position = how often it's missed across applicable episodes. Vertical position = how much procedures (or clinicians, via the Compare variation toggle above) vary in how often they miss it. Bubble size = number of applicable episodes. If a procedure or clinician is already selected above, click a bubble to see those episodes. Otherwise click a bubble to split it, then click a sub-bubble — or click empty space to contract.">i</span>
+                    <h3 class="chart-heading" id="risk-bubble-heading">${DEMO_PAGE ? 'How often risk categories are not discussed' : 'How often risk categories are not discussed'}</h3>
+                    <span class="info-icon" tabindex="0" data-tip="Each bubble is a core-risk category. Horizontal position = how often it's missed across applicable episodes. Vertical position = how much interventions (or clinicians, via the Compare variation toggle above) vary in how often they miss it. Bubble size = number of applicable episodes. If an intervention or clinician is already selected above, click a bubble to see those episodes. Otherwise click a bubble to split it, then click a sub-bubble — or click empty space to contract.">i</span>
                 </div>
                 <p class="jitter-hint">${NAV.clinicianId
                     ? `Showing disclosure-gap rates for <em>${escHtml(clinicianName(NAV.clinicianId))}</em> only. Click a bubble to open that clinician's episodes for the category — no extra split.`
                     : (NAV.grouping === 'procedure' && NAV.procedure
-                        ? `Showing disclosure-gap rates for <em>${escHtml(NAV.procedure)}</em> only. Click a bubble to open that procedure's episodes for the category — no extra split.`
+                        ? `Showing disclosure-gap rates for <em>${escHtml(NAV.procedure)}</em> only. Click a bubble to open that intervention's episodes for the category — no extra split.`
                         : 'Bubbles toward the upper-right are missed often <em>and</em> inconsistently — the best target for a shared checklist or reminder. Click any bubble to break it down further.')}</p>
                 <div class="chart-controls-row" id="riskBubbleControls"></div>
                 <div id="riskBubbleLegend"></div>
@@ -586,10 +586,10 @@ function renderMapCharts() {
     const framingSection = `
         <section class="story-step is-procedure-only" aria-labelledby="framing-dot-heading">
             <div class="analytics-card">
-                <p class="section-kicker">Which Procedures Skew Toward Single-Option vs. Comparative Framing</p>
+                <p class="section-kicker">Alternatives discussion comparison</p>
                 <div class="chart-heading-row">
-                    <h3 class="chart-heading" id="framing-dot-heading">${DEMO_PAGE ? 'How discussion of alternatives varies across procedures' : 'How clinicians frame decisions differently across procedures'}</h3>
-                    <span class="info-icon" tabindex="0" data-tip="Ordinal win-rate vs. peer procedures (50% = typical), with a 95% bootstrap confidence interval. This is descriptive only — it does not imply that more comparative framing is always more clinically appropriate.">i</span>
+                    <h3 class="chart-heading" id="framing-dot-heading">${DEMO_PAGE ? 'How discussion of alternatives varies across procedures' : 'How discussion of alternatives varies across procedures'}</h3>
+                    <span class="info-icon" tabindex="0" data-tip="Ordinal win-rate vs. peer interventions (50% = typical), with a 95% bootstrap confidence interval. This is descriptive only — it does not imply that more comparative framing is always more clinically appropriate.">i</span>
                 </div>
                 <div id="framingDotPlot"></div>
             </div>
@@ -643,7 +643,7 @@ function questionsAnswered(episodes) {
     return `${answered}/${total}`;
 }
 
-const DISCUSSION_CATEGORIES = ['Single option presented', 'Not compared', 'Limited comparison', 'Meaningful comparison'];
+const DISCUSSION_CATEGORIES = ['Single option', 'Minimally compared', 'Meaningfully compared'];
 const DEMO_DISCUSSION_CATEGORIES = ['Single option', 'Limited comparison', 'Meaningful comparison'];
 const CHART_LANE_MARGIN = { left: 68, right: 32, inset: 50 };
 
@@ -664,8 +664,11 @@ function jitterCategory(ep) {
         if (ep.tradeoff_level === 'Limited comparison' || ep.tradeoff_level === 'Meaningful comparison') return ep.tradeoff_level;
         return null;
     }
-    if (ep.decision_framing === 'Single option presented') return 'Single option presented';
-    return ep.tradeoff_level || null;
+    const level = ep.tradeoff_level || ep.decision_framing || '';
+    if (level === 'Single option' || level === 'Single option presented') return 'Single option';
+    if (level === 'Minimally compared' || level === 'Not compared' || level === 'Limited comparison') return 'Minimally compared';
+    if (level === 'Meaningfully compared' || level === 'Meaningful comparison') return 'Meaningfully compared';
+    return null;
 }
 
 function renderRiskFrequencyChart(rows, episodes) {
@@ -695,7 +698,7 @@ function renderQuestionRollup(rows, episodes) {
         if (/(heal|recovery|work|drive|activity)/.test(normalized)) topic = 'Recovery and return to activities';
         else if (/(wait|worse|progress|delay)/.test(normalized)) topic = 'Risks of waiting';
         else if (/(pain|relief|symptom)/.test(normalized)) topic = 'Pain and symptom relief';
-        else if (/(risk|safe|complication)/.test(normalized)) topic = 'Procedure risks';
+        else if (/(risk|safe|complication)/.test(normalized)) topic = 'Intervention risks';
         const value = grouped.get(topic) || {topic, count:0, example:question};
         value.count++;
         grouped.set(topic, value);
@@ -720,11 +723,10 @@ function buildSankeyData(episodes) {
             {source:'alternatives',target:'Meaningful comparison',value:counts.get('Meaningful comparison') || 0}
         ]
         : [
-            {source:'all',target:'Single option presented',value:counts.get('Single option presented') || 0},
-            {source:'all',target:'alternatives',value:(counts.get('Not compared') || 0)+(counts.get('Limited comparison') || 0)+(counts.get('Meaningful comparison') || 0)},
-            {source:'alternatives',target:'Not compared',value:counts.get('Not compared') || 0},
-            {source:'alternatives',target:'Limited comparison',value:counts.get('Limited comparison') || 0},
-            {source:'alternatives',target:'Meaningful comparison',value:counts.get('Meaningful comparison') || 0}
+            {source:'all',target:'Single option',value:counts.get('Single option') || 0},
+            {source:'all',target:'alternatives',value:(counts.get('Minimally compared') || 0)+(counts.get('Meaningfully compared') || 0)},
+            {source:'alternatives',target:'Minimally compared',value:counts.get('Minimally compared') || 0},
+            {source:'alternatives',target:'Meaningfully compared',value:counts.get('Meaningfully compared') || 0}
         ];
     return {counts, links: links.filter(link => link.value > 0)};
 }
@@ -736,7 +738,7 @@ function categoryPercents(episodes) {
     const total = episodes.length || 1;
     const alternativesCount = DEMO_PAGE
         ? (counts.get('Limited comparison') || 0) + (counts.get('Meaningful comparison') || 0)
-        : (counts.get('Not compared') || 0) + (counts.get('Limited comparison') || 0) + (counts.get('Meaningful comparison') || 0);
+        : (counts.get('Minimally compared') || 0) + (counts.get('Meaningfully compared') || 0);
     const percents = new Map();
     discussionCategories().forEach(cat => percents.set(cat, 100 * (counts.get(cat) || 0) / total));
     percents.set('alternatives', 100 * alternativesCount / total);
@@ -760,12 +762,6 @@ function renderSankeyControls(allProcedures) {
             <select class="control-select" onchange="setSankeyFocus(this.value)">
                 ${allProcedures.map(p => `<option value="${escAttr(p)}" ${p === SANKEY_FOCUS_PROCEDURE ? 'selected' : ''}>${escHtml(p)}</option>`).join('')}
             </select>
-        </label>
-        <label class="chart-control">Compare to
-            <select class="control-select" onchange="setSankeyCompare(this.value)">
-                <option value="all" ${SANKEY_COMPARE_SCOPE === 'all' ? 'selected' : ''}>All other procedures (benchmark)</option>
-                ${allProcedures.filter(p => p !== SANKEY_FOCUS_PROCEDURE).map(p => `<option value="${escAttr(p)}" ${p === SANKEY_COMPARE_SCOPE ? 'selected' : ''}>${escHtml(p)}</option>`).join('')}
-            </select>
         </label>`;
 }
 
@@ -778,7 +774,7 @@ function renderSankeyDelta(episodes) {
 
     const allProcedures = [...new Set(episodes.map(ep => ep.procedure).filter(Boolean))].sort();
     if (!allProcedures.length) {
-        el.innerHTML = '<p class="jitter-hint">No procedure-level episodes yet.</p>';
+        el.innerHTML = '<p class="jitter-hint">No intervention-level episodes yet.</p>';
         return;
     }
     const demoAll = DEMO_PAGE && !NAV.procedure;
@@ -793,24 +789,19 @@ function renderSankeyDelta(episodes) {
     if (!DEMO_PAGE) renderSankeyControls(allProcedures);
 
     const focusEpisodes = demoAll ? episodes : episodes.filter(ep => ep.procedure === SANKEY_FOCUS_PROCEDURE);
-    const benchmarkEpisodes = SANKEY_COMPARE_SCOPE === 'all'
-        ? episodes.filter(ep => ep.procedure !== SANKEY_FOCUS_PROCEDURE)
-        : episodes.filter(ep => ep.procedure === SANKEY_COMPARE_SCOPE);
 
     el.innerHTML = '';
     if (!focusEpisodes.length) {
-        el.innerHTML = '<p class="jitter-hint">No eligible episodes for this procedure yet.</p>';
+        el.innerHTML = '<p class="jitter-hint">No eligible episodes for this intervention yet.</p>';
         return;
     }
 
     const width = Math.max(el.clientWidth || 1000, 760), height = 610;
     const { counts, links } = buildSankeyData(focusEpisodes);
-    const { percents: focusPercents } = categoryPercents(focusEpisodes);
-    const { percents: benchmarkPercents } = categoryPercents(benchmarkEpisodes);
     const categories = discussionCategories();
-    const altLaneCats = DEMO_PAGE ? ['Limited comparison', 'Meaningful comparison'] : ['Not compared', 'Limited comparison', 'Meaningful comparison'];
+    const altLaneCats = DEMO_PAGE ? ['Limited comparison', 'Meaningful comparison'] : ['Minimally compared', 'Meaningfully compared'];
     const rootLabel = demoAll
-        ? `All procedures (${focusEpisodes.length} episodes)`
+        ? `All interventions (${focusEpisodes.length} episodes)`
         : `${demoProcedureLabel(SANKEY_FOCUS_PROCEDURE)} (${focusEpisodes.length} episodes)`;
 
     const laneX = chartLaneScale(width);
@@ -861,7 +852,7 @@ function renderSankeyDelta(episodes) {
     };
     const svg = d3.select(el).append('svg').attr('viewBox',`0 0 ${width} ${height}`).attr('role','img').attr('aria-label',`Flow of treatment option discussion quality for ${rootLabel}`);
     svg.append('g').selectAll('path').data(links).join('path')
-        .attr('d',ribbonPath).attr('fill',plotColor('primary')).attr('fill-opacity',.46)
+        .attr('d',ribbonPath).attr('fill',plotColor('primary')).attr('fill-opacity',.28)
         .append('title').text(d=>`${nodes.get(d.source).name} → ${nodes.get(d.target).name}: ${d.value} episodes`);
     const visibleNodes = [...nodes.values()].filter(node => node.kind !== 'terminal' || node.value > 0);
     const node = svg.append('g').selectAll('g').data(visibleNodes).join('g');
@@ -869,37 +860,15 @@ function renderSankeyDelta(episodes) {
         .attr('fill',d=>d.kind === 'root' ? plotColor('on-surface') : plotColor('primary'));
     node.append('text').attr('x',d=>d.x).attr('y',d=>d.y + (d.kind === 'terminal' ? 34 : -20)).attr('text-anchor','middle')
         .style('font-size','12px').style('font-weight',500).attr('fill', plotColor('on-surface')).text(d=> d.kind === 'root' ? d.name : `${d.name} (${d.value || 0})`);
-
-    // Delta callouts vs. the benchmark for every non-root node.
-    const deltaGroup = svg.append('g').selectAll('g')
-        .data(visibleNodes.filter(d => d.kind !== 'root'))
-        .join('g')
-        .attr('transform', d => `translate(${d.x},${d.y + (d.kind === 'terminal' ? 56 : -58)})`);
-    deltaGroup.each(function(d) {
-        const g = d3.select(this);
-        const focusPct = focusPercents.get(d.id) || 0;
-        g.append('text').attr('text-anchor','middle').attr('dy',0)
-            .style('font-size','14px').style('font-weight',500).attr('fill',plotColor('on-surface'))
-            .text(`${Math.round(focusPct)}%`);
-        if (DEMO_PAGE) return;
-        const benchmarkPct = benchmarkPercents.get(d.id) || 0;
-        const delta = Math.round(focusPct - benchmarkPct);
-        const positive = delta >= 0;
-        g.append('text').attr('text-anchor','middle').attr('dy',16)
-            .style('font-size','11px').style('font-weight',500)
-            .attr('fill', positive ? plotColor('primary') : plotColor('error'))
-            .text(`(Δ ${positive ? '+' : ''}${delta}%)`)
-            .append('title').text(`${SANKEY_FOCUS_PROCEDURE}: ${Math.round(focusPct)}% vs. benchmark: ${Math.round(benchmarkPct)}%`);
-    });
 }
 
 const RISK_CATEGORY_COLORS = (typeof d3 !== 'undefined' ? d3.scaleOrdinal() : { domain(){return this;}, range(){return this;} })
     .domain([
-        'Neurologic / sensory', 'Infection', 'Bleeding / hemorrhage', 'Structural / anatomic injury',
-        'Treatment failure / inadequate effect', 'Additional treatment / reintervention',
-        'Pain / symptom worsening', 'Device / implant / material',
+        'Infection', 'Neurologic / sensory injury', 'Bleeding / vascular complication', 'Structural / anatomic injury',
+        'Pain / stiffness / symptom worsening', 'Treatment failure / inadequate effect',
+        'Additional treatment / revision', 'Device / implant / material', 'Thromboembolic / cardiopulmonary',
     ])
-    .range(['#6750A4', '#7D5260', '#625B71', '#B3261E', '#21005D', '#31111D', '#1D192B', '#410E0B']);
+    .range(['#6750A4', '#7D5260', '#625B71', '#B3261E', '#21005D', '#31111D', '#1D192B', '#410E0B', '#0B6E4F']);
 
 function syncPlotPalette() {
     if (!RISK_CATEGORY_COLORS.range) return;
@@ -912,6 +881,7 @@ function syncPlotPalette() {
         plotColor('on-tertiary-container'),
         plotColor('on-secondary-container'),
         plotColor('on-error-container'),
+        '#0B6E4F',
     ]);
 }
 
@@ -1356,7 +1326,7 @@ function renderEpisodeListPanel(title, episodes, opts = {}) {
         <div class="zoom-episode-table-wrap">
             <table class="zoom-episode-table">
                 <thead><tr>
-                    <th>Patient</th><th>Clinician</th><th>Procedure</th><th>Core risks %</th><th>Completeness</th><th>Discussion category</th><th>Date</th>
+                    <th>Patient</th><th>Clinician</th><th>Intervention</th><th>Core risks %</th><th>Completeness</th><th>Discussion category</th><th>Date</th>
                     ${riskCategory ? `<th>${escHtml(riskCategory)} items</th>` : ''}
                     ${statusColumn ? `<th>${escHtml(statusColumn.label)}</th>` : ''}
                     <th></th>
@@ -1459,7 +1429,7 @@ function renderRiskGapBubbleChart(rows) {
 
     rows = rows || bubbleChartRows();
     const yField = RISK_BUBBLE_Y_METRIC;
-    const yLabel = yField === 'procedure_variation' ? 'Variation across procedures' : 'Variation across clinicians';
+    const yLabel = yField === 'procedure_variation' ? 'Variation across interventions' : 'Variation across clinicians';
     const zoomed = NAV.bubbleCategory;
     const splitBy = bubbleSplitBy();
     const isolate = mapIsolate();
@@ -1474,24 +1444,33 @@ function renderRiskGapBubbleChart(rows) {
     if (controlsEl) {
         controlsEl.innerHTML = DEMO_PAGE ? '' : (isolate
             ? `<span class="chart-control-label">Showing ${escHtml(filterLabel)} · click a bubble for episodes</span>`
-            : `<span class="chart-control-label">Click a bubble to split by ${splitBy}</span>`);
+            : `<span class="chart-control-label">Click a bubble to split by ${splitBy === 'procedure' ? 'intervention' : splitBy}</span>`);
     }
 
     const usable = (rows || []).filter(row => row[yField] != null);
     if (!usable.length) {
         el.innerHTML = filterLabel
             ? `<p class="jitter-hint">Not enough comparable gap data for ${escHtml(filterLabel)} yet.</p>`
-            : '<p class="jitter-hint">Not enough clinicians/procedures with comparable data yet for this view.</p>';
+            : '<p class="jitter-hint">Not enough clinicians or interventions with comparable data yet for this view.</p>';
         renderRiskBubbleZoomPanel();
         return;
     }
 
     const width = Math.max(el.clientWidth || 1000, 760), height = 540;
     const margin = { top: 44, right: 40, bottom: 64, left: 68 };
-    const x = d3.scaleLinear().domain([0, 100]).range([margin.left, width - margin.right]);
-    const maxY = Math.max(10, ...usable.map(row => row[yField]));
-    const y = d3.scaleLinear().domain([0, maxY * 1.2]).range([height - margin.bottom, margin.top]);
+    const niceCeiling = (value, cap) => {
+        const padded = Math.max(value * 1.18, 1);
+        const step = padded <= 10 ? 2 : padded <= 40 ? 5 : padded <= 80 ? 10 : 20;
+        return Math.min(cap, Math.max(step, Math.ceil(padded / step) * step));
+    };
+    const maxGap = Math.max(...usable.map(row => row.gap_rate));
+    const maxY = Math.max(...usable.map(row => row[yField]));
+    const axisY = height - margin.bottom;
     const r = d3.scaleSqrt().domain([0, Math.max(1, ...usable.map(row => row.applicable_episodes))]).range([8, 36]);
+    const x = d3.scaleLinear().domain([0, niceCeiling(maxGap, 100)]).range([margin.left, width - margin.right]);
+    const y = d3.scaleLinear().domain([0, niceCeiling(maxY, 100)]).range([axisY, margin.top]);
+    const clearance = Math.max(0, ...usable.map(row => r(row.applicable_episodes) + 18 - (axisY - y(row[yField]))));
+    if (clearance > 0) y.range([axisY - clearance, margin.top]);
     const medianY = d3.median(usable, row => row[yField]) || 0;
     const dur = el.querySelector('svg') && (sameZoom || collapsing || wasExpanded || zoomed) ? 420 : 0;
 
@@ -1531,7 +1510,7 @@ function renderRiskGapBubbleChart(rows) {
             if (IGNORE_BUBBLE_BG_CLICK) return;
             if (zoomed) selectBubbleCategory(zoomed);
         });
-    staticG.append('g').attr('transform', `translate(0,${height - margin.bottom})`)
+    staticG.append('g').attr('transform', `translate(0,${axisY})`)
         .call(d3.axisBottom(x).ticks(5).tickFormat(d => `${d}%`))
         .call(g => g.select('.domain').attr('stroke', plotColor('outline-variant')))
         .selectAll('text').attr('fill', plotColor('on-surface-variant')).style('font-size', '11px');
@@ -1539,8 +1518,15 @@ function renderRiskGapBubbleChart(rows) {
         .call(d3.axisLeft(y).ticks(5))
         .call(g => g.select('.domain').attr('stroke', plotColor('outline-variant')))
         .selectAll('text').attr('fill', plotColor('on-surface-variant')).style('font-size', '11px');
-    staticG.append('line').attr('x1', x(50)).attr('x2', x(50)).attr('y1', margin.top).attr('y2', height - margin.bottom)
-        .attr('stroke', plotColor('outline-variant')).attr('stroke-dasharray', '4,4');
+    if (y(0) < axisY - 0.5) {
+        staticG.append('line').attr('x1', margin.left).attr('x2', margin.left).attr('y1', y(0)).attr('y2', axisY)
+            .attr('stroke', plotColor('outline-variant'));
+    }
+    const gapGuide = d3.median(usable, row => row.gap_rate) || 0;
+    if (gapGuide > x.domain()[0] && gapGuide < x.domain()[1]) {
+        staticG.append('line').attr('x1', x(gapGuide)).attr('x2', x(gapGuide)).attr('y1', margin.top).attr('y2', height - margin.bottom)
+            .attr('stroke', plotColor('outline-variant')).attr('stroke-dasharray', '4,4');
+    }
     staticG.append('line').attr('x1', margin.left).attr('x2', width - margin.right).attr('y1', y(medianY)).attr('y2', y(medianY))
         .attr('stroke', plotColor('outline-variant')).attr('stroke-dasharray', '4,4');
     const quadrantLabel = (tx, ty, anchor, text) => staticG.append('text').attr('x', tx).attr('y', ty).attr('text-anchor', anchor)
@@ -1551,7 +1537,7 @@ function renderRiskGapBubbleChart(rows) {
     quadrantLabel(width - margin.right - 8, height - margin.bottom - 12, 'end', 'Broad recurring gap');
     staticG.append('text').attr('x', (margin.left + width - margin.right) / 2).attr('y', height - 16).attr('text-anchor', 'middle')
         .style('font-size', '11px').style('font-weight', 500).style('letter-spacing', '0.14em').attr('fill', plotColor('on-surface-variant'))
-        .text(DEMO_PAGE ? 'RISK DISCUSSION GAP RATE' : 'GAP RATE AMONG APPLICABLE EPISODES');
+        .text(DEMO_PAGE ? 'RISK DISCUSSION GAP RATE' : 'NOT DISCUSSED (% OF APPLICABLE EPISODES)');
     staticG.append('text').attr('transform', 'rotate(-90)').attr('x', -(margin.top + height - margin.bottom) / 2).attr('y', 16).attr('text-anchor', 'middle')
         .style('font-size', '11px').style('font-weight', 500).style('letter-spacing', '0.14em').attr('fill', plotColor('on-surface-variant'))
         .text(yLabel.toUpperCase());
@@ -1796,7 +1782,7 @@ function renderFramingDotPlot(rows) {
     if (!el || typeof d3 === 'undefined') return;
     el.innerHTML = '';
     if (!rows || !rows.length) {
-        el.innerHTML = '<p class="jitter-hint">Not enough procedures with eligible episodes yet for a peer comparison.</p>';
+        el.innerHTML = '<p class="jitter-hint">Not enough interventions with eligible episodes yet for a peer comparison.</p>';
         return;
     }
 
@@ -1809,7 +1795,7 @@ function renderFramingDotPlot(rows) {
 
     const tooltip = d3.select(el).append('div').attr('class', 'beeswarm-tooltip');
     const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${width} ${height}`).attr('role', 'img')
-        .attr('aria-label', 'Decision framing win-rate by procedure, relative to peer procedures');
+        .attr('aria-label', 'Decision framing win-rate by intervention, relative to peer interventions');
     const x = d3.scaleLinear().domain([0, 100]).range([margin.left, width - margin.right]);
     const y = d3.scalePoint().domain(rows.map(r => r.procedure)).range([margin.top, height - margin.bottom]).padding(0.6);
 

@@ -29,20 +29,26 @@ from typing import Any
 # Ordered from most single-option framing to most comparative framing —
 # mirrors DISCUSSION_CATEGORIES / jitterCategory() in templates/index.html.
 FRAMING_ORDER = [
-    "Single option presented",
-    "Not compared",
-    "Limited comparison",
-    "Meaningful comparison",
+    "Single option",
+    "Minimally compared",
+    "Meaningfully compared",
 ]
 FRAMING_RANK = {category: index for index, category in enumerate(FRAMING_ORDER)}
+_FRAMING_ALIAS = {
+    "Single option presented": "Single option",
+    "Not compared": "Minimally compared",
+    "Limited comparison": "Minimally compared",
+    "Meaningful comparison": "Meaningfully compared",
+}
 
 
 def framing_category(decision_framing: str | None, tradeoff_level: str | None) -> str | None:
-    """Python port of the frontend's jitterCategory(): collapses decision_framing
-    + tradeoff_level onto the single 4-level ordinal framing scale."""
-    if decision_framing == "Single option presented":
-        return "Single option presented"
-    return tradeoff_level
+    """Collapse stored framing fields onto the three-level ordinal scale."""
+    raw = tradeoff_level or decision_framing
+    if decision_framing == "Single option presented" and raw in (None, "", "Not compared"):
+        raw = "Single option"
+    mapped = _FRAMING_ALIAS.get(raw, raw)
+    return mapped if mapped in FRAMING_RANK else None
 
 
 def framing_rank(decision_framing: str | None, tradeoff_level: str | None) -> int | None:

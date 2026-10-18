@@ -460,8 +460,17 @@ md-list-item.is-selected {
 .summary-selected { margin: 0; color: var(--md-sys-color-on-surface-variant); }
 .card p.summary-selected { margin: 0; }
 .actions { margin-top: 8px; }
-.opportunities { flex: none; display: grid; gap: 16px; }
-.opportunities > h2 { margin: 0; color: var(--md-sys-color-on-surface); }
+.opportunities {
+    flex: none;
+    display: grid;
+    gap: 16px;
+    margin: 0;
+    padding: 16px;
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: var(--md-sys-color-secondary-container);
+}
+.opportunities > h2 { margin: 0; color: var(--md-sys-color-on-secondary-container); }
+.opportunities .card { background: var(--md-sys-color-surface-container-lowest); }
 .opportunity-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

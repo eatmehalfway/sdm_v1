@@ -9,19 +9,12 @@ import re
 from collections import defaultdict
 from typing import Any
 
+from ortho_dataset import CLINICIANS, DEPARTMENT_NAME, episode_detail, load_episodes
+
 # Rolling window (in days, trailing from "today") that synthetic episode_date
 # values are spread across, so the date-range filter has something to bite on.
 EPISODE_DATE_WINDOW_DAYS = 120
 
-DEPARTMENT_NAME = "Spine & Orthopedics"
-
-CLINICIANS = [
-    {"id": "clin_chen", "name": "Dr. Chen", "color": "#1769e0"},
-    {"id": "clin_patel", "name": "Dr. Patel", "color": "#08a3b7"},
-    {"id": "clin_okonkwo", "name": "Dr. Okonkwo", "color": "#5968cf"},
-    {"id": "clin_rivera", "name": "Dr. Rivera", "color": "#338bc4"},
-    {"id": "clin_kim", "name": "Dr. Kim", "color": "#1451a4"},
-]
 
 FRAMING_LEVELS = [
     "Alternatives explicitly presented",
@@ -598,160 +591,12 @@ def build_demo_episodes() -> list[dict[str, Any]]:
     return episodes
 
 
-_EPISODE_CACHE: dict[str, dict[str, Any]] | None = None
-_DETAIL_CACHE: dict[str, dict[str, Any]] = {}
-
-
 def get_demo_episodes() -> list[dict[str, Any]]:
-    global _EPISODE_CACHE
-    if _EPISODE_CACHE is None:
-        eps = build_demo_episodes()
-        _EPISODE_CACHE = {e["episode_id"]: e for e in eps}
-    return list(_EPISODE_CACHE.values())
+    return load_episodes()
 
 
 def get_demo_episode_detail(episode_id: str) -> dict[str, Any] | None:
-    episodes = get_demo_episodes()
-    meta = next((e for e in episodes if e["episode_id"] == episode_id), None)
-    if not meta:
-        return None
-    if episode_id in _DETAIL_CACHE:
-        return _DETAIL_CACHE[episode_id]
-
-    metrics = {
-        "ccq_score": meta["ccq_score"] or 50,
-        "decision_framing": meta["decision_framing"] or "Single option presented",
-        "tradeoff_level": meta.get("tradeoff_level") or "Not compared",
-        "tradeoff_pct": meta["tradeoff_pct"] or 0,
-        "engagement_pct": meta["engagement_pct"] or 0,
-        "core_risk_pct": meta["core_risk_pct"] or 0,
-        "teachback": meta["teachback"],
-        "status": meta["status"],
-    }
-    procedure = meta.get("procedure")
-    core_risk_items = meta.get("core_risk_items") or []
-    region = _mock_region(metrics, episode_id, procedure=procedure, core_risk_items=core_risk_items)
-    treatment_parent = copy.deepcopy(region)
-    treatment_parent["decision_id"] = f"{episode_id}_treatment"
-    treatment_parent["parent_decision_id"] = None
-    treatment_parent["decision_label"] = "Management of the underlying condition"
-    treatment_parent["status"] = "Resolved" if meta.get("has_index_decision") else meta["status"]
-    treatment_parent["selected_option"] = "Surgical management" if meta.get("has_index_decision") else "Nonsurgical management"
-    treatment_parent["selected_intervention"] = None
-    treatment_parent["option_names"] = ["Nonsurgical management", "Surgical management"]
-    treatment_parent["linked_interventions"] = []
-    treatment_parent["informed_consent_analysis"] = None
-    treatment_parent.setdefault("decision_overview", {})["options_considered"] = [
-        {
-            "option_name": "Surgical management",
-            "named_only": False,
-            "what_it_involves": _grounded_text(
-                "Decompression if imaging confirms stenosis",
-                turn=0,
-                quote="consider surgery",
-                turns=[0, 7],
-            ),
-            "benefits": _grounded_text(
-                "More reliable relief of walking-limiting claudication",
-                turn=2,
-                quote="Surgery may provide more durable relief",
-            ),
-            "risks": _grounded_text(
-                "Nerve injury if we operate",
-                turn=2,
-                quote="small risk of nerve injury",
-            ),
-            "burdens": _grounded_text("Not discussed here", turn=None, quote=""),
-        },
-        {
-            "option_name": "Nonsurgical management",
-            "named_only": False,
-            "conservative": True,
-            "what_it_involves": _grounded_text(
-                "Stay with conservative care for now and delay an operation",
-                turn=0,
-                quote="continue therapy",
-            ),
-            "benefits": _grounded_text("Avoids operative risk", turn=0, quote="continue therapy"),
-            "risks": _grounded_text("Symptoms may progress", turn=None, quote=""),
-            "burdens": _grounded_text(
-                "Ongoing visits, time, and activity limits",
-                turn=2,
-                quote="recovery is usually longer than an injection",
-            ),
-        },
-    ]
-    treatment_parent["decision_overview"]["clinician_recommendation"] = {
-        "recommended_option": "Surgical management",
-        "rationale": "symptoms had persisted despite prior treatment",
-        "qualification": "",
-        "quote": "Surgical management is the more reliable path given how far you have to walk.",
-        "turn_indices": [7],
-    }
-    treatment_parent.setdefault("communication_analysis", {})["tradeoff_comparisons"] = [
-        {
-            "option_a": "Surgical management",
-            "option_b": "Nonsurgical management",
-            "level": "Meaningful comparison",
-            "evidence_quote": "Surgery may provide more durable relief, but recovery is usually longer than an injection",
-            "turn_indices": [2],
-        }
-    ]
-    parent_questions = list(
-        ((treatment_parent.get("decision_overview") or {}).get("patient_considerations") or {}).get("questions") or []
-    )
-    parent_questions.append({
-        "question": "Would the smaller incision get me back to a desk any sooner?",
-        "response": "Recovery was discussed generally",
-        "response_status": "Partially answered",
-        "quote": "Would the smaller incision get me back to a desk any sooner?",
-        "response_quote": "Recovery is usually a matter of weeks",
-        "turn_indices": [5],
-        "response_turn_indices": [6],
-    })
-    treatment_parent.setdefault("decision_overview", {}).setdefault("patient_considerations", {})["questions"] = parent_questions
-    treatment_parent["relevant_turn_indices"] = sorted(
-        set((treatment_parent.get("relevant_turn_indices") or []) + [5, 6, 7, 8])
-    )
-    desk_question = next((q for q in parent_questions if q.get("response_status") == "Partially answered"), None)
-    if desk_question:
-        child_questions = list(
-            ((region.get("decision_overview") or {}).get("patient_considerations") or {}).get("questions") or []
-        )
-        if not any(q.get("question") == desk_question.get("question") for q in child_questions):
-            child_questions.append(copy.deepcopy(desk_question))
-        region.setdefault("decision_overview", {}).setdefault("patient_considerations", {})["questions"] = child_questions
-        region["relevant_turn_indices"] = sorted(set((region.get("relevant_turn_indices") or []) + [5, 6]))
-    if not meta.get("has_index_decision"):
-        region["decision_label"] = meta["decision_label"]
-        region["selected_intervention"] = None
-        region["linked_interventions"] = []
-        region["informed_consent_analysis"] = None
-    decisions = [treatment_parent, region]
-    # Exercise the multiple-qualifying-decision tie-break in demo data.
-    if episode_id.endswith("_001") and region.get("informed_consent_analysis"):
-        secondary = copy.deepcopy(region)
-        secondary["decision_id"] = f"{episode_id}_d2"
-        secondary["decision_label"] = "Choice of anesthesia"
-        secondary["parent_decision_id"] = region["decision_id"]
-        secondary["selected_option"] = "Regional anesthesia"
-        secondary["selected_intervention"] = "Regional anesthesia"
-        secondary["linked_interventions"] = ["Regional anesthesia"]
-        secondary["informed_consent_analysis"]["interventions"][0]["intervention_name"] = "Regional anesthesia"
-        decisions.append(secondary)
-    turns = _mock_turns(episode_id, meta["clinician_name"])
-    detail = {
-        "episode": copy.deepcopy(meta),
-        "turns": turns,
-        "regions": {
-            "schema_version": 2,
-            "default_procedure": procedure or PROCEDURES[0],
-            "decisions": decisions,
-        },
-        "schema_version": 2,
-    }
-    _DETAIL_CACHE[episode_id] = detail
-    return detail
+    return episode_detail(episode_id)
 
 
 def _core_risk_count(decision: dict[str, Any]) -> int:
