@@ -1,4 +1,5 @@
 import { typescaleStyles } from './m3_components.js';
+import './m3_select.js';
 
 if (typescaleStyles?.styleSheet) {
     document.adoptedStyleSheets.push(typescaleStyles.styleSheet);
@@ -246,8 +247,17 @@ function syncProcedureOptions() {
     const local = document.getElementById('runProcedure');
     if (!remote || !local) return;
     const current = local.value || 'AUTO';
-    local.innerHTML = [...remote.options].map(option => `<option value="${esc(option.value)}">${esc(option.textContent)}</option>`).join('');
-    if ([...local.options].some(option => option.value === current)) local.value = current;
+    local.replaceChildren(...[...remote.options].map(option => {
+        const item = document.createElement('md-select-option');
+        item.value = option.value;
+        item.selected = option.value === current;
+        const headline = document.createElement('div');
+        headline.slot = 'headline';
+        headline.textContent = option.textContent || option.value;
+        item.append(headline);
+        return item;
+    }));
+    if ([...local.querySelectorAll('md-select-option')].some(option => option.value === current)) local.value = current;
 }
 
 function waitForMapping(doc) {

@@ -139,6 +139,7 @@ md-linear-progress { position: sticky; top: 0; z-index: 3; }
 }
 .run-sheet h2, .run-sheet p { margin: 0 0 16px; }
 .run-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.run-grid md-outlined-select { width: 100%; }
 .run-field {
     display: flex;
     flex-direction: column;
@@ -187,7 +188,7 @@ md-linear-progress { position: sticky; top: 0; z-index: 3; }
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    min-height: 64px;
+    min-height: 80px;
     padding: 8px 16px;
     background: var(--md-sys-color-surface);
     position: sticky;
@@ -207,15 +208,7 @@ md-linear-progress { position: sticky; top: 0; z-index: 3; }
 .app-bar-title h1,
 .app-bar-title p { margin: 0; }
 .app-bar-title p { color: var(--md-sys-color-on-surface-variant); }
-.dept-select select {
-    margin: 0;
-    padding: 4px 28px 4px 0;
-    border: 0;
-    background: transparent;
-    color: var(--md-sys-color-on-surface);
-    font: 500 22px/28px Roboto, system-ui, sans-serif;
-    cursor: pointer;
-}
+#departmentSelect { width: min(320px, 46vw); }
 .visually-hidden {
     position: absolute;
     width: 1px;
