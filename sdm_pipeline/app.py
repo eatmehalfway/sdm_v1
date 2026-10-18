@@ -304,18 +304,23 @@ def _question_rollup(episodes):
 def department_overview():
     """Aggregate episode metrics for the department charts.
 
-    The orthopaedic workbook is the department dataset. Saved runs stay
-    available by id and are not mixed into these counts.
+    The orthopaedic workbook is the department dataset. Saved runs are
+    appended so they can be opened again. Chart counts stay on the workbook
+    unless the page is filtered to saved runs.
     """
     episodes = get_demo_episodes()
+    try:
+        saved = _db_episodes()
+    except Exception:
+        saved = []
     return jsonify({
         "department": DEPARTMENT_NAME,
         "clinicians": CLINICIANS,
-        "episodes": episodes,
+        "episodes": episodes + saved,
         "risk_frequency": _risk_frequency(episodes),
         "question_rollup": _question_rollup(episodes),
         "demo_count": len(episodes),
-        "db_count": 0,
+        "db_count": len(saved),
     })
 
 
