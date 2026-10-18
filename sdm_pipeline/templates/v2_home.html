@@ -18,10 +18,17 @@
             <a class="brand-row" href="/v2" aria-label="Clinical communication quality">
                 <span class="brand-logo" role="img" aria-label="Clinical communication quality"></span>
             </a>
-            <h1 class="md-typescale-title-large">Orthopedics</h1>
+            <label class="dept-select">
+                <span class="visually-hidden">Department</span>
+                <select id="departmentSelect" aria-label="Department">
+                    <option>Orthopedic Surgery</option>
+                </select>
+            </label>
         </div>
         <div class="app-bar-actions">
-            <md-filled-button id="newAnalysis">New analysis</md-filled-button>
+            <md-icon-button id="refreshDepartment" aria-label="Refresh">
+                <md-icon>refresh</md-icon>
+            </md-icon-button>
             <md-icon-button id="themeToggle" aria-label="Switch to dark theme">
                 <md-icon>dark_mode</md-icon>
             </md-icon-button>
@@ -78,6 +85,7 @@
     <iframe id="analysisEngine" title="Analysis engine" hidden></iframe>
     <section id="cockpitSlot" class="cockpit-slot" hidden>
         <div class="cockpit-bar">
+            <h2 class="md-typescale-title-medium">Decision View</h2>
             <button type="button" id="closeCockpit" class="text-button">Close</button>
         </div>
         <iframe id="cockpitFrame" title="Episode cockpit"></iframe>
