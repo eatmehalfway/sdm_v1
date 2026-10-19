@@ -8566,7 +8566,7 @@ function episodeIdentity(ep) {
         patient: FAKE_PATIENT_NAMES[h % FAKE_PATIENT_NAMES.length],
         startDate: formatIdentityDate(start),
         endDate: formatIdentityDate(end),
-        mrn: 'MRN0123456',
+        mrn: '0123456',
     };
 }
 
@@ -8577,7 +8577,7 @@ function renderCockpitStats() {
         <div class="cockpit-stat"><div class="cockpit-stat-value">${escHtml(idn.patient)}</div><div class="cockpit-stat-label">Patient</div></div>
         <div class="cockpit-stat"><div class="cockpit-stat-value">${escHtml(idn.startDate)}</div><div class="cockpit-stat-label">Start date</div></div>
         <div class="cockpit-stat"><div class="cockpit-stat-value">${escHtml(idn.endDate)}</div><div class="cockpit-stat-label">End date</div></div>
-        <div class="cockpit-stat"><div class="cockpit-stat-value">${escHtml(idn.mrn)}</div><div class="cockpit-stat-label">Medical record number</div></div>
+        <div class="cockpit-stat"><div class="cockpit-stat-value">${escHtml(idn.mrn)}</div><div class="cockpit-stat-label">MRN</div></div>
     </div>`;
 }
 

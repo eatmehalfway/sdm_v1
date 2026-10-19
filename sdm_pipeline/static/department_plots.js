@@ -64,6 +64,40 @@ function isSavedRunIntervention(name) {
     return /\bECT\b|electroconvulsive/i.test(text) || /lumbar/i.test(text);
 }
 
+function procedureKey(name) {
+    let text = String(name || '').toLowerCase();
+    text = text.replace(/\btha\b/g, 'total hip arthroplasty');
+    text = text.replace(/\btka\b/g, 'total knee arthroplasty');
+    text = text.replace(/\bacl\b/g, 'anterior cruciate ligament');
+    text = text.replace(/\barthroplasty\b/g, 'replacement');
+    return text.replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function procedureKeys(name) {
+    const text = String(name || '');
+    const parts = [text, text.replace(/\([^)]*\)/g, ' '), ...[...text.matchAll(/\(([^)]*)\)/g)].map(match => match[1])];
+    return [...new Set(parts.map(procedureKey).filter(Boolean))];
+}
+
+function alignSavedProcedures(episodes) {
+    const catalog = [...new Set(episodes.filter(ep => ep.source !== 'db' && ep.procedure).map(ep => ep.procedure))];
+    const indexed = catalog.map(name => ({ name, keys: procedureKeys(name) }));
+    episodes.forEach(ep => {
+        if (ep.source !== 'db' || !ep.procedure) return;
+        let best = null;
+        let bestLen = 0;
+        procedureKeys(ep.procedure).forEach(key => {
+            indexed.forEach(item => {
+                if (item.keys.includes(key) && key.length > bestLen) {
+                    best = item.name;
+                    bestLen = key.length;
+                }
+            });
+        });
+        if (best) ep.procedure = best;
+    });
+}
+
 function procedureTabList() {
     if (DEMO_PAGE) return DEMO_PROCEDURES.slice();
     return [...new Set(DEPARTMENT_EPISODES.map(e => e.procedure).filter(Boolean))]
@@ -2026,6 +2060,7 @@ async function loadDepartmentPlots() {
     if (!overviewRes.ok) throw new Error('The department overview could not be loaded.');
     DEPARTMENT_DATA = await overviewRes.json();
     DEPARTMENT_EPISODES = DEPARTMENT_DATA.episodes || [];
+    alignSavedProcedures(DEPARTMENT_EPISODES);
     DEPARTMENT_CLINICIANS = DEPARTMENT_DATA.clinicians || [];
     DEPARTMENT_PROCEDURE_DATA = proceduresRes.ok ? await proceduresRes.json() : { risk_categories: [], framing_scores: [] };
     return DEPARTMENT_DATA;

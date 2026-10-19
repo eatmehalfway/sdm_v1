@@ -64,7 +64,7 @@ function identity(episodeId) {
         patient: NAMES[h % NAMES.length],
         startDate: fmt(start),
         endDate: fmt(end),
-        mrn: 'MRN0123456',
+        mrn: '0123456',
     };
 }
 
@@ -72,6 +72,12 @@ function speakerSide(speaker) {
     const line = String(speaker || '').trim();
     if (!line || /metadata/i.test(line)) return null;
     return isPatientSpeaker(line) ? 'patient' : 'clinician';
+}
+
+function speakerLabel(line, side) {
+    if (side === 'clinician') return 'Clinician';
+    const text = String(line || '').trim();
+    return text || (side === 'patient' ? 'Patient' : 'Note');
 }
 
 function behaviorMeta(key) {
@@ -209,13 +215,15 @@ function mapEvents(decision) {
     });
     const recommendation = decision.decision_overview?.clinician_recommendation;
     if (explicitRecommendation(recommendation)) {
-        turnList(recommendation).forEach(turn => push({
+        const turns = turnList(recommendation);
+        const turn = turns.length ? Math.min(...turns) : null;
+        if (Number.isInteger(turn)) push({
             key: 'recommendation', turn,
             label: `Recommended: ${recommendation.recommended_option || '—'}`,
             optionName: recommendation.recommended_option,
             quote: recommendation.quote || '',
             patient: false,
-        }));
+        });
     }
     const considerations = decision.decision_overview?.patient_considerations || {};
     [...(considerations.goals_priorities || []), ...(considerations.preferences || [])].forEach(item => {
@@ -738,7 +746,7 @@ function renderCockpit(decision) {
     const transcriptRows = payload.turns.map(turn => {
         const side = speakerSide(turn.speaker_line);
         const selected = state.turn === Number(turn.index);
-        const who = String(turn.speaker_line || '').trim() || (side === 'patient' ? 'Patient' : side === 'clinician' ? 'Clinician' : 'Note');
+        const who = speakerLabel(turn.speaker_line, side);
         return `<button type="button" class="turn-line${selected ? ' is-current' : ''}" data-turn="${Number(turn.index)}">
             <span class="turn-index">${Number(turn.index)}</span>
             <span class="turn-speaker">${speakerIcon(side, selected)}<span class="turn-who md-typescale-label-small">${esc(who)}</span></span>
@@ -750,7 +758,7 @@ function renderCockpit(decision) {
             <section class="identity" aria-label="Episode">
                 <div>${fact('Clinician', idn.clinician)}${fact('Patient', idn.patient)}</div>
                 <div>${fact('Start date', idn.startDate)}${fact('End date', idn.endDate)}</div>
-                <div class="identity-mrn">${fact('Medical record number', idn.mrn)}</div>
+                <div class="identity-mrn">${fact('MRN', idn.mrn)}</div>
             </section>
             <div class="summary-col">
                 ${card(decision?.decision_label || 'Decision', summary, '', String(decision?.selected_option || '').trim() ? `<p class="summary-selected md-typescale-label-large">Option selected · ${esc(decision.selected_option)}</p>` : '')}
