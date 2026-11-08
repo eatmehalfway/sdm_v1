@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, render_template
 import json
 import os
 import re
+import time
 from collections import Counter, defaultdict
 from datetime import datetime
 
@@ -9,6 +10,8 @@ import psycopg
 
 from department_data import (
     CLINICIANS,
+    SAVED_CLINICIAN,
+    SAVED_PATIENT,
     DEPARTMENT_NAME,
     annotate_behavior_speakers,
     empty_behavior_counts,
@@ -24,10 +27,25 @@ from procedure_analytics import (
 )
 
 app = Flask(__name__)
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql://postgres:postgres@127.0.0.1:5432/ccq",
-)
+
+
+def database_url():
+    """Connection string for local Postgres, Render, or Cloud SQL.
+
+    Render sometimes emits postgres://, which psycopg will not open.
+    Cloud Run reaches Cloud SQL through a Unix socket:
+    postgresql://USER:PASSWORD@/ccq?host=/cloudsql/PROJECT:REGION:INSTANCE
+    """
+    url = os.environ.get(
+        "DATABASE_URL",
+        "postgresql://postgres:postgres@127.0.0.1:5432/ccq",
+    )
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+    return url
+
+
+DATABASE_URL = database_url()
 
 
 def get_db():
@@ -35,19 +53,29 @@ def get_db():
 
 
 def init_db():
-    with get_db() as conn, conn.cursor() as cursor:
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS runs (
-            id BIGSERIAL PRIMARY KEY,
-            filename TEXT,
-            run_date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            raw_text TEXT,
-            turns_json TEXT,
-            regions_json TEXT,
-            total_encounters INTEGER
-        )
-    ''')
-        cursor.execute("ALTER TABLE runs ADD COLUMN IF NOT EXISTS total_encounters INTEGER")
+    last_error = None
+    for attempt in range(30):
+        try:
+            with get_db() as conn, conn.cursor() as cursor:
+                cursor.execute('''
+                CREATE TABLE IF NOT EXISTS runs (
+                    id BIGSERIAL PRIMARY KEY,
+                    filename TEXT,
+                    run_date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    raw_text TEXT,
+                    turns_json TEXT,
+                    regions_json TEXT,
+                    total_encounters INTEGER
+                )
+            ''')
+                cursor.execute("ALTER TABLE runs ADD COLUMN IF NOT EXISTS total_encounters INTEGER")
+            return
+        except psycopg.OperationalError as exc:
+            last_error = exc
+            if attempt == 29:
+                break
+            time.sleep(1)
+    raise last_error
 
 
 init_db()
@@ -199,14 +227,14 @@ def clear_history():
 
 
 def _db_episodes():
-    """Map saved CCQ runs onto the department plot (assigned round-robin to clinicians)."""
+    """Map saved CCQ runs onto the department plot."""
     with get_db() as conn, conn.cursor() as cursor:
         cursor.execute('SELECT id, filename, run_date, turns_json, regions_json, total_encounters FROM runs ORDER BY id DESC')
         rows = cursor.fetchall()
 
     episodes = []
-    for i, row in enumerate(rows):
-        run_id, filename, run_date, turns_json, regions_json, total_encounters = row
+    for row in rows:
+        run_id, _filename, run_date, turns_json, regions_json, total_encounters = row
         try:
             regions = json.loads(regions_json)
         except Exception:
@@ -225,16 +253,15 @@ def _db_episodes():
             if isinstance(turn, dict) and turn.get("encounter")
         }) or 1
         total_encounters = max(int(total_encounters or transcribed_encounters), transcribed_encounters)
-        clin = CLINICIANS[i % len(CLINICIANS)]
         episodes.append({
             "episode_id": f"run_{run_id}",
             "source": "db",
             "run_id": run_id,
             "department": DEPARTMENT_NAME,
-            "clinician_id": clin["id"],
-            "clinician_name": clin["name"],
-            "clinician_color": clin["color"],
-            "patient_label": filename or f"Run #{run_id}",
+            "clinician_id": SAVED_CLINICIAN["id"],
+            "clinician_name": SAVED_CLINICIAN["name"],
+            "clinician_color": SAVED_CLINICIAN["color"],
+            "patient_label": SAVED_PATIENT,
             "index_decision_id": metrics.get("index_decision_id"),
             "has_index_decision": metrics.get("has_index_decision", False),
             "procedure": metrics.get("procedure"),
@@ -262,6 +289,24 @@ def _db_episodes():
             ),
         })
     return episodes
+
+
+def _clinicians_in_use(episodes):
+    by_id = {row["id"]: row for row in [*CLINICIANS, SAVED_CLINICIAN]}
+    seen = []
+    for episode in episodes:
+        clinician_id = episode.get("clinician_id")
+        if not clinician_id or clinician_id in seen:
+            continue
+        seen.append(clinician_id)
+    return [
+        by_id.get(clinician_id) or {
+            "id": clinician_id,
+            "name": clinician_id,
+            "color": "#1769e0",
+        }
+        for clinician_id in seen
+    ]
 
 
 def _risk_frequency(episodes):
@@ -313,10 +358,11 @@ def department_overview():
         saved = _db_episodes()
     except Exception:
         saved = []
+    combined = episodes + saved
     return jsonify({
         "department": DEPARTMENT_NAME,
-        "clinicians": CLINICIANS,
-        "episodes": episodes + saved,
+        "clinicians": _clinicians_in_use(combined),
+        "episodes": combined,
         "risk_frequency": _risk_frequency(episodes),
         "question_rollup": _question_rollup(episodes),
         "demo_count": len(episodes),
@@ -362,12 +408,19 @@ def department_episode(episode_id):
         turns = json.loads(row[0])
         regions = json.loads(row[1])
         annotate_behavior_speakers(regions, turns)
+        match = next((episode for episode in _db_episodes() if episode["episode_id"] == episode_id), None)
         return jsonify({
             "episode_id": episode_id,
             "source": "db",
             "run_id": run_id,
             "turns": turns,
             "regions": regions,
+            "episode": {
+                "episode_id": episode_id,
+                "source": "db",
+                "clinician_name": match.get("clinician_name") if match else None,
+                "patient_label": match.get("patient_label") if match else None,
+            },
         })
 
     detail = get_demo_episode_detail(episode_id)

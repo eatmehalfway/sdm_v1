@@ -18,6 +18,8 @@ CLINICIANS = [
     {"id": "clin_d", "name": "Clinician D", "color": "#338bc4"},
     {"id": "clin_e", "name": "Clinician E", "color": "#1451a4"},
 ]
+SAVED_CLINICIAN = {"id": "dr_maya_reed", "name": "Dr. Maya Reed", "color": "#1769e0"}
+SAVED_PATIENT = "Amara Ellis"
 
 _CLINICIAN_BY_NAME = {row["name"]: row for row in CLINICIANS}
 
