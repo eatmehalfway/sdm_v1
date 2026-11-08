@@ -9,7 +9,14 @@ import re
 from collections import defaultdict
 from typing import Any
 
-from ortho_dataset import CLINICIANS, DEPARTMENT_NAME, episode_detail, load_episodes
+from ortho_dataset import (
+    CLINICIANS,
+    DEPARTMENT_NAME,
+    SAVED_CLINICIAN,
+    SAVED_PATIENT,
+    episode_detail,
+    load_episodes,
+)
 
 # Rolling window (in days, trailing from "today") that synthetic episode_date
 # values are spread across, so the date-range filter has something to bite on.
