@@ -13,7 +13,6 @@ const BEHAVIORS = [
     { key: 'preference', label: 'Preference', icon: 'favorite' },
     { key: 'question', label: 'Question', icon: 'help' },
 ];
-const NAMES = ['Elena Vasquez', 'James Okonkwo', 'Priya Shah', 'Marcus Hale', 'Sofia Alvarez', 'Daniel Cho', 'Amara Bennett', 'Luis Ortega'];
 const THEME_KEY = 'm3-cockpit-theme';
 
 const COLUMNS = [
@@ -54,14 +53,14 @@ function hashString(s) {
     return Math.abs(h);
 }
 
-function identity(episodeId) {
-    const h = hashString(episodeId);
+function identity(episode) {
+    const h = hashString(episode?.episode_id || episodeKey);
     const start = new Date(2026, 2, 4);
     const end = new Date(start.getTime() + ((h % 10) + 7) * 86400000);
     const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     return {
-        clinician: 'Dr. Maya Chen',
-        patient: NAMES[h % NAMES.length],
+        clinician: episode?.clinician_name || 'Dr. Maya Reed',
+        patient: episode?.patient_label || 'Amara Ellis',
         startDate: fmt(start),
         endDate: fmt(end),
         mrn: '0123456',
@@ -75,7 +74,7 @@ function speakerSide(speaker) {
 }
 
 function speakerLabel(line, side) {
-    if (side === 'clinician') return 'Clinician';
+    if (side === 'clinician') return 'CLINICIAN';
     const text = String(line || '').trim();
     return text || (side === 'patient' ? 'Patient' : 'Note');
 }
@@ -702,7 +701,7 @@ function communicationHits(decision) {
 }
 
 function renderCockpit(decision) {
-    const idn = identity(episodeKey || decision?.decision_id || 'episode');
+    const idn = identity(payload.episode);
     const summary = decision?.generative_layer?.decision_summary
         || decision?.decision_label
         || 'No decision summary for this run.';
@@ -964,7 +963,7 @@ async function load() {
     const response = await fetch(`/api/department/episode/${encodeURIComponent(episodeKey)}`);
     if (!response.ok) throw new Error('This run could not be opened.');
     const data = await response.json();
-    payload = { decisions: decisionsFrom(data.regions), turns: data.turns || [] };
+    payload = { decisions: decisionsFrom(data.regions), turns: data.turns || [], episode: data.episode || null };
     state.decisionId = payload.decisions[0]?.decision_id || null;
     if (bar) bar.hidden = true;
     render();

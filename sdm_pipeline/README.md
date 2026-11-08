@@ -85,4 +85,5 @@ Sample transcripts for a multi-encounter run:
 - Gemini calls run in the browser; the Flask server stores history, serves the UI, and supplies department aggregate/demo data.
 - PostgreSQL is required. Local development can use the included `docker-compose.yml`; hosted environments should provide `DATABASE_URL`.
 - Production can run with `gunicorn app:app`.
+- Render stays on `main`. The `gcp_v1` branch deploys separately to Cloud Run. See `deploy/gcp/README.md`.
 - Analysis is observational only — it does not conclude legal sufficiency of consent or that the patient understood.
